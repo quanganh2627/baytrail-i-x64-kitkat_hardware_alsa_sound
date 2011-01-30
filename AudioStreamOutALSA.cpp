@@ -89,6 +89,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     status_t          err;
 
     do {
+    if(!mHandle || !mHandle->handle) return -1;
         n = snd_pcm_writei(mHandle->handle,
                            (char *)buffer + sent,
                            snd_pcm_bytes_to_frames(mHandle->handle, bytes - sent));
@@ -108,12 +109,19 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
                 if (aDev && aDev->recover) aDev->recover(aDev, n);
 
                 if (n) return static_cast<ssize_t>(n);
+
             }
         }
-        else {
-            mFrameCount += n;
-            sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
-        }
+	else {
+		mFrameCount += n;
+		if(!mHandle->handle) {
+			LOGD("nullll\n");
+		}
+		if(!mHandle->handle) {
+			return -1;
+		}
+		sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+	}
 
     } while (mHandle->handle && sent < bytes);
 
@@ -136,7 +144,11 @@ status_t AudioStreamOutALSA::close()
 {
     AutoMutex lock(mLock);
 
-    snd_pcm_drain (mHandle->handle);
+    if(!mHandle->handle) {
+	    LOGD("null\n");
+    }
+    if(mHandle->handle)
+	    snd_pcm_drain (mHandle->handle);
     ALSAStreamOps::close();
 
     if (mPowerLock) {
@@ -151,7 +163,11 @@ status_t AudioStreamOutALSA::standby()
 {
     AutoMutex lock(mLock);
 
-    snd_pcm_drain (mHandle->handle);
+    if(!mHandle->handle) {
+	    LOGD("nulllllll\n");
+    }
+    if(mHandle->handle)
+	    snd_pcm_drain (mHandle->handle);
 
     if (mPowerLock) {
         release_wake_lock ("AudioOutLock");
