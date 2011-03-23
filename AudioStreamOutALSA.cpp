@@ -39,6 +39,9 @@
 
 namespace android
 {
+Mutex open_write_lock;
+//open_write_lock is used for synchronous ALSA device open and write.
+//Prohibit open/close playback device when writing.
 
 // ----------------------------------------------------------------------------
 
@@ -70,6 +73,7 @@ status_t AudioStreamOutALSA::setVolume(float left, float right)
 
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
+    open_write_lock.lock();
     AutoMutex lock(mLock);
 
     if (!mPowerLock) {
@@ -89,16 +93,21 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     status_t          err;
 
     do {
-    if(!mHandle || !mHandle->handle) return -1;
+        if(!mHandle || !mHandle->handle) {
+            open_write_lock.unlock();
+            return -1;
+        }
         n = snd_pcm_writei(mHandle->handle,
                            (char *)buffer + sent,
                            snd_pcm_bytes_to_frames(mHandle->handle, bytes - sent));
         if (n == -EBADFD) {
             // Somehow the stream is in a bad state. The driver probably
             // has a bug and snd_pcm_recover() doesn't seem to handle this.
+            open_write_lock.unlock();
             mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
 
             if (aDev && aDev->recover) aDev->recover(aDev, n);
+            open_write_lock.lock();
         }
         else if (n < 0) {
             if (mHandle->handle) {
@@ -108,23 +117,28 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
                 if (aDev && aDev->recover) aDev->recover(aDev, n);
 
-                if (n) return static_cast<ssize_t>(n);
+                if (n) {
+                    open_write_lock.unlock();
+                    return static_cast<ssize_t>(n);
+                }
 
             }
         }
-	else {
-		mFrameCount += n;
-		if(!mHandle->handle) {
-			LOGD("nullll\n");
-		}
-		if(!mHandle->handle) {
-			return -1;
-		}
-		sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
-	}
+        else {
+            mFrameCount += n;
+            if(!mHandle->handle) {
+                LOGD("nullll\n");
+            }
+            if(!mHandle->handle) {
+                open_write_lock.unlock();
+                return -1;
+            }
+            sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+        }
 
     } while (mHandle->handle && sent < bytes);
 
+    open_write_lock.unlock();
     return sent;
 }
 
@@ -145,10 +159,10 @@ status_t AudioStreamOutALSA::close()
     AutoMutex lock(mLock);
 
     if(!mHandle->handle) {
-	    LOGD("null\n");
+        LOGD("null\n");
     }
     if(mHandle->handle)
-	    snd_pcm_drain (mHandle->handle);
+        snd_pcm_drain (mHandle->handle);
     ALSAStreamOps::close();
 
     if (mPowerLock) {
@@ -164,10 +178,10 @@ status_t AudioStreamOutALSA::standby()
     AutoMutex lock(mLock);
 
     if(!mHandle->handle) {
-	    LOGD("nulllllll\n");
+        LOGD("nulllllll\n");
     }
     if(mHandle->handle)
-	    snd_pcm_drain (mHandle->handle);
+        snd_pcm_drain (mHandle->handle);
 
     if (mPowerLock) {
         release_wake_lock ("AudioOutLock");

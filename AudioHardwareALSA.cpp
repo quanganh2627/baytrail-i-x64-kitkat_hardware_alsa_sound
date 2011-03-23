@@ -80,7 +80,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
 
     hw_module_t *module;
     int err = hw_get_module(ALSA_HARDWARE_MODULE_ID,
-            (hw_module_t const**)&module);
+                            (hw_module_t const**)&module);
 
     if (err == 0) {
         hw_device_t* device;
@@ -94,7 +94,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
         LOGE("ALSA Module not found!!!");
 
     err = hw_get_module(ACOUSTICS_HARDWARE_MODULE_ID,
-            (hw_module_t const**)&module);
+                        (hw_module_t const**)&module);
 
     if (err == 0) {
         hw_device_t* device;
@@ -150,7 +150,7 @@ status_t AudioHardwareALSA::setMode(int mode)
         if (status == NO_ERROR) {
             // take care of mode change.
             for(ALSAHandleList::iterator it = mDeviceList.begin();
-                it != mDeviceList.end(); ++it) {
+                    it != mDeviceList.end(); ++it) {
                 status = mALSADevice->route(&(*it), it->curDev, mode);
                 if (status != NO_ERROR)
                     break;
@@ -183,7 +183,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 
     // Find the appropriate alsa device
     for(ALSAHandleList::iterator it = mDeviceList.begin();
-        it != mDeviceList.end(); ++it)
+            it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
             err = mALSADevice->open(&(*it), devices, mode());
             if (err) break;
@@ -223,7 +223,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     // Find the appropriate alsa device
     for(ALSAHandleList::iterator it = mDeviceList.begin();
-        it != mDeviceList.end(); ++it)
+            it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
             err = mALSADevice->open(&(*it), devices, mode());
             if (err) break;

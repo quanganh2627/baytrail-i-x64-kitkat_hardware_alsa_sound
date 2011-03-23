@@ -65,7 +65,7 @@ struct alsa_properties_t
 
 static alsa_properties_t
 mixerMasterProp[SND_PCM_STREAM_LAST+1] =
-        ALSA_PROP(AudioSystem::DEVICE_OUT_ALL, "master", "PCM", "Capture");
+    ALSA_PROP(AudioSystem::DEVICE_OUT_ALL, "master", "PCM", "Capture");
 
 static alsa_properties_t
 mixerProp[][SND_PCM_STREAM_LAST+1] = {
@@ -106,11 +106,11 @@ static int initMixer (snd_mixer_t **mixer, const char *name)
 
     if ((err = snd_mixer_attach(*mixer, name)) < 0) {
         LOGW("Unable to attach mixer to device %s: %s",
-            name, snd_strerror(err));
+             name, snd_strerror(err));
 
         if ((err = snd_mixer_attach(*mixer, "hw:00")) < 0) {
             LOGE("Unable to attach mixer to device default: %s",
-                snd_strerror(err));
+                 snd_strerror(err));
 
             snd_mixer_close (*mixer);
             *mixer = NULL;
@@ -176,8 +176,8 @@ ALSAMixer::ALSAMixer()
                       mixerMasterProp[i].propDefault);
 
         for (snd_mixer_elem_t *elem = snd_mixer_first_elem(mMixer[i]);
-             elem;
-             elem = snd_mixer_elem_next(elem)) {
+                elem;
+                elem = snd_mixer_elem_next(elem)) {
 
             if (!snd_mixer_selem_is_active(elem))
                 continue;
@@ -188,15 +188,15 @@ ALSAMixer::ALSAMixer()
             const char *elementName = snd_mixer_selem_id_get_name(sid);
 
             if (info->elem == NULL &&
-                strcmp(elementName, info->name) == 0 &&
-                hasVolume[i] (elem)) {
+                    strcmp(elementName, info->name) == 0 &&
+                    hasVolume[i] (elem)) {
 
                 info->elem = elem;
                 getVolumeRange[i] (elem, &info->min, &info->max);
                 info->volume = info->max;
                 setVol[i] (elem, info->volume);
                 if (i == SND_PCM_STREAM_PLAYBACK &&
-                    snd_mixer_selem_has_playback_switch (elem))
+                        snd_mixer_selem_has_playback_switch (elem))
                     snd_mixer_selem_set_playback_switch_all (elem, 1);
                 break;
             }
@@ -213,8 +213,8 @@ ALSAMixer::ALSAMixer()
                           mixerProp[j][i].propDefault);
 
             for (snd_mixer_elem_t *elem = snd_mixer_first_elem(mMixer[i]);
-                 elem;
-                 elem = snd_mixer_elem_next(elem)) {
+                    elem;
+                    elem = snd_mixer_elem_next(elem)) {
 
                 if (!snd_mixer_selem_is_active(elem))
                     continue;
@@ -224,16 +224,16 @@ ALSAMixer::ALSAMixer()
                 // Find PCM playback volume control element.
                 const char *elementName = snd_mixer_selem_id_get_name(sid);
 
-               if (info->elem == NULL &&
-                    strcmp(elementName, info->name) == 0 &&
-                    hasVolume[i] (elem)) {
+                if (info->elem == NULL &&
+                        strcmp(elementName, info->name) == 0 &&
+                        hasVolume[i] (elem)) {
 
                     info->elem = elem;
                     getVolumeRange[i] (elem, &info->min, &info->max);
                     info->volume = info->max;
                     setVol[i] (elem, info->volume);
                     if (i == SND_PCM_STREAM_PLAYBACK &&
-                        snd_mixer_selem_has_playback_switch (elem))
+                            snd_mixer_selem_has_playback_switch (elem))
                         snd_mixer_selem_set_playback_switch_all (elem, 1);
                     break;
                 }
@@ -359,7 +359,7 @@ status_t ALSAMixer::setCaptureMuteState(uint32_t device, bool state)
                 int err = snd_mixer_selem_set_capture_switch_all (info->elem, static_cast<int>(!state));
                 if (err < 0) {
                     LOGE("Unable to %s capture mixer switch %s",
-                        state ? "enable" : "disable", info->name);
+                         state ? "enable" : "disable", info->name);
                     return INVALID_OPERATION;
                 }
             }
@@ -400,7 +400,7 @@ status_t ALSAMixer::setPlaybackMuteState(uint32_t device, bool state)
                 int err = snd_mixer_selem_set_playback_switch_all (info->elem, static_cast<int>(!state));
                 if (err < 0) {
                     LOGE("Unable to %s playback mixer switch %s",
-                        state ? "enable" : "disable", info->name);
+                         state ? "enable" : "disable", info->name);
                     return INVALID_OPERATION;
                 }
             }

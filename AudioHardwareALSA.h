@@ -27,6 +27,8 @@
 
 namespace android
 {
+extern Mutex open_write_lock;
+extern Mutex open_read_lock;
 
 class AudioHardwareALSA;
 
@@ -94,7 +96,9 @@ public:
     ALSAMixer();
     virtual                ~ALSAMixer();
 
-    bool                    isValid() { return !!mMixer[SND_PCM_STREAM_PLAYBACK]; }
+    bool                    isValid() {
+        return !!mMixer[SND_PCM_STREAM_PLAYBACK];
+    }
     status_t                setMasterVolume(float volume);
     status_t                setMasterGain(float gain);
 
@@ -214,8 +218,8 @@ class AudioStreamInALSA : public AudioStreamIn, public ALSAStreamOps
 {
 public:
     AudioStreamInALSA(AudioHardwareALSA *parent,
-            alsa_handle_t *handle,
-            AudioSystem::audio_in_acoustics audio_acoustics);
+                      alsa_handle_t *handle,
+                      AudioSystem::audio_in_acoustics audio_acoustics);
     virtual            ~AudioStreamInALSA();
 
     virtual uint32_t    sampleRate() const
@@ -316,21 +320,21 @@ public:
 
     /** This method creates and opens the audio hardware output stream */
     virtual AudioStreamOut* openOutputStream(
-            uint32_t devices,
-            int *format=0,
-            uint32_t *channels=0,
-            uint32_t *sampleRate=0,
-            status_t *status=0);
+        uint32_t devices,
+        int *format=0,
+        uint32_t *channels=0,
+        uint32_t *sampleRate=0,
+        status_t *status=0);
     virtual    void        closeOutputStream(AudioStreamOut* out);
 
     /** This method creates and opens the audio hardware input stream */
     virtual AudioStreamIn* openInputStream(
-            uint32_t devices,
-            int *format,
-            uint32_t *channels,
-            uint32_t *sampleRate,
-            status_t *status,
-            AudioSystem::audio_in_acoustics acoustics);
+        uint32_t devices,
+        int *format,
+        uint32_t *channels,
+        uint32_t *sampleRate,
+        status_t *status,
+        AudioSystem::audio_in_acoustics acoustics);
     virtual    void        closeInputStream(AudioStreamIn* in);
 
     /**This method dumps the state of the audio hardware */

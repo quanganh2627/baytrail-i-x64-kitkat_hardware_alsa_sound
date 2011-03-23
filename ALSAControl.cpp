@@ -88,23 +88,23 @@ status_t ALSAControl::get(const char *name, unsigned int &value, int index)
 
     snd_ctl_elem_type_t type = snd_ctl_elem_info_get_type(info);
     switch (type) {
-        case SND_CTL_ELEM_TYPE_BOOLEAN:
-            value = snd_ctl_elem_value_get_boolean(control, index);
-            break;
-        case SND_CTL_ELEM_TYPE_INTEGER:
-            value = snd_ctl_elem_value_get_integer(control, index);
-            break;
-        case SND_CTL_ELEM_TYPE_INTEGER64:
-            value = snd_ctl_elem_value_get_integer64(control, index);
-            break;
-        case SND_CTL_ELEM_TYPE_ENUMERATED:
-            value = snd_ctl_elem_value_get_enumerated(control, index);
-            break;
-        case SND_CTL_ELEM_TYPE_BYTES:
-            value = snd_ctl_elem_value_get_byte(control, index);
-            break;
-        default:
-            return BAD_VALUE;
+    case SND_CTL_ELEM_TYPE_BOOLEAN:
+        value = snd_ctl_elem_value_get_boolean(control, index);
+        break;
+    case SND_CTL_ELEM_TYPE_INTEGER:
+        value = snd_ctl_elem_value_get_integer(control, index);
+        break;
+    case SND_CTL_ELEM_TYPE_INTEGER64:
+        value = snd_ctl_elem_value_get_integer64(control, index);
+        break;
+    case SND_CTL_ELEM_TYPE_ENUMERATED:
+        value = snd_ctl_elem_value_get_enumerated(control, index);
+        break;
+    case SND_CTL_ELEM_TYPE_BYTES:
+        value = snd_ctl_elem_value_get_byte(control, index);
+        break;
+    default:
+        return BAD_VALUE;
     }
 
     return NO_ERROR;
@@ -154,23 +154,23 @@ status_t ALSAControl::set(const char *name, unsigned int value, int index)
 
     for (int i = index; i < count; i++)
         switch (type) {
-            case SND_CTL_ELEM_TYPE_BOOLEAN:
-                snd_ctl_elem_value_set_boolean(control, i, value);
-                break;
-            case SND_CTL_ELEM_TYPE_INTEGER:
-                snd_ctl_elem_value_set_integer(control, i, value);
-                break;
-            case SND_CTL_ELEM_TYPE_INTEGER64:
-                snd_ctl_elem_value_set_integer64(control, i, value);
-                break;
-            case SND_CTL_ELEM_TYPE_ENUMERATED:
-                snd_ctl_elem_value_set_enumerated(control, i, value);
-                break;
-            case SND_CTL_ELEM_TYPE_BYTES:
-                snd_ctl_elem_value_set_byte(control, i, value);
-                break;
-            default:
-                break;
+        case SND_CTL_ELEM_TYPE_BOOLEAN:
+            snd_ctl_elem_value_set_boolean(control, i, value);
+            break;
+        case SND_CTL_ELEM_TYPE_INTEGER:
+            snd_ctl_elem_value_set_integer(control, i, value);
+            break;
+        case SND_CTL_ELEM_TYPE_INTEGER64:
+            snd_ctl_elem_value_set_integer64(control, i, value);
+            break;
+        case SND_CTL_ELEM_TYPE_ENUMERATED:
+            snd_ctl_elem_value_set_enumerated(control, i, value);
+            break;
+        case SND_CTL_ELEM_TYPE_BYTES:
+            snd_ctl_elem_value_set_byte(control, i, value);
+            break;
+        default:
+            break;
         }
 
     ret = snd_ctl_elem_write(mHandle, control);

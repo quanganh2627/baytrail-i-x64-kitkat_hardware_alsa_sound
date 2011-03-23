@@ -39,10 +39,10 @@ class AudioPolicyManagerALSA: public AudioPolicyManagerBase
 {
 
 public:
-                AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface);
-        virtual ~AudioPolicyManagerALSA();
+    AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface);
+    virtual ~AudioPolicyManagerALSA();
 
-        // Nothing currently different between the Base implementation.
+    // Nothing currently different between the Base implementation.
 };
 
 };

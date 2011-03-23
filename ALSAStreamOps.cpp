@@ -85,27 +85,27 @@ status_t ALSAStreamOps::set(int      *format,
         *channels = 0;
         if (mHandle->devices & AudioSystem::DEVICE_OUT_ALL)
             switch(mHandle->channels) {
-                case 4:
-                    *channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
-                    *channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
-                    // Fall through...
-                default:
-                case 2:
-                    *channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
-                    // Fall through...
-                case 1:
-                    *channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
-                    break;
+            case 4:
+                *channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
+                *channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
+                // Fall through...
+            default:
+            case 2:
+                *channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
+                // Fall through...
+            case 1:
+                *channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
+                break;
             }
         else
             switch(mHandle->channels) {
-                default:
-                case 2:
-                    *channels |= AudioSystem::CHANNEL_IN_RIGHT;
-                    // Fall through...
-                case 1:
-                    *channels |= AudioSystem::CHANNEL_IN_LEFT;
-                    break;
+            default:
+            case 2:
+                *channels |= AudioSystem::CHANNEL_IN_RIGHT;
+                // Fall through...
+            case 1:
+                *channels |= AudioSystem::CHANNEL_IN_LEFT;
+                break;
             }
     }
 
@@ -119,33 +119,33 @@ status_t ALSAStreamOps::set(int      *format,
 
     if (format) {
         switch(*format) {
-            case AudioSystem::FORMAT_DEFAULT:
-                break;
+        case AudioSystem::FORMAT_DEFAULT:
+            break;
 
-            case AudioSystem::PCM_16_BIT:
-                iformat = SND_PCM_FORMAT_S16_LE;
-                break;
+        case AudioSystem::PCM_16_BIT:
+            iformat = SND_PCM_FORMAT_S16_LE;
+            break;
 
-            case AudioSystem::PCM_8_BIT:
-                iformat = SND_PCM_FORMAT_S8;
-                break;
+        case AudioSystem::PCM_8_BIT:
+            iformat = SND_PCM_FORMAT_S8;
+            break;
 
-            default:
-                LOGE("Unknown PCM format %i. Forcing default", *format);
-                break;
+        default:
+            LOGE("Unknown PCM format %i. Forcing default", *format);
+            break;
         }
 
         if (mHandle->format != iformat)
             return BAD_VALUE;
 
         switch(iformat) {
-            default:
-            case SND_PCM_FORMAT_S16_LE:
-                *format = AudioSystem::PCM_16_BIT;
-                break;
-            case SND_PCM_FORMAT_S8:
-                *format = AudioSystem::PCM_8_BIT;
-                break;
+        default:
+        case SND_PCM_FORMAT_S16_LE:
+            *format = AudioSystem::PCM_16_BIT;
+            break;
+        case SND_PCM_FORMAT_S8:
+            *format = AudioSystem::PCM_8_BIT;
+            break;
         }
     }
 
@@ -220,16 +220,16 @@ int ALSAStreamOps::format() const
 
     pcmFormatBitWidth = snd_pcm_format_physical_width(ALSAFormat);
     switch(pcmFormatBitWidth) {
-        case 8:
-            audioSystemFormat = AudioSystem::PCM_8_BIT;
-            break;
+    case 8:
+        audioSystemFormat = AudioSystem::PCM_8_BIT;
+        break;
 
-        default:
-            LOG_FATAL("Unknown AudioSystem bit width %i!", pcmFormatBitWidth);
+    default:
+        LOG_FATAL("Unknown AudioSystem bit width %i!", pcmFormatBitWidth);
 
-        case 16:
-            audioSystemFormat = AudioSystem::PCM_16_BIT;
-            break;
+    case 16:
+        audioSystemFormat = AudioSystem::PCM_16_BIT;
+        break;
     }
 
     return audioSystemFormat;
@@ -242,27 +242,27 @@ uint32_t ALSAStreamOps::channels() const
 
     if (mHandle->curDev & AudioSystem::DEVICE_OUT_ALL)
         switch(count) {
-            case 4:
-                channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
-                channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
-                // Fall through...
-            default:
-            case 2:
-                channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
-                // Fall through...
-            case 1:
-                channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
-                break;
+        case 4:
+            channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
+            channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
+            // Fall through...
+        default:
+        case 2:
+            channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
+            // Fall through...
+        case 1:
+            channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
+            break;
         }
     else
         switch(count) {
-            default:
-            case 2:
-                channels |= AudioSystem::CHANNEL_IN_RIGHT;
-                // Fall through...
-            case 1:
-                channels |= AudioSystem::CHANNEL_IN_LEFT;
-                break;
+        default:
+        case 2:
+            channels |= AudioSystem::CHANNEL_IN_RIGHT;
+            // Fall through...
+        case 1:
+            channels |= AudioSystem::CHANNEL_IN_LEFT;
+            break;
         }
 
     return channels;

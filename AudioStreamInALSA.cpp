@@ -35,10 +35,13 @@
 
 namespace android
 {
+Mutex open_read_lock;
+//open_read_lock is used for synchronous ALSA device open and read.
+//Prohibit open/close capture device when reading.
 
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
-        alsa_handle_t *handle,
-        AudioSystem::audio_in_acoustics audio_acoustics) :
+                                     alsa_handle_t *handle,
+                                     AudioSystem::audio_in_acoustics audio_acoustics) :
     ALSAStreamOps(parent, handle),
     mFramesLost(0),
     mAcoustics(audio_acoustics)
@@ -60,6 +63,7 @@ status_t AudioStreamInALSA::setGain(float gain)
 
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
+    open_read_lock.lock();
     AutoMutex lock(mLock);
 
     if (!mPowerLock) {
@@ -71,8 +75,10 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     // If there is an acoustics module read method, then it overrides this
     // implementation (unlike AudioStreamOutALSA write).
-    if (aDev && aDev->read)
+    if (aDev && aDev->read) {
+        open_read_lock.unlock();
         return aDev->read(aDev, buffer, bytes);
+    }
 
     snd_pcm_sframes_t n, frames = snd_pcm_bytes_to_frames(mHandle->handle, bytes);
     status_t          err;
@@ -88,10 +94,12 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
                 } else
                     n = snd_pcm_prepare(mHandle->handle);
             }
+            open_read_lock.unlock();
             return static_cast<ssize_t>(n);
         }
     } while (n == -EAGAIN);
 
+    open_read_lock.unlock();
     return static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
 }
 

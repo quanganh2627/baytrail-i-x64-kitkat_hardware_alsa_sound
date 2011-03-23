@@ -29,26 +29,33 @@ static int s_device_close(hw_device_t*);
 static status_t s_use_handle(acoustic_device_t *, alsa_handle_t *);
 static status_t s_cleanup(acoustic_device_t *);
 static status_t s_set_params(acoustic_device_t *,
-        AudioSystem::audio_in_acoustics, void *params);
+                             AudioSystem::audio_in_acoustics, void *params);
 
 static hw_module_methods_t s_module_methods = {
-    open            : s_device_open
+open            :
+    s_device_open
 };
 
 extern "C" const hw_module_t HAL_MODULE_INFO_SYM = {
-    tag             : HARDWARE_MODULE_TAG,
+tag             :
+    HARDWARE_MODULE_TAG,
     version_major   : 1,
     version_minor   : 0,
-    id              : ACOUSTICS_HARDWARE_MODULE_ID,
-    name            : "ALSA acoustics module",
-    author          : "Wind River",
-    methods         : &s_module_methods,
+id              :
+    ACOUSTICS_HARDWARE_MODULE_ID,
+name            : "ALSA acoustics module"
+    ,
+author          : "Wind River"
+    ,
+methods         :
+    &s_module_methods,
     dso             : 0,
-    reserved        : { 0, },
+reserved        :
+    { 0, },
 };
 
 static int s_device_open(const hw_module_t* module, const char* name,
-        hw_device_t** device)
+                         hw_device_t** device)
 {
     acoustic_device_t *dev;
     dev = (acoustic_device_t *) malloc(sizeof(*dev));
@@ -91,7 +98,7 @@ static status_t s_cleanup(acoustic_device_t *dev)
 }
 
 static status_t s_set_params(acoustic_device_t *dev,
-        AudioSystem::audio_in_acoustics acoustics, void *params)
+                             AudioSystem::audio_in_acoustics acoustics, void *params)
 {
     LOGD("Acoustics set_params stub called with %d.", (int)acoustics);
     return NO_ERROR;
