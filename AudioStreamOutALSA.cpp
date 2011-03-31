@@ -81,6 +81,12 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         mPowerLock = true;
     }
 
+    if(!mHandle->handle) {
+        open_write_lock.unlock();
+        ALSAStreamOps::open(mHandle->curMode);
+        open_write_lock.lock();
+    }
+
     acoustic_device_t *aDev = acoustics();
 
     // For output, we will pass the data on to the acoustics module, but the actual
@@ -176,12 +182,19 @@ status_t AudioStreamOutALSA::close()
 status_t AudioStreamOutALSA::standby()
 {
     AutoMutex lock(mLock);
+    LOGD("streamoutAlsa standby \n");
 
     if(!mHandle->handle) {
         LOGD("nulllllll\n");
     }
+
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
+
+    //Don't close this handle during call, else there will
+    //be no voice
+    if(mHandle->curMode != AudioSystem::MODE_IN_CALL && mParent->mALSADevice->standby)
+        mParent->mALSADevice->standby(mHandle);
 
     if (mPowerLock) {
         release_wake_lock ("AudioOutLock");
