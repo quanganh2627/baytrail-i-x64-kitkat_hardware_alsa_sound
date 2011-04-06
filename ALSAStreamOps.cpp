@@ -161,7 +161,7 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
     LOGV("setParameters() %s", keyValuePairs.string());
 
     if (param.getInt(key, device) == NO_ERROR) {
-        mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
+        mParent->mALSADevice->open(mHandle, (uint32_t)device, mParent->mode());
         param.remove(key);
     }
 
