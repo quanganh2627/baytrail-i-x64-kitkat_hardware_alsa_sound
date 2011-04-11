@@ -39,9 +39,6 @@
 
 namespace android
 {
-Mutex open_write_lock;
-//open_write_lock is used for synchronous ALSA device open and write.
-//Prohibit open/close playback device when writing.
 
 // ----------------------------------------------------------------------------
 
@@ -73,18 +70,15 @@ status_t AudioStreamOutALSA::setVolume(float left, float right)
 
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
-    open_write_lock.lock();
-    AutoMutex lock(mLock);
-
+    AutoMutex lock1(ow_lock);
+    AutoMutex lock2(mLock);
     if (!mPowerLock) {
         acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioOutLock");
         mPowerLock = true;
     }
 
     if(!mHandle->handle) {
-        open_write_lock.unlock();
         ALSAStreamOps::open(mHandle->curMode);
-        open_write_lock.lock();
     }
 
     acoustic_device_t *aDev = acoustics();
@@ -100,7 +94,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     do {
         if(!mHandle || !mHandle->handle) {
-            open_write_lock.unlock();
             return -1;
         }
         n = snd_pcm_writei(mHandle->handle,
@@ -109,11 +102,9 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         if (n == -EBADFD) {
             // Somehow the stream is in a bad state. The driver probably
             // has a bug and snd_pcm_recover() doesn't seem to handle this.
-            open_write_lock.unlock();
             mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
 
             if (aDev && aDev->recover) aDev->recover(aDev, n);
-            open_write_lock.lock();
         }
         else if (n < 0) {
             if (mHandle->handle) {
@@ -124,7 +115,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
                 if (aDev && aDev->recover) aDev->recover(aDev, n);
 
                 if (n) {
-                    open_write_lock.unlock();
                     return static_cast<ssize_t>(n);
                 }
 
@@ -136,7 +126,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
                 LOGD("nullll\n");
             }
             if(!mHandle->handle) {
-                open_write_lock.unlock();
                 return -1;
             }
             sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
@@ -144,7 +133,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     } while (mHandle->handle && sent < bytes);
 
-    open_write_lock.unlock();
     return sent;
 }
 
@@ -155,7 +143,8 @@ status_t AudioStreamOutALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioStreamOutALSA::open(int mode)
 {
-    AutoMutex lock(mLock);
+    AutoMutex lock1(ow_lock);
+    AutoMutex lock2(mLock);
 
     return ALSAStreamOps::open(mode);
 }

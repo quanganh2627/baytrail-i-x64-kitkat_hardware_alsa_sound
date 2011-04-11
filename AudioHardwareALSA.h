@@ -27,8 +27,8 @@
 
 namespace android
 {
-extern Mutex open_write_lock;
-extern Mutex open_read_lock;
+extern Mutex ow_lock;
+extern Mutex or_lock;
 
 class AudioHardwareALSA;
 
@@ -365,6 +365,9 @@ protected:
 private:
     Mutex               mLock;
 };
+
+extern void owr_lock(alsa_handle_t *handle);
+extern void owr_unlock(alsa_handle_t *handle);
 
 // ----------------------------------------------------------------------------
 

@@ -45,6 +45,28 @@ extern "C"
 
 namespace android
 {
+Mutex ow_lock;
+Mutex or_lock;
+
+void owr_lock(alsa_handle_t *handle)
+{
+    snd_pcm_stream_t direction = (handle->devices & AudioSystem::DEVICE_OUT_ALL) ?
+                                 SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
+    if (direction == SND_PCM_STREAM_PLAYBACK)
+        ow_lock.lock();
+    else
+        or_lock.lock();
+}
+
+void owr_unlock(alsa_handle_t *handle)
+{
+    snd_pcm_stream_t direction = (handle->devices & AudioSystem::DEVICE_OUT_ALL) ?
+                                 SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
+    if (direction == SND_PCM_STREAM_PLAYBACK)
+        ow_lock.unlock();
+    else
+        or_lock.unlock();
+}
 
 // ----------------------------------------------------------------------------
 
@@ -151,7 +173,9 @@ status_t AudioHardwareALSA::setMode(int mode)
             // take care of mode change.
             for(ALSAHandleList::iterator it = mDeviceList.begin();
                     it != mDeviceList.end(); ++it) {
+                owr_lock(&(*it));
                 status = mALSADevice->route(&(*it), it->curDev, mode);
+                owr_unlock(&(*it));
                 if (status != NO_ERROR)
                     break;
             }
@@ -185,7 +209,9 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
+            owr_lock(&(*it));
             err = mALSADevice->open(&(*it), devices, mode());
+            owr_unlock(&(*it));
             if (err) break;
             out = new AudioStreamOutALSA(this, &(*it));
             err = out->set(format, channels, sampleRate);
@@ -225,7 +251,9 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
+            owr_lock(&(*it));
             err = mALSADevice->open(&(*it), devices, mode());
+            owr_unlock(&(*it));
             if (err) break;
             in = new AudioStreamInALSA(this, &(*it), acoustics);
             err = in->set(format, channels, sampleRate);
