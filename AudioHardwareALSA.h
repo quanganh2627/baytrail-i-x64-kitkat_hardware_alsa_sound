@@ -64,6 +64,7 @@ struct alsa_device_t {
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);
     status_t (*route)(alsa_handle_t *, uint32_t, int);
+    status_t (*volume)(alsa_handle_t *, uint32_t, float);
 };
 
 /**

@@ -147,11 +147,18 @@ status_t AudioHardwareALSA::initCheck()
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
-    // The voice volume is used by the VOICE_CALL audio stream.
-    if (mMixer)
-        return mMixer->setVolume(AudioSystem::DEVICE_OUT_EARPIECE, volume, volume);
-    else
-        return INVALID_OPERATION;
+    status_t status = NO_ERROR;
+
+    if (status == NO_ERROR) {
+        for(ALSAHandleList::iterator it = mDeviceList.begin();
+            it != mDeviceList.end(); ++it) {
+                status = mALSADevice->volume(&(*it), it->curDev, volume);
+                if (status != NO_ERROR)
+                    break;
+            }
+    }
+
+    return status;
 }
 
 status_t AudioHardwareALSA::setMasterVolume(float volume)
