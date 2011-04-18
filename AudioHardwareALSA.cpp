@@ -152,9 +152,11 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
     if (status == NO_ERROR) {
         for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it) {
-                status = mALSADevice->volume(&(*it), it->curDev, volume);
-                if (status != NO_ERROR)
-                    break;
+                if(mALSADevice->volume){
+                    status = mALSADevice->volume(&(*it), it->curDev, volume);
+                    if (status != NO_ERROR)
+                        break;
+                }
             }
     }
 
