@@ -52,6 +52,7 @@ struct alsa_handle_t {
     unsigned int        latency;         // Delay in usec
     unsigned int        bufferSize;      // Size of sample buffer
     void *              modPrivate;
+    bool                openFlag;        //if handle has opened openFlag = 1 esle openFlag = 0
 };
 
 typedef List<alsa_handle_t> ALSAHandleList;
