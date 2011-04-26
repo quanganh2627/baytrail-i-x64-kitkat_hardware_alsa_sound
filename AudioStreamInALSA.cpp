@@ -68,6 +68,9 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         mPowerLock = true;
     }
 
+    if(!mHandle->handle)
+        ALSAStreamOps::open(mHandle->curMode);
+
     acoustic_device_t *aDev = acoustics();
 
     // If there is an acoustics module read method, then it overrides this
@@ -138,6 +141,17 @@ status_t AudioStreamInALSA::close()
 status_t AudioStreamInALSA::standby()
 {
     AutoMutex lock(mLock);
+    LOGD("StreamInAlsa standby.\n");
+
+    if(!mHandle->handle) {
+        LOGD("nulllllll\n");
+    }
+
+    if(mHandle->handle)
+        snd_pcm_drain (mHandle->handle);
+
+    if(mHandle->curMode != AudioSystem::MODE_IN_CALL && mParent->mALSADevice->standby)
+        mParent->mALSADevice->standby(mHandle);
 
     if (mPowerLock) {
         release_wake_lock ("AudioInLock");
