@@ -95,10 +95,12 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 
 AudioHardwareALSA::AudioHardwareALSA() :
     mALSADevice(0),
-    mAcousticDevice(0)
+    mAcousticDevice(0),
+    mvpcdevice(0)
 {
     snd_lib_error_set_handler(&ALSAErrorHandler);
     mMixer = new ALSAMixer;
+    status_t err_a = BAD_VALUE;
 
     hw_module_t *module;
     int err = hw_get_module(ALSA_HARDWARE_MODULE_ID,
@@ -116,15 +118,30 @@ AudioHardwareALSA::AudioHardwareALSA() :
         LOGE("ALSA Module not found!!!");
 
     err = hw_get_module(ACOUSTICS_HARDWARE_MODULE_ID,
-                        (hw_module_t const**)&module);
-
+    (hw_module_t const**)&module);
     if (err == 0) {
         hw_device_t* device;
-        err = module->methods->open(module, ACOUSTICS_HARDWARE_NAME, &device);
+        err = module->methods->open(module,
+        ACOUSTICS_HARDWARE_NAME, &device);
         if (err == 0)
             mAcousticDevice = (acoustic_device_t *)device;
         else
             LOGE("Acoustics Module not found.");
+    }
+
+    err = hw_get_module(VPC_HARDWARE_MODULE_ID,
+    (hw_module_t const**)&module);
+
+    if (err == 0) {
+        hw_device_t* device;
+        err = module->methods->open(module,VPC_HARDWARE_NAME, &device);
+        if (err == 0){
+            LOGD("VPC MODULE OK.");
+            mvpcdevice = (vpc_device_t *) device;
+            err = mvpcdevice->init();
+            if (err) LOGE("audience init FAILED");
+            } else
+                LOGD("VPC Module not found.");
     }
 }
 
@@ -135,6 +152,8 @@ AudioHardwareALSA::~AudioHardwareALSA()
         mALSADevice->common.close(&mALSADevice->common);
     if (mAcousticDevice)
         mAcousticDevice->common.close(&mAcousticDevice->common);
+    if (mvpcdevice)
+        mvpcdevice->common.close(&mvpcdevice->common);
 }
 
 status_t AudioHardwareALSA::initCheck()
@@ -147,20 +166,11 @@ status_t AudioHardwareALSA::initCheck()
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
-    status_t status = NO_ERROR;
-
-    if (status == NO_ERROR) {
-        for(ALSAHandleList::iterator it = mDeviceList.begin();
-            it != mDeviceList.end(); ++it) {
-                if(mALSADevice->volume){
-                    status = mALSADevice->volume(&(*it), it->curDev, volume);
-                    if (status != NO_ERROR)
-                        break;
-                }
-            }
-    }
-
-    return status;
+    // The voice volume is used by the VOICE_CALL audio stream.
+    if (mvpcdevice)
+        return mvpcdevice->amcvolume(volume);
+    else
+        return INVALID_OPERATION;
 }
 
 status_t AudioHardwareALSA::setMasterVolume(float volume)
@@ -174,6 +184,7 @@ status_t AudioHardwareALSA::setMasterVolume(float volume)
 status_t AudioHardwareALSA::setMode(int mode)
 {
     status_t status = NO_ERROR;
+    status_t err_a = BAD_VALUE;
 
     if (mode != mMode) {
         status = AudioHardwareBase::setMode(mode);
@@ -187,6 +198,12 @@ status_t AudioHardwareALSA::setMode(int mode)
                 owr_unlock(&(*it));
                 if (status != NO_ERROR)
                     break;
+                if (mvpcdevice) {
+                    err_a = mvpcdevice->amcontrol(mode, it->curDev);
+                    if (err_a) {
+                        LOGE("set mode for vpc called with bad devices");
+                    }
+                }
             }
         }
     }
@@ -206,6 +223,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     LOGD("openOutputStream called for devices: 0x%08x", devices);
 
     status_t err = BAD_VALUE;
+    status_t err_a = BAD_VALUE;
     AudioStreamOutALSA *out = 0;
 
     if (devices & (devices - 1)) {
@@ -224,6 +242,12 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
             if (err) break;
             out = new AudioStreamOutALSA(this, &(*it));
             err = out->set(format, channels, sampleRate);
+            if (mvpcdevice) {
+                err_a = mvpcdevice->amcontrol(mode(), devices);
+                if (err_a) {
+                    LOGE("openOutputStream called with bad devices");
+                }
+            }
             break;
         }
 

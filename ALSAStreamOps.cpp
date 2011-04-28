@@ -68,7 +68,10 @@ acoustic_device_t *ALSAStreamOps::acoustics()
 {
     return mParent->mAcousticDevice;
 }
-
+vpc_device_t *ALSAStreamOps::vpc()
+{
+   return mParent->mvpcdevice;
+}
 ALSAMixer *ALSAStreamOps::mixer()
 {
     return mParent->mMixer;
@@ -157,6 +160,7 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
     AudioParameter param = AudioParameter(keyValuePairs);
     String8 key = String8(AudioParameter::keyRouting);
     status_t status = NO_ERROR;
+    status_t err_a = BAD_VALUE;
     int device;
     LOGV("setParameters() %s", keyValuePairs.string());
 
@@ -165,8 +169,11 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
         mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
         owr_unlock(mHandle);
         param.remove(key);
+        err_a = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
+        if (err_a) {
+            LOGD("setparam for vpc called with bad devices");
+        }
     }
-
     if (param.size()) {
         status = BAD_VALUE;
     }

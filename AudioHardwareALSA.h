@@ -68,6 +68,20 @@ struct alsa_device_t {
     status_t (*volume)(alsa_handle_t *, uint32_t, float);
 };
 
+/* VPC module struct */
+#define VPC_HARDWARE_MODULE_ID "vpc"
+#define VPC_HARDWARE_NAME      "vpc"
+struct vpc_device_t;
+
+struct vpc_device_t {
+    hw_device_t common;
+
+    status_t (*init)(void);
+    status_t (*amcontrol)(int,uint32_t);
+    status_t (*amcvolume)(float);
+};
+
+
 /**
  * The id of acoustics module
  */
@@ -154,6 +168,7 @@ public:
 protected:
     friend class AudioHardwareALSA;
 
+    vpc_device_t *vpc();
     acoustic_device_t *acoustics();
     ALSAMixer *mixer();
 
@@ -361,6 +376,7 @@ protected:
 
     alsa_device_t *     mALSADevice;
     acoustic_device_t * mAcousticDevice;
+    vpc_device_t * mvpcdevice;
 
     ALSAHandleList      mDeviceList;
 
