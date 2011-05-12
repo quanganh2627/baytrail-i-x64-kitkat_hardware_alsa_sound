@@ -180,9 +180,7 @@ status_t AudioStreamOutALSA::standby()
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
 
-    //Don't close this handle during call, else there will
-    //be no voice
-    if(mHandle->curMode != AudioSystem::MODE_IN_CALL && mParent->mALSADevice->standby)
+    if(mParent->mALSADevice->standby)
         mParent->mALSADevice->standby(mHandle);
 
     if (mPowerLock) {

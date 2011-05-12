@@ -150,7 +150,7 @@ status_t AudioStreamInALSA::standby()
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
 
-    if(mHandle->curMode != AudioSystem::MODE_IN_CALL && mParent->mALSADevice->standby)
+    if(mParent->mALSADevice->standby)
         mParent->mALSADevice->standby(mHandle);
 
     if (mPowerLock) {
