@@ -179,8 +179,6 @@ status_t AudioStreamOutALSA::standby()
 
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
-    if(mParent->mvpcdevice->mix_enable)
-        mParent->mvpcdevice->mix_disable(mHandle->curMode);
 
     if(mParent->mALSADevice->standby)
         mParent->mALSADevice->standby(mHandle);

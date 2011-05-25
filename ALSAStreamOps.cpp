@@ -294,8 +294,6 @@ void ALSAStreamOps::close()
 //
 status_t ALSAStreamOps::open(int mode)
 {
-    if(mParent->mvpcdevice->mix_enable)
-        mParent->mvpcdevice->mix_enable(mode);
     return mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
 }
 
