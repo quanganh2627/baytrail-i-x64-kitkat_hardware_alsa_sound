@@ -91,11 +91,23 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     snd_pcm_sframes_t n;
     size_t            sent = 0;
     status_t          err;
+    int32_t outBytes;
+    char *buf;
+
+    if (mHandle->expectedSampleRate != mHandle->sampleRate) {
+        if (mParent->mResampler->setSampleRate(mHandle->sampleRate,
+                                 mHandle->expectedSampleRate)) {
+            mParent->mResampler->resample((void**)&buf, &outBytes, buffer, bytes);
+            buffer = buf;
+            bytes = outBytes;
+        }
+    }
 
     do {
         if(!mHandle || !mHandle->handle) {
             return -1;
         }
+
         n = snd_pcm_writei(mHandle->handle,
                            (char *)buffer + sent,
                            snd_pcm_bytes_to_frames(mHandle->handle, bytes - sent));
@@ -121,7 +133,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
             }
         }
         else {
-            mFrameCount += n;
+            mFrameCount += n / mParent->mResampler->mOutSampleRate *
+                               mParent->mResampler->mInSampleRate;
             if(!mHandle->handle) {
                 LOGD("nullll\n");
             }

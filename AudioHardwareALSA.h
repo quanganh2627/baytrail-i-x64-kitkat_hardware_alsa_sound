@@ -24,6 +24,7 @@
 #include <alsa/asoundlib.h>
 
 #include <hardware/hardware.h>
+#include <AudioResamplerALSA.h>
 
 namespace android
 {
@@ -49,6 +50,7 @@ struct alsa_handle_t {
     snd_pcm_format_t    format;
     uint32_t            channels;
     uint32_t            sampleRate;
+    uint32_t            expectedSampleRate;
     unsigned int        latency;         // Delay in usec
     unsigned int        bufferSize;      // Size of sample buffer
     void *              modPrivate;
@@ -394,6 +396,8 @@ protected:
     lpe_device_t * mlpedevice;
 
     ALSAHandleList      mDeviceList;
+
+    AudioResamplerALSA *mResampler;
 
 private:
     Mutex               mLock;
