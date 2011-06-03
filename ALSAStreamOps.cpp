@@ -72,6 +72,11 @@ vpc_device_t *ALSAStreamOps::vpc()
 {
    return mParent->mvpcdevice;
 }
+lpe_device_t *ALSAStreamOps::lpe()
+{
+   return mParent->mlpedevice;
+}
+
 ALSAMixer *ALSAStreamOps::mixer()
 {
     return mParent->mMixer;
@@ -172,6 +177,10 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
         err_a = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
         if (err_a) {
             LOGD("setparam for vpc called with bad devices");
+        }
+        err_a = mParent->mlpedevice->lpecontrol(mParent->mode(),(uint32_t)device);
+        if (err_a) {
+            LOGD("setparam for lpe called with bad devices");
         }
     }
     if (param.size()) {
@@ -296,7 +305,18 @@ status_t ALSAStreamOps::open(int mode)
 {
     if(mParent->mvpcdevice->mix_enable)
         mParent->mvpcdevice->mix_enable(mode);
-    return mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
+    status_t err = BAD_VALUE;
+    status_t err_lpe = BAD_VALUE;
+    err = mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
+
+    if(NO_ERROR == err) {
+        err_lpe = mParent->mlpedevice->lpecontrol(mode,mHandle->curDev);
+        if (err_lpe) {
+            LOGE("setparam for lpe called with bad devices");
+        }
+    }
+    return err;
+
 }
 
 }       // namespace android

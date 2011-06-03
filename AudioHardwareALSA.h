@@ -83,6 +83,17 @@ struct vpc_device_t {
     status_t (*mix_enable)(int);
 };
 
+/* LPE io control module */
+#define LPE_HARDWARE_MODULE_ID "lpe"
+#define LPE_HARDWARE_NAME      "lpe"
+struct lpe_device_t;
+
+struct lpe_device_t {
+    hw_device_t common;
+
+    status_t (*init)(void);
+    status_t (*lpecontrol)(int,uint32_t);
+};
 
 /**
  * The id of acoustics module
@@ -171,6 +182,7 @@ protected:
     friend class AudioHardwareALSA;
 
     vpc_device_t *vpc();
+    lpe_device_t *lpe();
     acoustic_device_t *acoustics();
     ALSAMixer *mixer();
 
@@ -379,6 +391,7 @@ protected:
     alsa_device_t *     mALSADevice;
     acoustic_device_t * mAcousticDevice;
     vpc_device_t * mvpcdevice;
+    lpe_device_t * mlpedevice;
 
     ALSAHandleList      mDeviceList;
 

@@ -96,7 +96,8 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 AudioHardwareALSA::AudioHardwareALSA() :
     mALSADevice(0),
     mAcousticDevice(0),
-    mvpcdevice(0)
+    mvpcdevice(0),
+    mlpedevice(0)
 {
     snd_lib_error_set_handler(&ALSAErrorHandler);
     mMixer = new ALSAMixer;
@@ -139,9 +140,28 @@ AudioHardwareALSA::AudioHardwareALSA() :
             LOGD("VPC MODULE OK.");
             mvpcdevice = (vpc_device_t *) device;
             err = mvpcdevice->init();
-            if (err) LOGE("audience init FAILED");
-            } else
-                LOGD("VPC Module not found.");
+            if (err)
+                LOGE("audience init FAILED");
+            }
+        else
+            LOGE("VPC Module not found");
+    }
+
+    err = hw_get_module(LPE_HARDWARE_MODULE_ID,
+    (hw_module_t const**)&module);
+
+    if (err == 0) {
+        hw_device_t* device;
+        err = module->methods->open(module,LPE_HARDWARE_NAME, &device);
+        if (err == 0){
+            LOGD("LPE MODULE OK.");
+            mlpedevice = (lpe_device_t *) device;
+            err = mlpedevice->init();
+            if (err)
+                LOGE("LPE init FAILED");
+            }
+        else
+            LOGE("LPE Module not found");
     }
 }
 
@@ -154,6 +174,8 @@ AudioHardwareALSA::~AudioHardwareALSA()
         mAcousticDevice->common.close(&mAcousticDevice->common);
     if (mvpcdevice)
         mvpcdevice->common.close(&mvpcdevice->common);
+    if (mlpedevice)
+        mlpedevice->common.close(&mlpedevice->common);
 }
 
 status_t AudioHardwareALSA::initCheck()
@@ -202,6 +224,12 @@ status_t AudioHardwareALSA::setMode(int mode)
                     err_a = mvpcdevice->amcontrol(mode, it->curDev);
                     if (err_a) {
                         LOGE("set mode for vpc called with bad devices");
+                    }
+                }
+                if (mlpedevice) {
+                    err_a = mlpedevice->lpecontrol(mode, it->curDev);
+                    if (err_a) {
+                        LOGE("set mode for lpe called with bad devices");
                     }
                 }
             }
@@ -274,6 +302,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA *in = 0;
+    status_t err_a = BAD_VALUE;
 
     if (devices & (devices - 1)) {
         if (status) *status = err;
@@ -290,6 +319,12 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
             if (err) break;
             in = new AudioStreamInALSA(this, &(*it), acoustics);
             err = in->set(format, channels, sampleRate);
+            if (mlpedevice) {
+                err_a = mlpedevice->lpecontrol(mode(), devices);
+                if (err_a) {
+                    LOGE("openOutputStream called with bad devices");
+                }
+            }
             break;
         }
 
