@@ -12,18 +12,15 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   LOCAL_ARM_MODE := arm
   LOCAL_CFLAGS := -D_POSIX_SOURCE
 
-  LOCAL_C_INCLUDES += \
-    external/alsa-lib/include \
-    $(TOP)/device/intel/PRIVATE/libaudioresample/include
+  LOCAL_C_INCLUDES += external/alsa-lib/include
 
   LOCAL_SRC_FILES := \
-    AudioHardwareALSA.cpp \
-    AudioStreamOutALSA.cpp \
-    AudioStreamInALSA.cpp \
-    ALSAStreamOps.cpp \
-    ALSAMixer.cpp \
-    ALSAControl.cpp \
-    AudioResamplerALSA.cpp
+	AudioHardwareALSA.cpp \
+	AudioStreamOutALSA.cpp \
+	AudioStreamInALSA.cpp \
+	ALSAStreamOps.cpp \
+	ALSAMixer.cpp \
+	ALSAControl.cpp
 
   LOCAL_MODULE := libaudio
   LOCAL_MODULE_TAGS := optional
@@ -37,8 +34,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     libmedia \
     libhardware \
     libhardware_legacy \
-    libc \
-    libaudioresample
+    libc
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
   LOCAL_SHARED_LIBRARIES += liba2dp

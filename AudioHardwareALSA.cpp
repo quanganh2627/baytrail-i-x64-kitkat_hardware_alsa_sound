@@ -101,7 +101,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
 {
     snd_lib_error_set_handler(&ALSAErrorHandler);
     mMixer = new ALSAMixer;
-    mResampler = new AudioResamplerALSA();
     status_t err_a = BAD_VALUE;
 
     hw_module_t *module;
@@ -169,7 +168,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
 AudioHardwareALSA::~AudioHardwareALSA()
 {
     if (mMixer) delete mMixer;
-    if (mResampler) delete mResampler;
     if (mALSADevice)
         mALSADevice->common.close(&mALSADevice->common);
     if (mAcousticDevice)
@@ -182,7 +180,7 @@ AudioHardwareALSA::~AudioHardwareALSA()
 
 status_t AudioHardwareALSA::initCheck()
 {
-    if (mALSADevice && mMixer && mMixer->isValid() && mResampler)
+    if (mALSADevice && mMixer && mMixer->isValid())
         return NO_ERROR;
     else
         return NO_INIT;
