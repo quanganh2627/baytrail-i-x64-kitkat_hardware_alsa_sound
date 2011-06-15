@@ -171,7 +171,11 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
 
     if (param.getInt(key, device) == NO_ERROR) {
         owr_lock(mHandle);
-        mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
+
+        if(device != 0) {
+            mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
+        }
+
         owr_unlock(mHandle);
         param.remove(key);
         err_a = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
