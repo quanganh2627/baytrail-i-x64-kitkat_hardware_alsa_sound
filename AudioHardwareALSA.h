@@ -80,7 +80,7 @@ struct vpc_device_t {
     status_t (*amcontrol)(int,uint32_t);
     status_t (*amcvolume)(float);
     status_t (*mix_disable)(int);
-    status_t (*mix_enable)(int);
+    status_t (*mix_enable)(int,uint32_t);
 };
 
 /* LPE io control module */

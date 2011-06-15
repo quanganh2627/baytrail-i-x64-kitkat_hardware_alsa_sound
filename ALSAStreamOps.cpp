@@ -308,7 +308,7 @@ void ALSAStreamOps::close()
 status_t ALSAStreamOps::open(int mode)
 {
     if(mParent->mvpcdevice->mix_enable)
-        mParent->mvpcdevice->mix_enable(mode);
+        mParent->mvpcdevice->mix_enable(mode,mHandle->curDev);
     status_t err = BAD_VALUE;
     status_t err_lpe = BAD_VALUE;
     err = mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
@@ -320,7 +320,6 @@ status_t ALSAStreamOps::open(int mode)
         }
     }
     return err;
-
 }
 
 }       // namespace android
