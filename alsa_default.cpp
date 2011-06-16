@@ -33,8 +33,8 @@
 #define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
 #endif
 
-#ifndef HDMI_DEFAULT_SAMPLE_RATE
-#define HDMI_DEFAULT_SAMPLE_RATE 48000 // in Hz
+#ifndef MODEM_DEFAULT_SAMPLE_RATE
+#define MODEM_DEFAULT_SAMPLE_RATE 48000 // in Hz
 #endif
 
 namespace android
@@ -120,6 +120,8 @@ format      :
     channels    : 2,
 sampleRate  :
     DEFAULT_SAMPLE_RATE,
+expectedSampleRate :
+    DEFAULT_SAMPLE_RATE,
     latency     : 200000, // Desired Delay in usec
 bufferSize  :
     DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
@@ -137,6 +139,8 @@ format      :
     SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
     channels    : 1,
 sampleRate  :
+    AudioRecord::DEFAULT_SAMPLE_RATE,
+expectedSampleRate :
     AudioRecord::DEFAULT_SAMPLE_RATE,
     latency     : 250000, // Desired Delay in usec
     bufferSize  : 2048, // Desired Number of samples
@@ -214,7 +218,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
     status_t err;
 
     snd_pcm_uframes_t bufferSize = handle->bufferSize;
-    unsigned int requestedRate = handle->sampleRate;
+    unsigned int requestedRate = handle->expectedSampleRate;
     unsigned int latency = handle->latency;
 
     // snd_pcm_format_description() and snd_pcm_format_name() do not perform
@@ -273,13 +277,13 @@ status_t setHardwareParams(alsa_handle_t *handle)
 
     if (err < 0)
         LOGE("Unable to set %s sample rate to %u: %s",
-             streamName(handle), handle->sampleRate, snd_strerror(err));
-    else if (requestedRate != handle->sampleRate)
+             streamName(handle), handle->expectedSampleRate, snd_strerror(err));
+    else if (requestedRate != handle->expectedSampleRate)
         // Some devices have a fixed sample rate, and can not be changed.
         // This may cause resampling problems; i.e. PCM playback will be too
         // slow or fast.
         LOGW("Requested rate (%u HZ) does not match actual rate (%u HZ)",
-             handle->sampleRate, requestedRate);
+             handle->expectedSampleRate, requestedRate);
     else
         LOGV("Set %s sample rate to %u HZ", streamName(handle), requestedRate);
 
@@ -516,9 +520,16 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
         return NO_INIT;
     }
 
-    if (devices & AudioSystem::DEVICE_OUT_HDMI) {
-        LOGD("Detected HDMI device, setting sample rate to %d", HDMI_DEFAULT_SAMPLE_RATE);
-        handle->sampleRate = HDMI_DEFAULT_SAMPLE_RATE;
+    if (direction(handle) == SND_PCM_STREAM_PLAYBACK) {
+        handle->sampleRate = DEFAULT_SAMPLE_RATE;
+        handle->expectedSampleRate = DEFAULT_SAMPLE_RATE;
+    } else {
+        handle->sampleRate = AudioRecord::DEFAULT_SAMPLE_RATE;
+        handle->expectedSampleRate = AudioRecord::DEFAULT_SAMPLE_RATE;
+    }
+
+    if (mode == AudioSystem::MODE_IN_CALL) {
+        handle->expectedSampleRate = MODEM_DEFAULT_SAMPLE_RATE;
     }
     err = setHardwareParams(handle);
 

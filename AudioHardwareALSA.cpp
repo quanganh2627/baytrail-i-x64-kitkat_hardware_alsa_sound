@@ -78,6 +78,9 @@ AudioHardwareALSA::AudioHardwareALSA() :
 {
     snd_lib_error_set_handler(&ALSAErrorHandler);
     mMixer = new ALSAMixer;
+#ifdef USE_INTEL_SRC
+    mResampler = new AudioResamplerALSA();
+#endif
     status_t err_a = BAD_VALUE;
 
     hw_module_t *module;
@@ -145,6 +148,11 @@ AudioHardwareALSA::AudioHardwareALSA() :
 AudioHardwareALSA::~AudioHardwareALSA()
 {
     if (mMixer) delete mMixer;
+
+#ifdef USE_INTEL_SRC
+    if (mResampler) delete mResampler;
+#endif
+
     if (mALSADevice)
         mALSADevice->common.close(&mALSADevice->common);
     if (mAcousticDevice)
@@ -157,7 +165,11 @@ AudioHardwareALSA::~AudioHardwareALSA()
 
 status_t AudioHardwareALSA::initCheck()
 {
+#ifdef USE_INTEL_SRC
+    if (mALSADevice && mMixer && mMixer->isValid() && mResampler)
+#else
     if (mALSADevice && mMixer && mMixer->isValid())
+#endif
         return NO_ERROR;
     else
         return NO_INIT;

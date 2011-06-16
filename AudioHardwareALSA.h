@@ -25,6 +25,10 @@
 
 #include <hardware/hardware.h>
 
+#ifdef USE_INTEL_SRC
+#include "AudioResamplerALSA.h"
+#endif
+
 namespace android
 {
 
@@ -47,6 +51,7 @@ struct alsa_handle_t {
     snd_pcm_format_t    format;
     uint32_t            channels;
     uint32_t            sampleRate;
+    uint32_t            expectedSampleRate;
     unsigned int        latency;         // Delay in usec
     unsigned int        bufferSize;      // Size of sample buffer
     void *              modPrivate;
@@ -403,6 +408,10 @@ protected:
     lpe_device_t * mlpedevice;
 
     ALSAHandleList      mDeviceList;
+
+#ifdef USE_INTEL_SRC
+    AudioResamplerALSA *mResampler;
+#endif
 
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);
