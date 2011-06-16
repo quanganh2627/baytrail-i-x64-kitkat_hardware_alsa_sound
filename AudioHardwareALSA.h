@@ -81,6 +81,7 @@ struct vpc_device_t {
     status_t (*amcvolume)(float);
     status_t (*mix_disable)(int);
     status_t (*mix_enable)(int,uint32_t);
+    status_t (*tty_enable)(bool);
 };
 
 /* LPE io control module */
@@ -343,7 +344,7 @@ public:
     virtual status_t    getMicMute(bool* state);
 
     // set/get global audio parameters
-    //virtual status_t    setParameters(const String8& keyValuePairs);
+    virtual status_t    setParameters(const String8& keyValuePairs);
     //virtual String8     getParameters(const String8& keys);
 
     // Returns audio input buffer size according to parameters passed or 0 if one of the

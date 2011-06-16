@@ -390,4 +390,25 @@ status_t AudioHardwareALSA::dump(int fd, const Vector<String16>& args)
     return NO_ERROR;
 }
 
+status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
+{
+    bool tty;
+    LOGD("TTY FULL TRUE %s\n",keyValuePairs.string());
+    if(strcmp(keyValuePairs.string(),"tty_mode=tty_full")==0){
+        LOGD("TTY FULL TRUE\n");
+        tty = true;
+        mvpcdevice->tty_enable(tty);}
+    else if(strcmp(keyValuePairs.string(),"tty_mode=tty_hco")==0){
+        LOGD("TTY HCO TRUE\n");
+        tty = true;
+        mvpcdevice->tty_enable(tty);}
+    else if(strcmp(keyValuePairs.string(),"tty_mode=tty_vco")==0){
+        LOGD("TTY VCO TRUE\n");
+        tty = true;
+        mvpcdevice->tty_enable(tty);}
+    else if (strcmp(keyValuePairs.string(),"tty_mode=tty_off")==0){
+        tty = false;
+        mvpcdevice->tty_enable(tty);}
+    return NO_ERROR;
+}
 }       // namespace android
