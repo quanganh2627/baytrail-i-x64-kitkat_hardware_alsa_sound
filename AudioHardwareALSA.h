@@ -142,6 +142,8 @@ public:
     status_t                getPlaybackMuteState(uint32_t device, bool *state);
 
 private:
+    ALSAMixer(const ALSAMixer &);
+    ALSAMixer& operator = (const ALSAMixer &);
     snd_mixer_t *           mMixer[SND_PCM_STREAM_LAST+1];
 };
 
@@ -157,6 +159,8 @@ public:
     status_t                set(const char *name, const char *);
 
 private:
+    ALSAControl(const ALSAControl &);
+    ALSAControl& operator = (const ALSAControl &);
     snd_ctl_t *             mHandle;
 };
 
@@ -181,6 +185,8 @@ public:
 
 protected:
     friend class AudioHardwareALSA;
+    ALSAStreamOps(const ALSAStreamOps &);
+    ALSAStreamOps& operator = (const ALSAStreamOps &);
 
     vpc_device_t *vpc();
     lpe_device_t *lpe();
@@ -244,6 +250,8 @@ public:
     status_t            close();
 
 private:
+    AudioStreamOutALSA(const AudioStreamOutALSA &);
+    AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
     uint32_t            mFrameCount;
 };
 
@@ -304,6 +312,8 @@ public:
     status_t            close();
 
 private:
+    AudioStreamInALSA(const AudioStreamInALSA &);
+    AudioStreamInALSA& operator = (const AudioStreamInALSA &);
     void                resetFramesLost();
 
     unsigned int        mFramesLost;
@@ -397,6 +407,8 @@ protected:
     ALSAHandleList      mDeviceList;
 
 private:
+    AudioHardwareALSA(const AudioHardwareALSA &);
+    AudioHardwareALSA& operator = (const AudioHardwareALSA &);
     Mutex               mLock;
 };
 
