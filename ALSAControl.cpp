@@ -39,6 +39,8 @@ namespace android
 ALSAControl::ALSAControl(const char *device)
 {
     snd_ctl_open(&mHandle, device, 0);
+    if (!mHandle)
+        LOGW("mHandle is NULL");
 }
 
 ALSAControl::~ALSAControl()

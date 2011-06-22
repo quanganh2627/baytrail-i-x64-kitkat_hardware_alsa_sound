@@ -126,6 +126,7 @@ expectedSampleRate :
 bufferSize  :
     DEFAULT_SAMPLE_RATE / 5, // Desired Number of samples
     modPrivate  : 0,
+    openFlag    : 0,
 };
 
 static alsa_handle_t _defaultsIn = {
@@ -145,6 +146,7 @@ expectedSampleRate :
     latency     : 250000, // Desired Delay in usec
     bufferSize  : 2048, // Desired Number of samples
     modPrivate  : 0,
+    openFlag    : 0,
 };
 
 struct device_suffix_t {
