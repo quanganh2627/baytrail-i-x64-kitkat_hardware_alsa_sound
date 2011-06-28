@@ -45,29 +45,6 @@ extern "C"
 
 namespace android
 {
-Mutex ow_lock;
-Mutex or_lock;
-
-void owr_lock(alsa_handle_t *handle)
-{
-    snd_pcm_stream_t direction = (handle->devices & AudioSystem::DEVICE_OUT_ALL) ?
-                                 SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
-    if (direction == SND_PCM_STREAM_PLAYBACK)
-        ow_lock.lock();
-    else
-        or_lock.lock();
-}
-
-void owr_unlock(alsa_handle_t *handle)
-{
-    snd_pcm_stream_t direction = (handle->devices & AudioSystem::DEVICE_OUT_ALL) ?
-                                 SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
-    if (direction == SND_PCM_STREAM_PLAYBACK)
-        ow_lock.unlock();
-    else
-        or_lock.unlock();
-}
-
 // ----------------------------------------------------------------------------
 
 static void ALSAErrorHandler(const char *file,
@@ -208,33 +185,8 @@ status_t AudioHardwareALSA::setMode(int mode)
     status_t status = NO_ERROR;
     status_t err_a = BAD_VALUE;
 
-    if (mode != mMode) {
+    if (mode != mMode)
         status = AudioHardwareBase::setMode(mode);
-
-        if (status == NO_ERROR) {
-            // take care of mode change.
-            for(ALSAHandleList::iterator it = mDeviceList.begin();
-                    it != mDeviceList.end(); ++it) {
-                owr_lock(&(*it));
-                status = mALSADevice->route(&(*it), it->curDev, mode);
-                owr_unlock(&(*it));
-                if (status != NO_ERROR)
-                    break;
-                if (mvpcdevice) {
-                    err_a = mvpcdevice->amcontrol(mode, it->curDev);
-                    if (err_a) {
-                        LOGE("set mode for vpc called with bad devices");
-                    }
-                }
-                if (mlpedevice) {
-                    err_a = mlpedevice->lpecontrol(mode, it->curDev);
-                    if (err_a) {
-                        LOGE("set mode for lpe called with bad devices");
-                    }
-                }
-            }
-        }
-    }
 
     return status;
 }
@@ -251,7 +203,6 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     LOGD("openOutputStream called for devices: 0x%08x", devices);
 
     status_t err = BAD_VALUE;
-    status_t err_a = BAD_VALUE;
     AudioStreamOutALSA *out = 0;
 
     if (devices & (devices - 1)) {
@@ -264,15 +215,20 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
-            owr_lock(&(*it));
             err = mALSADevice->open(&(*it), devices, mode());
-            owr_unlock(&(*it));
-            if (err) break;
+            if (err) {
+                LOGE("Open error.");
+                break;
+            }
             out = new AudioStreamOutALSA(this, &(*it));
             err = out->set(format, channels, sampleRate);
-            if (mvpcdevice) {
-                err_a = mvpcdevice->amcontrol(mode(), devices);
-                if (err_a) {
+            if (err) {
+                LOGE("set error.");
+                break;
+            }
+            if (mvpcdevice && mvpcdevice->amcontrol) {
+                err = mvpcdevice->amcontrol(mode(), devices);
+                if (err) {
                     LOGE("openOutputStream called with bad devices");
                 }
             }
@@ -302,7 +258,6 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA *in = 0;
-    status_t err_a = BAD_VALUE;
 
     if (devices & (devices - 1)) {
         if (status) *status = err;
@@ -313,15 +268,16 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
-            owr_lock(&(*it));
             err = mALSADevice->open(&(*it), devices, mode());
-            owr_unlock(&(*it));
-            if (err) break;
+            if (err) {
+                LOGE("Open error.");
+                break;
+            }
             in = new AudioStreamInALSA(this, &(*it), acoustics);
             err = in->set(format, channels, sampleRate);
-            if (mlpedevice) {
-                err_a = mlpedevice->lpecontrol(mode(), devices);
-                if (err_a) {
+            if (mlpedevice && mlpedevice->lpecontrol) {
+                err = mlpedevice->lpecontrol(mode(), devices);
+                if (err) {
                     LOGE("openOutputStream called with bad devices");
                 }
             }

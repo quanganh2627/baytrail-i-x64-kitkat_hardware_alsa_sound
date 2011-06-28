@@ -168,26 +168,40 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
     status_t err_a = BAD_VALUE;
     int device;
     LOGV("setParameters() %s", keyValuePairs.string());
+    AutoMutex lock(mLock);
 
     if (param.getInt(key, device) == NO_ERROR) {
-        owr_lock(mHandle);
 
         if(device != 0) {
-            mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
+            if (mParent && mParent->mALSADevice && mParent->mALSADevice->route) {
+                status = mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
+                if (status == NO_ERROR) {
+
+                    // Call amcontrol.
+                    if (mParent && mParent->mvpcdevice && mParent->mvpcdevice->amcontrol) {
+                        status = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
+                        if (status == NO_ERROR) {
+
+                            //Call lpecontrol
+                            if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {
+                                status = mParent->mlpedevice->lpecontrol(mParent->mode(),(uint32_t)device);
+                                if ( status != NO_ERROR)
+                                    LOGE("lpecontrol error.");
+                            }
+
+                        } else
+                            LOGE("amcontrol error.");
+                    }
+
+                } else
+                    LOGE("route error.");
+            }
         }
 
-        owr_unlock(mHandle);
         param.remove(key);
-        err_a = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
-        if (err_a) {
-            LOGD("setparam for vpc called with bad devices");
-        }
-        err_a = mParent->mlpedevice->lpecontrol(mParent->mode(),(uint32_t)device);
-        if (err_a) {
-            LOGD("setparam for lpe called with bad devices");
-        }
     }
     if (param.size()) {
+        LOGW("Unhandled argument.");
         status = BAD_VALUE;
     }
     return status;
@@ -310,13 +324,14 @@ status_t ALSAStreamOps::open(int mode)
     if(mParent->mvpcdevice->mix_enable)
         mParent->mvpcdevice->mix_enable(mode,mHandle->curDev);
     status_t err = BAD_VALUE;
-    status_t err_lpe = BAD_VALUE;
     err = mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
 
     if(NO_ERROR == err) {
-        err_lpe = mParent->mlpedevice->lpecontrol(mode,mHandle->curDev);
-        if (err_lpe) {
-            LOGE("setparam for lpe called with bad devices");
+        if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {
+            err = mParent->mlpedevice->lpecontrol(mode,mHandle->curDev);
+            if (err) {
+                LOGE("setparam for lpe called with bad devices");
+            }
         }
     }
     return err;

@@ -27,8 +27,6 @@
 
 namespace android
 {
-extern Mutex ow_lock;
-extern Mutex or_lock;
 
 class AudioHardwareALSA;
 
@@ -411,9 +409,6 @@ private:
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
     Mutex               mLock;
 };
-
-extern void owr_lock(alsa_handle_t *handle);
-extern void owr_unlock(alsa_handle_t *handle);
 
 // ----------------------------------------------------------------------------
 

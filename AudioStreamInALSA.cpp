@@ -60,8 +60,7 @@ status_t AudioStreamInALSA::setGain(float gain)
 
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
-    AutoMutex lock1(or_lock);
-    AutoMutex lock2(mLock);
+    AutoMutex lock(mLock);
 
     if (!mPowerLock) {
         acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioInLock");
@@ -107,8 +106,7 @@ status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioStreamInALSA::open(int mode)
 {
-    AutoMutex lock1(or_lock);
-    AutoMutex lock2(mLock);
+    AutoMutex lock(mLock);
 
     status_t status = ALSAStreamOps::open(mode);
 
