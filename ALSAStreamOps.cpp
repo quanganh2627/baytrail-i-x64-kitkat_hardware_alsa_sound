@@ -180,8 +180,10 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
                     // Call amcontrol.
                     if (mParent && mParent->mvpcdevice && mParent->mvpcdevice->amcontrol) {
                         status = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
-                        if (status == NO_ERROR) {
-
+                        if(status == NO_ERROR) {
+                            if(mParent->mvpcdevice->mix_disable) {
+                                mParent->mvpcdevice->mix_disable(mParent->mode());
+                            }
                             //Call lpecontrol
                             if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {
                                 status = mParent->mlpedevice->lpecontrol(mParent->mode(),(uint32_t)device);
@@ -321,8 +323,6 @@ void ALSAStreamOps::close()
 //
 status_t ALSAStreamOps::open(int mode)
 {
-    if(mParent->mvpcdevice->mix_enable)
-        mParent->mvpcdevice->mix_enable(mode,mHandle->curDev);
     status_t err = BAD_VALUE;
     err = mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
 

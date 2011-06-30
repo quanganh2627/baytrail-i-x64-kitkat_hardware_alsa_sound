@@ -79,6 +79,9 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     if(!mHandle->handle) {
         ALSAStreamOps::open(mHandle->curMode);
     }
+    if(mParent->mvpcdevice->mix_enable) {
+        mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
+    }
 
     acoustic_device_t *aDev = acoustics();
 

@@ -70,6 +70,10 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if(!mHandle->handle)
         ALSAStreamOps::open(mHandle->curMode);
 
+    if(mParent->mvpcdevice->mix_enable) {
+        mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
+    }
+
     acoustic_device_t *aDev = acoustics();
 
     // If there is an acoustics module read method, then it overrides this
