@@ -39,8 +39,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
 ifeq ($(USE_INTEL_SRC),true)
   LOCAL_CFLAGS += -DUSE_INTEL_SRC
-  LOCAL_C_INCLUDES += \
-      $(TOP)/device/intel/PRIVATE/libaudioresample/include
+  LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libaudioresample
   LOCAL_SRC_FILES += AudioResamplerALSA.cpp
   LOCAL_SHARED_LIBRARIES += libaudioresample
 endif
