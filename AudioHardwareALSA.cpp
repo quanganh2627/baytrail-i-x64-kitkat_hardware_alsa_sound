@@ -272,7 +272,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA *in = 0;
-    char str[32];
+    char str[PROPERTY_VALUE_MAX];
     float defaultGain = 0.0;
 
     if (devices & (devices - 1)) {
@@ -283,7 +283,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     property_get ("alsa.mixer.defaultGain",
             str,
             DEFAULTGAIN);
-    sscanf(str, "%f", &defaultGain);
+    defaultGain = strtof(str, NULL);
 
     // Find the appropriate alsa device
     for(ALSAHandleList::iterator it = mDeviceList.begin();

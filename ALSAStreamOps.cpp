@@ -182,7 +182,10 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
                         status = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
                         if(status == NO_ERROR) {
                             if(mParent->mvpcdevice->mix_disable) {
-                                mParent->mvpcdevice->mix_disable(mParent->mode());
+                                if(AudioSystem::MODE_IN_CALL  ==  mParent->mode()) {
+                                    mParent->mALSADevice->standby(mHandle);
+                                    mParent->mvpcdevice->mix_disable(mParent->mode());
+				}
                             }
                             //Call lpecontrol
                             if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {

@@ -93,7 +93,7 @@ static int initMixer (snd_mixer_t **mixer, const char *name)
 {
     int err;
     int card = 0;
-    char str[32];
+    char str[PROPERTY_VALUE_MAX];
 
     if ((err = snd_mixer_open(mixer, 0)) < 0) {
         LOGE("Unable to open mixer: %s", snd_strerror(err));
@@ -114,7 +114,7 @@ static int initMixer (snd_mixer_t **mixer, const char *name)
         }
         card = err;
         sprintf(str, "hw:CARD=%d", card);
-        LOGE("card: %s", str);
+        LOGV("card: %s", str);
 
         if ((err = snd_mixer_attach(*mixer, str)) < 0) {
             LOGE("Unable to attach mixer to device default: %s",
