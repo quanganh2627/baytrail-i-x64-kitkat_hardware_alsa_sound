@@ -37,10 +37,7 @@
 #define SND_MIXER_VOL_RANGE_MAX  (100)
 
 #define ALSA_NAME_MAX 128
-
-#define ALSA_STRCAT(x,y) \
-    if (strlen(x) + strlen(y) < ALSA_NAME_MAX) \
-        strcat(x, y);
+#define MEDFIELDAUDIO "medfieldaudio"
 
 namespace android
 {
@@ -57,25 +54,20 @@ struct alsa_properties_t
     mixer_info_t       *mInfo;
 };
 
-#define ALSA_PROP(dev, name, out, in) \
-    {\
-        {dev, "alsa.mixer.playback." name, out, NULL},\
-        {dev, "alsa.mixer.capture." name, in, NULL}\
-    }
-
-static alsa_properties_t
-mixerMasterProp[SND_PCM_STREAM_LAST+1] =
-    ALSA_PROP(AudioSystem::DEVICE_OUT_ALL, "master", "PCM", "Capture");
-
-static alsa_properties_t
-mixerProp[][SND_PCM_STREAM_LAST+1] = {
-    ALSA_PROP(AudioSystem::DEVICE_OUT_EARPIECE, "earpiece", "Headphone Playback Volume", "Capture"),
-    ALSA_PROP(AudioSystem::DEVICE_OUT_SPEAKER, "speaker", "Speaker Playback Volume",  "Capture"),
-    ALSA_PROP(AudioSystem::DEVICE_OUT_WIRED_HEADSET, "headset", "Headphone Playback Volume", "Capture"),
-    ALSA_PROP(AudioSystem::DEVICE_OUT_BLUETOOTH_SCO, "bluetooth.sco", "Bluetooth", "Bluetooth Capture"),
-    ALSA_PROP(AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP, "bluetooth.a2dp", "Bluetooth A2DP", "Bluetooth A2DP Capture"),
-    ALSA_PROP(static_cast<AudioSystem::audio_devices>(0), "", NULL, NULL)
+static alsa_properties_t mixerPropOut[] = {
+    {AudioSystem::DEVICE_OUT_EARPIECE, "alsa.mixer.earpiece", "Headphone", NULL},
+    {AudioSystem::DEVICE_OUT_SPEAKER, "alsa.mixer.speaker", "Speaker", NULL},
+    {AudioSystem::DEVICE_OUT_WIRED_HEADSET, "alsa.mixer.headset", "Headphone", NULL},
+    {AudioSystem::DEVICE_OUT_WIRED_HEADPHONE, "alsa.mixer.headphone", "Headphone", NULL},
+    {static_cast<AudioSystem::audio_devices>(0), "alsa.mixer.", NULL, NULL}
 };
+
+static alsa_properties_t mixerPropIn[] = {
+    {AudioSystem::DEVICE_IN_BUILTIN_MIC, "alsa.mixer.builtinMic", "Mic1", NULL},
+    {AudioSystem::DEVICE_IN_WIRED_HEADSET, "alsa.mixer.headsetMic", "Mic1", NULL}, //FIXME: Mic1 is adjusted whith Headset? Is there AMic? It looks like should be adjusted AMic.
+    {static_cast<AudioSystem::audio_devices>(0), "alsa.mixer.", NULL, NULL}
+};
+
 
 struct mixer_info_t
 {
@@ -83,8 +75,10 @@ struct mixer_info_t
         elem(0),
         min(SND_MIXER_VOL_RANGE_MIN),
         max(SND_MIXER_VOL_RANGE_MAX),
+        volume(0),
         mute(false)
     {
+        name[0] = '\0';
     }
 
     snd_mixer_elem_t *elem;
@@ -98,6 +92,8 @@ struct mixer_info_t
 static int initMixer (snd_mixer_t **mixer, const char *name)
 {
     int err;
+    int card = 0;
+    char str[32];
 
     if ((err = snd_mixer_open(mixer, 0)) < 0) {
         LOGE("Unable to open mixer: %s", snd_strerror(err));
@@ -108,7 +104,19 @@ static int initMixer (snd_mixer_t **mixer, const char *name)
         LOGW("Unable to attach mixer to device %s: %s",
              name, snd_strerror(err));
 
-        if ((err = snd_mixer_attach(*mixer, "hw:1")) < 0) {
+        property_get ("alsa.mixer.defaultCard",
+                      str,
+                      MEDFIELDAUDIO);
+        err = snd_card_get_index(str);
+        if (err < 0) {
+             LOGE("Get card index error:%s\n", snd_strerror(err));
+             return err;
+        }
+        card = err;
+        sprintf(str, "hw:CARD=%d", card);
+        LOGE("card: %s", str);
+
+        if ((err = snd_mixer_attach(*mixer, str)) < 0) {
             LOGE("Unable to attach mixer to device default: %s",
                  snd_strerror(err));
 
@@ -157,9 +165,14 @@ static const setVolume_t setVol[] = {
     snd_mixer_selem_set_capture_volume_all
 };
 
-ALSAMixer::ALSAMixer()
+ALSAMixer::ALSAMixer(AudioHardwareALSA *hardwareAlsa)
 {
     int err;
+
+    if (hardwareAlsa)
+        mHardwareAlsa = hardwareAlsa;
+    else
+        mHardwareAlsa = NULL;
 
     initMixer (&mMixer[SND_PCM_STREAM_PLAYBACK], "AndroidPlayback");
     initMixer (&mMixer[SND_PCM_STREAM_CAPTURE], "AndroidRecord");
@@ -167,15 +180,15 @@ ALSAMixer::ALSAMixer()
     snd_mixer_selem_id_t *sid;
     snd_mixer_selem_id_alloca(&sid);
 
-    for (int i = 0; i <= SND_PCM_STREAM_LAST; i++) {
+    for (int i = 0; mixerPropOut[i].device; i++) {
 
-        mixer_info_t *info = mixerMasterProp[i].mInfo = new mixer_info_t;
+        mixer_info_t *info = mixerPropOut[i].mInfo = new mixer_info_t;
 
-        property_get (mixerMasterProp[i].propName,
+        property_get (mixerPropOut[i].propName,
                       info->name,
-                      mixerMasterProp[i].propDefault);
+                      mixerPropOut[i].propDefault);
 
-        for (snd_mixer_elem_t *elem = snd_mixer_first_elem(mMixer[i]);
+        for (snd_mixer_elem_t *elem = snd_mixer_first_elem(mMixer[SND_PCM_STREAM_PLAYBACK]);
                 elem;
                 elem = snd_mixer_elem_next(elem)) {
 
@@ -189,57 +202,52 @@ ALSAMixer::ALSAMixer()
 
             if (info->elem == NULL &&
                     strcmp(elementName, info->name) == 0 &&
-                    hasVolume[i] (elem)) {
+                    hasVolume[SND_PCM_STREAM_PLAYBACK] (elem)) {
 
                 info->elem = elem;
-                getVolumeRange[i] (elem, &info->min, &info->max);
+                getVolumeRange[SND_PCM_STREAM_PLAYBACK] (elem, &info->min, &info->max);
                 info->volume = info->max;
-                setVol[i] (elem, info->volume);
-                if (i == SND_PCM_STREAM_PLAYBACK &&
-                        snd_mixer_selem_has_playback_switch (elem))
+                setVol[SND_PCM_STREAM_PLAYBACK] (elem, info->volume);
+                if (snd_mixer_selem_has_playback_switch (elem))
                     snd_mixer_selem_set_playback_switch_all (elem, 1);
                 break;
             }
         }
+        LOGV("Mixer: playback route '%s' %s.", info->name, info->elem ? "found" : "not found");
+    }
 
-        LOGV("Mixer: master '%s' %s.", info->name, info->elem ? "found" : "not found");
+    for (int j = 0; mixerPropIn[j].device; j++) {
 
-        for (int j = 0; mixerProp[j][i].device; j++) {
+        mixer_info_t *info = mixerPropIn[j].mInfo = new mixer_info_t;
 
-            mixer_info_t *info = mixerProp[j][i].mInfo = new mixer_info_t;
+        property_get (mixerPropIn[j].propName,
+                      info->name,
+                      mixerPropIn[j].propDefault);
 
-            property_get (mixerProp[j][i].propName,
-                          info->name,
-                          mixerProp[j][i].propDefault);
+        for (snd_mixer_elem_t *elem = snd_mixer_first_elem(mMixer[SND_PCM_STREAM_CAPTURE]);
+                elem;
+                elem = snd_mixer_elem_next(elem)) {
 
-            for (snd_mixer_elem_t *elem = snd_mixer_first_elem(mMixer[i]);
-                    elem;
-                    elem = snd_mixer_elem_next(elem)) {
+            if (!snd_mixer_selem_is_active(elem))
+                continue;
 
-                if (!snd_mixer_selem_is_active(elem))
-                    continue;
+            snd_mixer_selem_get_id(elem, sid);
 
-                snd_mixer_selem_get_id(elem, sid);
+            // Find PCM playback volume control element.
+            const char *elementName = snd_mixer_selem_id_get_name(sid);
 
-                // Find PCM playback volume control element.
-                const char *elementName = snd_mixer_selem_id_get_name(sid);
+            if (info->elem == NULL &&
+                    strcmp(elementName, info->name) == 0 &&
+                    hasVolume[SND_PCM_STREAM_CAPTURE] (elem)) {
 
-                if (info->elem == NULL &&
-                        strcmp(elementName, info->name) == 0 &&
-                        hasVolume[i] (elem)) {
-
-                    info->elem = elem;
-                    getVolumeRange[i] (elem, &info->min, &info->max);
-                    info->volume = info->max;
-                    setVol[i] (elem, info->volume);
-                    if (i == SND_PCM_STREAM_PLAYBACK &&
-                            snd_mixer_selem_has_playback_switch (elem))
-                        snd_mixer_selem_set_playback_switch_all (elem, 1);
-                    break;
-                }
+                info->elem = elem;
+                getVolumeRange[SND_PCM_STREAM_CAPTURE] (elem, &info->min, &info->max);
+                info->volume = info->max;
+                setVol[SND_PCM_STREAM_CAPTURE] (elem, info->volume);
+                break;
             }
-            LOGV("Mixer: route '%s' %s.", info->name, info->elem ? "found" : "not found");
         }
+        LOGV("Mixer: capture route '%s' %s.", info->name, info->elem ? "found" : "not found");
     }
     LOGV("mixer initialized.");
 }
@@ -248,64 +256,48 @@ ALSAMixer::~ALSAMixer()
 {
     for (int i = 0; i <= SND_PCM_STREAM_LAST; i++) {
         if (mMixer[i]) snd_mixer_close (mMixer[i]);
-        if (mixerMasterProp[i].mInfo) {
-            delete mixerMasterProp[i].mInfo;
-            mixerMasterProp[i].mInfo = NULL;
-        }
-        for (int j = 0; mixerProp[j][i].device; j++) {
-            if (mixerProp[j][i].mInfo) {
-                delete mixerProp[j][i].mInfo;
-                mixerProp[j][i].mInfo = NULL;
-            }
+    }
+
+    for (int j = 0; mixerPropOut[j].device; j++) {
+        if (mixerPropOut[j].mInfo) {
+            delete mixerPropOut[j].mInfo;
+            mixerPropOut[j].mInfo = NULL;
         }
     }
+    for (int k = 0; mixerPropIn[k].device; k++) {
+        if (mixerPropIn[k].mInfo) {
+            delete mixerPropIn[k].mInfo;
+            mixerPropIn[k].mInfo = NULL;
+        }
+    }
+
     LOGV("mixer destroyed.");
 }
 
 status_t ALSAMixer::setMasterVolume(float volume)
 {
-    mixer_info_t *info = mixerMasterProp[SND_PCM_STREAM_PLAYBACK].mInfo;
-    if (!info || !info->elem) return INVALID_OPERATION;
+    status_t err = NO_ERROR;
 
-    long minVol = info->min;
-    long maxVol = info->max;
-
-    // Make sure volume is between bounds.
-    long vol = minVol + volume * (maxVol - minVol);
-    if (vol > maxVol) vol = maxVol;
-    if (vol < minVol) vol = minVol;
-
-    info->volume = vol;
-    snd_mixer_selem_set_playback_volume_all (info->elem, vol);
-
-    return NO_ERROR;
+    if (mHardwareAlsa && mHardwareAlsa->mlpedevice && mHardwareAlsa->mlpedevice->lpeSetMasterVolume)
+        err = mHardwareAlsa->mlpedevice->lpeSetMasterVolume(volume);
+    return err;
 }
 
 status_t ALSAMixer::setMasterGain(float gain)
 {
-    mixer_info_t *info = mixerMasterProp[SND_PCM_STREAM_CAPTURE].mInfo;
-    if (!info || !info->elem) return INVALID_OPERATION;
+    status_t err = NO_ERROR;
 
-    long minVol = info->min;
-    long maxVol = info->max;
-
-    // Make sure volume is between bounds.
-    long vol = minVol + gain * (maxVol - minVol);
-    if (vol > maxVol) vol = maxVol;
-    if (vol < minVol) vol = minVol;
-
-    info->volume = vol;
-    snd_mixer_selem_set_capture_volume_all (info->elem, vol);
-
-    return NO_ERROR;
+    if (mHardwareAlsa && mHardwareAlsa->mlpedevice && mHardwareAlsa->mlpedevice->lpeSetMasterGain)
+        err = mHardwareAlsa->mlpedevice->lpeSetMasterGain(gain);
+    return err;
 }
 
 status_t ALSAMixer::setVolume(uint32_t device, float left, float right)
 {
-    for (int j = 0; mixerProp[j][SND_PCM_STREAM_PLAYBACK].device; j++)
-        if (mixerProp[j][SND_PCM_STREAM_PLAYBACK].device & device) {
+    for (int j = 0; mixerPropOut[j].device; j++)
+        if (mixerPropOut[j].device & device) {
 
-            mixer_info_t *info = mixerProp[j][SND_PCM_STREAM_PLAYBACK].mInfo;
+            mixer_info_t *info = mixerPropOut[j].mInfo;
             if (!info || !info->elem) return INVALID_OPERATION;
 
             long minVol = info->min;
@@ -325,10 +317,10 @@ status_t ALSAMixer::setVolume(uint32_t device, float left, float right)
 
 status_t ALSAMixer::setGain(uint32_t device, float gain)
 {
-    for (int j = 0; mixerProp[j][SND_PCM_STREAM_CAPTURE].device; j++)
-        if (mixerProp[j][SND_PCM_STREAM_CAPTURE].device & device) {
+    for (int j = 0; mixerPropIn[j].device; j++)
+        if (mixerPropIn[j].device & device) {
 
-            mixer_info_t *info = mixerProp[j][SND_PCM_STREAM_CAPTURE].mInfo;
+            mixer_info_t *info = mixerPropIn[j].mInfo;
             if (!info || !info->elem) return INVALID_OPERATION;
 
             long minVol = info->min;
@@ -348,10 +340,10 @@ status_t ALSAMixer::setGain(uint32_t device, float gain)
 
 status_t ALSAMixer::setCaptureMuteState(uint32_t device, bool state)
 {
-    for (int j = 0; mixerProp[j][SND_PCM_STREAM_CAPTURE].device; j++)
-        if (mixerProp[j][SND_PCM_STREAM_CAPTURE].device & device) {
+    for (int j = 0; mixerPropIn[j].device; j++)
+        if (mixerPropIn[j].device & device) {
 
-            mixer_info_t *info = mixerProp[j][SND_PCM_STREAM_CAPTURE].mInfo;
+            mixer_info_t *info = mixerPropIn[j].mInfo;
             if (!info || !info->elem) return INVALID_OPERATION;
 
             if (snd_mixer_selem_has_capture_switch (info->elem)) {
@@ -374,10 +366,10 @@ status_t ALSAMixer::getCaptureMuteState(uint32_t device, bool *state)
 {
     if (!state) return BAD_VALUE;
 
-    for (int j = 0; mixerProp[j][SND_PCM_STREAM_CAPTURE].device; j++)
-        if (mixerProp[j][SND_PCM_STREAM_CAPTURE].device & device) {
+    for (int j = 0; mixerPropIn[j].device; j++)
+        if (mixerPropIn[j].device & device) {
 
-            mixer_info_t *info = mixerProp[j][SND_PCM_STREAM_CAPTURE].mInfo;
+            mixer_info_t *info = mixerPropIn[j].mInfo;
             if (!info || !info->elem) return INVALID_OPERATION;
 
             *state = info->mute;
@@ -389,10 +381,10 @@ status_t ALSAMixer::getCaptureMuteState(uint32_t device, bool *state)
 
 status_t ALSAMixer::setPlaybackMuteState(uint32_t device, bool state)
 {
-    for (int j = 0; mixerProp[j][SND_PCM_STREAM_PLAYBACK].device; j++)
-        if (mixerProp[j][SND_PCM_STREAM_PLAYBACK].device & device) {
+    for (int j = 0; mixerPropOut[j].device; j++)
+        if (mixerPropOut[j].device & device) {
 
-            mixer_info_t *info = mixerProp[j][SND_PCM_STREAM_PLAYBACK].mInfo;
+            mixer_info_t *info = mixerPropOut[j].mInfo;
             if (!info || !info->elem) return INVALID_OPERATION;
 
             if (snd_mixer_selem_has_playback_switch (info->elem)) {
@@ -415,10 +407,10 @@ status_t ALSAMixer::getPlaybackMuteState(uint32_t device, bool *state)
 {
     if (!state) return BAD_VALUE;
 
-    for (int j = 0; mixerProp[j][SND_PCM_STREAM_PLAYBACK].device; j++)
-        if (mixerProp[j][SND_PCM_STREAM_PLAYBACK].device & device) {
+    for (int j = 0; mixerPropOut[j].device; j++)
+        if (mixerPropOut[j].device & device) {
 
-            mixer_info_t *info = mixerProp[j][SND_PCM_STREAM_PLAYBACK].mInfo;
+            mixer_info_t *info = mixerPropOut[j].mInfo;
             if (!info || !info->elem) return INVALID_OPERATION;
 
             *state = info->mute;

@@ -97,6 +97,8 @@ struct lpe_device_t {
 
     status_t (*init)(void);
     status_t (*lpecontrol)(int,uint32_t);
+    status_t (*lpeSetMasterVolume)(float volume);
+    status_t (*lpeSetMasterGain)(float gain);
 };
 
 /**
@@ -127,11 +129,11 @@ struct acoustic_device_t {
 class ALSAMixer
 {
 public:
-    ALSAMixer();
+    ALSAMixer(AudioHardwareALSA *hardwareAlsa);
     virtual                ~ALSAMixer();
 
     bool                    isValid() {
-        return !!mMixer[SND_PCM_STREAM_PLAYBACK];
+        return ((!!mMixer[SND_PCM_STREAM_PLAYBACK]) && (!!mMixer[SND_PCM_STREAM_CAPTURE]));
     }
     status_t                setMasterVolume(float volume);
     status_t                setMasterGain(float gain);
@@ -148,6 +150,7 @@ private:
     ALSAMixer(const ALSAMixer &);
     ALSAMixer& operator = (const ALSAMixer &);
     snd_mixer_t *           mMixer[SND_PCM_STREAM_LAST+1];
+    AudioHardwareALSA *     mHardwareAlsa;
 };
 
 class ALSAControl
@@ -399,6 +402,7 @@ protected:
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
     friend class ALSAStreamOps;
+    friend class ALSAMixer;
 
     ALSAMixer *         mMixer;
 

@@ -33,6 +33,8 @@
 
 #include "AudioHardwareALSA.h"
 
+#define DEFAULTGAIN "1.0"
+
 extern "C"
 {
     //
@@ -77,7 +79,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mlpedevice(0)
 {
     snd_lib_error_set_handler(&ALSAErrorHandler);
-    mMixer = new ALSAMixer;
+    mMixer = new ALSAMixer(this);
 #ifdef USE_INTEL_SRC
     mResampler = new AudioResamplerALSA();
 #endif
@@ -270,11 +272,18 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA *in = 0;
+    char str[32];
+    float defaultGain = 0.0;
 
     if (devices & (devices - 1)) {
         if (status) *status = err;
         return in;
     }
+
+    property_get ("alsa.mixer.defaultGain",
+            str,
+            DEFAULTGAIN);
+    sscanf(str, "%f", &defaultGain);
 
     // Find the appropriate alsa device
     for(ALSAHandleList::iterator it = mDeviceList.begin();
@@ -286,7 +295,16 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
                 break;
             }
             in = new AudioStreamInALSA(this, &(*it), acoustics);
+            err = in->setGain(defaultGain);
+            if (err != NO_ERROR) {
+                LOGE("SetGain error.");
+                break;
+            }
             err = in->set(format, channels, sampleRate);
+            if (err != NO_ERROR) {
+                LOGE("Set error.");
+                break;
+            }
             if (mlpedevice && mlpedevice->lpecontrol) {
                 err = mlpedevice->lpecontrol(mode(), devices);
                 if (err) {
@@ -309,18 +327,44 @@ AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 
 status_t AudioHardwareALSA::setMicMute(bool state)
 {
-    if (mMixer)
-        return mMixer->setCaptureMuteState(AudioSystem::DEVICE_OUT_EARPIECE, state);
+    status_t err = NO_ERROR;
+    if (mMixer) {
+        for(ALSAHandleList::iterator it = mDeviceList.begin();
+                    it != mDeviceList.end(); ++it) {
+            snd_pcm_stream_t direction = (it->curDev & AudioSystem::DEVICE_OUT_ALL) ?
+                    SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
+            if (direction == SND_PCM_STREAM_CAPTURE) {
+                err = mMixer->setCaptureMuteState(it->curDev, state);
+                if (err != NO_ERROR)
+                    LOGE("Set capture device(0x%x) mute error.", it->curDev);
+                break;
+            }
+        }
+    }
 
-    return NO_INIT;
+    return err;
 }
 
 status_t AudioHardwareALSA::getMicMute(bool *state)
 {
-    if (mMixer)
-        return mMixer->getCaptureMuteState(AudioSystem::DEVICE_OUT_EARPIECE, state);
+    status_t err = NO_ERROR;
+    if (mMixer) {
+        for(ALSAHandleList::iterator it = mDeviceList.begin();
+                    it != mDeviceList.end(); ++it) {
+            snd_pcm_stream_t direction = (it->curDev & AudioSystem::DEVICE_OUT_ALL) ?
+                    SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
+            if (direction == SND_PCM_STREAM_CAPTURE) {
+                err = mMixer->getCaptureMuteState(it->curDev, state);
+                if (err != NO_ERROR) {
+                    LOGE("Get capture device(0x%x) mute error.", it->curDev);
+                    *state = false;
+                }
+                break;
+            }
+        }
+    }
 
-    return NO_ERROR;
+    return err;
 }
 
 size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, int channelCount)
