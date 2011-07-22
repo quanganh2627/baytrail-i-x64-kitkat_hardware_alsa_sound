@@ -421,6 +421,7 @@ private:
     AudioHardwareALSA(const AudioHardwareALSA &);
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
     Mutex               mLock;
+    bool mMicMuteState;
 };
 
 // ----------------------------------------------------------------------------

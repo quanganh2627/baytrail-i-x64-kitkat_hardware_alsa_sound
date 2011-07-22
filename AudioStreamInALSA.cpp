@@ -113,8 +113,11 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         if(n > 0) {
             received += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
         }
-
     } while(received < bytes);
+
+    if(mParent->mMicMuteState ) {
+        memset(buffer, 0, received);
+    }
 
     return received;
 }

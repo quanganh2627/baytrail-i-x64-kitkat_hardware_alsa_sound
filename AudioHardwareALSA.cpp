@@ -275,6 +275,8 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     char str[PROPERTY_VALUE_MAX];
     float defaultGain = 0.0;
 
+    mMicMuteState = false;
+
     if (devices & (devices - 1)) {
         if (status) *status = err;
         return in;
@@ -322,49 +324,33 @@ void
 AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
     AutoMutex lock(mLock);
+
+    mMicMuteState = false;
+
     delete in;
 }
 
 status_t AudioHardwareALSA::setMicMute(bool state)
 {
-    status_t err = NO_ERROR;
-    if (mMixer) {
-        for(ALSAHandleList::iterator it = mDeviceList.begin();
-                    it != mDeviceList.end(); ++it) {
-            snd_pcm_stream_t direction = (it->curDev & AudioSystem::DEVICE_OUT_ALL) ?
-                    SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
-            if (direction == SND_PCM_STREAM_CAPTURE) {
-                err = mMixer->setCaptureMuteState(it->curDev, state);
-                if (err != NO_ERROR)
-                    LOGE("Set capture device(0x%x) mute error.", it->curDev);
-                break;
-            }
-        }
-    }
+    mMicMuteState = state;
+    if(state)
+        LOGD("Set MUTE true");
+    else
+        LOGD("Set MUTE false");
 
-    return err;
+    return NO_ERROR;
 }
 
 status_t AudioHardwareALSA::getMicMute(bool *state)
 {
-    status_t err = NO_ERROR;
-    if (mMixer) {
-        for(ALSAHandleList::iterator it = mDeviceList.begin();
-                    it != mDeviceList.end(); ++it) {
-            snd_pcm_stream_t direction = (it->curDev & AudioSystem::DEVICE_OUT_ALL) ?
-                    SND_PCM_STREAM_PLAYBACK : SND_PCM_STREAM_CAPTURE;
-            if (direction == SND_PCM_STREAM_CAPTURE) {
-                err = mMixer->getCaptureMuteState(it->curDev, state);
-                if (err != NO_ERROR) {
-                    LOGE("Get capture device(0x%x) mute error.", it->curDev);
-                    *state = false;
-                }
-                break;
-            }
-        }
-    }
+    *state = mMicMuteState;
+    if(*state)
+        LOGD("Get MUTE true");
+    else
+        LOGD("Get MUTE false");
 
-    return err;
+    return NO_ERROR;
+
 }
 
 size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, int channelCount)
