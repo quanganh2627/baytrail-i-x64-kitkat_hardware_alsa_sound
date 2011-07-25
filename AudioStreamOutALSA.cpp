@@ -92,7 +92,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     snd_pcm_sframes_t n;
     size_t            sent = 0;
-    status_t          err;
+    status_t          err = NO_ERROR;
 
 #ifdef USE_INTEL_SRC
     int32_t outBytes;
@@ -109,51 +109,41 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 #endif
 
     do {
-        if(!mHandle || !mHandle->handle) {
-            return -1;
-        }
-
         n = snd_pcm_writei(mHandle->handle,
                            (char *)buffer + sent,
                            snd_pcm_bytes_to_frames(mHandle->handle, bytes - sent));
-        if (n == -EBADFD) {
-            // Somehow the stream is in a bad state. The driver probably
-            // has a bug and snd_pcm_recover() doesn't seem to handle this.
-            mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
 
-            if (aDev && aDev->recover) aDev->recover(aDev, n);
+        if(n == -EAGAIN || (n >= 0 && static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n)) + sent < bytes)) {
+            snd_pcm_wait(mHandle->handle, 1000);
         }
-        else if (n < 0) {
-            if (mHandle->handle) {
-                // snd_pcm_recover() will return 0 if successful in recovering from
-                // an error, or -errno if the error was unrecoverable.
-                n = snd_pcm_recover(mHandle->handle, n, 1);
-
-                if (aDev && aDev->recover) aDev->recover(aDev, n);
-
-                if (n) {
-                    return static_cast<ssize_t>(n);
-                }
-
+        else if (n == -EBADFD) {
+            err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
+            if(err != NO_ERROR) {
+                LOGE("Open device error");
+                return err;
             }
         }
-        else {
+        else if (n < 0) {
+            LOGE("write err: %s", snd_strerror(n));
+            err = snd_pcm_recover(mHandle->handle, n, 1);
+            if(err != NO_ERROR) {
+                LOGE("pcm write recover error: %s", snd_strerror(n));
+                return err;
+            }
+        }
+
+        if(n > 0) {
 #ifdef USE_INTEL_SRC
             mFrameCount += n / mParent->mResampler->mOutSampleRate *
                                mParent->mResampler->mInSampleRate;
 #else
             mFrameCount += n;
 #endif
-            if(!mHandle->handle) {
-                LOGD("nullll\n");
-            }
-            if(!mHandle->handle) {
-                return -1;
-            }
+
             sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
         }
 
-    } while (mHandle->handle && sent < bytes);
+    } while (sent < bytes);
 
     return sent;
 }

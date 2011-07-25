@@ -82,25 +82,41 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         return aDev->read(aDev, buffer, bytes);
     }
 
-    snd_pcm_sframes_t n, frames = snd_pcm_bytes_to_frames(mHandle->handle, bytes);
-    status_t          err;
+    snd_pcm_sframes_t n;
+    ssize_t            received = 0;
+    status_t          err = NO_ERROR;
 
     do {
-        n = snd_pcm_readi(mHandle->handle, buffer, frames);
-        if (n < frames) {
-            if (mHandle->handle) {
-                if (n < 0) {
-                    n = snd_pcm_recover(mHandle->handle, n, 0);
+        n = snd_pcm_readi(mHandle->handle,
+                           (char *)buffer + received,
+                           snd_pcm_bytes_to_frames(mHandle->handle, bytes - received));
 
-                    if (aDev && aDev->recover) aDev->recover(aDev, n);
-                } else
-                    n = snd_pcm_prepare(mHandle->handle);
-            }
-            return static_cast<ssize_t>(n);
+        if(n == -EAGAIN || (n >= 0 && static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n)) + received < bytes)) {
+            snd_pcm_wait(mHandle->handle, 1000);
         }
-    } while (n == -EAGAIN);
+        else if (n == -EBADFD) {
+            err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
+            if(err != NO_ERROR) {
+                LOGE("Open device error");
+                return err;
+            }
+        }
+        else if (n < 0) {
+            LOGE("read err: %s", snd_strerror(n));
+            err = snd_pcm_recover(mHandle->handle, n, 1);
+            if(err != NO_ERROR) {
+                LOGE("pcm read recover error: %s", snd_strerror(n));
+                return err;
+            }
+        }
 
-    return static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+        if(n > 0) {
+            received += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+        }
+
+    } while(received < bytes);
+
+    return received;
 }
 
 status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
