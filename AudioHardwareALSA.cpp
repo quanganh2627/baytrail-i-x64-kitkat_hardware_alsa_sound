@@ -24,6 +24,7 @@
 #include <dlfcn.h>
 
 #define LOG_TAG "AudioHardwareALSA"
+//#define LOG_NDEBUG 0
 #include <utils/Log.h>
 #include <utils/String8.h>
 
@@ -287,7 +288,7 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
     // The voice volume is used by the VOICE_CALL audio stream.
     AutoW lock(mLock);
     if (mvpcdevice)
-        return mvpcdevice->amcvolume(volume);
+        return mvpcdevice->volume(volume);
     else
         return INVALID_OPERATION;
 }
@@ -350,8 +351,9 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
                 LOGE("set error.");
                 break;
             }
-            if (mvpcdevice && mvpcdevice->amcontrol) {
-                err = mvpcdevice->amcontrol(mode(), devices);
+            if (mvpcdevice && mvpcdevice->params && mvpcdevice->route) {
+                mvpcdevice->params(mode(), devices);
+                err = mvpcdevice->route();
                 if (err) {
                     LOGE("openOutputStream called with bad devices");
                 }
@@ -497,23 +499,36 @@ status_t AudioHardwareALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 {
-    bool tty;
-    LOGD("TTY FULL TRUE %s\n",keyValuePairs.string());
-    if(strcmp(keyValuePairs.string(),"tty_mode=tty_full")==0){
-        LOGD("TTY FULL TRUE\n");
-        tty = true;
-        mvpcdevice->tty_enable(tty);}
-    else if(strcmp(keyValuePairs.string(),"tty_mode=tty_hco")==0){
-        LOGD("TTY HCO TRUE\n");
-        tty = true;
-        mvpcdevice->tty_enable(tty);}
-    else if(strcmp(keyValuePairs.string(),"tty_mode=tty_vco")==0){
-        LOGD("TTY VCO TRUE\n");
-        tty = true;
-        mvpcdevice->tty_enable(tty);}
-    else if (strcmp(keyValuePairs.string(),"tty_mode=tty_off")==0){
-        tty = false;
-        mvpcdevice->tty_enable(tty);}
+    LOGI("key value pair %s\n", keyValuePairs.string());
+
+    // Search TTY mode
+    if(strstr(keyValuePairs.string(), "tty_mode=tty_full") != NULL) {
+        LOGV("tty full\n");
+        mvpcdevice->tty(VPC_TTY_ON);
+    }
+    else if(strstr(keyValuePairs.string(), "tty_mode=tty_hco") != NULL) {
+        LOGV("tty hco\n");
+        mvpcdevice->tty(VPC_TTY_ON);
+    }
+    else if(strstr(keyValuePairs.string(), "tty_mode=tty_vco") != NULL) {
+        LOGV("tty vco\n");
+        mvpcdevice->tty(VPC_TTY_ON);
+    }
+    else if (strstr(keyValuePairs.string(), "tty_mode=tty_off") != NULL) {
+        LOGV("tty off\n");
+        mvpcdevice->tty(VPC_TTY_OFF);
+    }
+
+    // Search BT NREC parameter
+    if ((strstr(keyValuePairs.string(), "bt_headset_nrec=on")) != NULL) {
+        LOGV("bt with acoustic\n");
+        mvpcdevice->bt_nrec(VPC_BT_NREC_ON);
+    }
+    else if ((strstr(keyValuePairs.string(), "bt_headset_nrec=off")) != NULL) {
+        LOGV("bt without acoustic\n");
+        mvpcdevice->bt_nrec(VPC_BT_NREC_OFF);
+    }
+
     return NO_ERROR;
 }
 
@@ -542,6 +557,18 @@ status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool
 
     LOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
 
+    // VPC params
+    if (devices && mvpcdevice && mvpcdevice->params) {
+
+        status = mvpcdevice->params(mode(), (uint32_t)devices);
+
+        if (status != NO_ERROR) {
+
+            // Just log!
+            LOGE("VPC params error: %d", status);
+        }
+    }
+
     // Alsa routing
     if (devices && mALSADevice && mALSADevice->route) {
 
@@ -554,30 +581,27 @@ status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool
         }
     }
 
+    // VPC routing
+    if (devices && mvpcdevice && mvpcdevice->route) {
+
+        status = mvpcdevice->route();
+
+        if (status != NO_ERROR) {
+
+            // Just log!
+            LOGE("VPC route error: %d", status);
+        }
+    }
+    // Mix disable
+    if (devices && mvpcdevice && mvpcdevice->mix_disable) {
+        mvpcdevice->mix_disable(mode());
+    }
+
     if (bForOutput) {
 
         // Output devices changed
 
-        // amc control
-        if (mvpcdevice && mvpcdevice->amcontrol) {
-
-            status = mvpcdevice->amcontrol(mode(), (uint32_t)devices);
-
-            if (status != NO_ERROR) {
-
-                // Just log!
-                LOGE("amcontrol error: %d", status);
-            }
-        }
-        // Mix disable
-        if(mvpcdevice->mix_disable) {
-            if(AudioSystem::MODE_IN_CALL == mode()) {
-
-                mvpcdevice->mix_disable(mode());
-            }
-        }
-
-         // Warn PFW
+        // Warn PFW
         mSelectedOutputDevice->setCriterionState(devices);
 
     } else {

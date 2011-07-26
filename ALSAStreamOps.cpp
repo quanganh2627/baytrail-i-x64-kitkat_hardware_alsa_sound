@@ -24,6 +24,7 @@
 #include <dlfcn.h>
 
 #define LOG_TAG "AudioHardwareALSA"
+//#define LOG_NDEBUG 0
 #include <utils/Log.h>
 #include <utils/String8.h>
 

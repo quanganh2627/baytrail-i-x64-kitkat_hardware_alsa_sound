@@ -24,6 +24,7 @@
 #include <alsa/asoundlib.h>
 
 #include <hardware/hardware.h>
+#include <vpc_hardware.h>
 
 #ifdef USE_INTEL_SRC
 #include "AudioResamplerALSA.h"
@@ -76,22 +77,6 @@ struct alsa_device_t {
     status_t (*close)(alsa_handle_t *);
     status_t (*route)(alsa_handle_t *, uint32_t, int);
     status_t (*volume)(alsa_handle_t *, uint32_t, float);
-};
-
-/* VPC module struct */
-#define VPC_HARDWARE_MODULE_ID "vpc"
-#define VPC_HARDWARE_NAME      "vpc"
-struct vpc_device_t;
-
-struct vpc_device_t {
-    hw_device_t common;
-
-    status_t (*init)(void);
-    status_t (*amcontrol)(int,uint32_t);
-    status_t (*amcvolume)(float);
-    status_t (*mix_disable)(int);
-    status_t (*mix_enable)(int,uint32_t);
-    status_t (*tty_enable)(bool);
 };
 
 /* LPE io control module */

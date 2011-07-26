@@ -14,6 +14,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
   LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/parameter \
+    $(TARGET_OUT_HEADERS)/hw \
     external/alsa-lib/include \
     external/stlport/stlport/ \
     bionic/libstdc++ \
@@ -100,7 +101,9 @@ ifeq ($(INTEL_WIDI), true)
   LOCAL_CFLAGS += -DINTEL_WIDI=1
 endif
 
-  LOCAL_C_INCLUDES += external/alsa-lib/include
+  LOCAL_C_INCLUDES +=  \
+    $(TARGET_OUT_HEADERS)/hw\
+    external/alsa-lib/include
 
   LOCAL_SRC_FILES:= alsa_default.cpp
 
@@ -123,7 +126,9 @@ endif
 
   LOCAL_CFLAGS := -D_POSIX_SOURCE -Wno-multichar
 
-  LOCAL_C_INCLUDES += external/alsa-lib/include
+  LOCAL_C_INCLUDES += \
+    $(TARGET_OUT_HEADERS)/hw \
+    external/alsa-lib/include
 
   LOCAL_SRC_FILES:= acoustics_default.cpp
 
