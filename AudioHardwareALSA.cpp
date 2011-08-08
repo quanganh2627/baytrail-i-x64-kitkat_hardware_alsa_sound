@@ -180,6 +180,7 @@ status_t AudioHardwareALSA::initCheck()
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
     // The voice volume is used by the VOICE_CALL audio stream.
+    AutoW lock(mLock);
     if (mvpcdevice)
         return mvpcdevice->amcvolume(volume);
     else
@@ -188,6 +189,7 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
 
 status_t AudioHardwareALSA::setMasterVolume(float volume)
 {
+    AutoW lock(mLock);
     if (mMixer)
         return mMixer->setMasterVolume(volume);
     else
@@ -196,6 +198,7 @@ status_t AudioHardwareALSA::setMasterVolume(float volume)
 
 status_t AudioHardwareALSA::setMode(int mode)
 {
+    AutoW lock(mLock);
     status_t status = NO_ERROR;
     status_t err_a = BAD_VALUE;
 
@@ -212,7 +215,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
                                     uint32_t *sampleRate,
                                     status_t *status)
 {
-    AutoMutex lock(mLock);
+    AutoW lock(mLock);
 
     LOGD("openOutputStream called for devices: 0x%08x", devices);
 
@@ -256,7 +259,6 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 void
 AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
-    AutoMutex lock(mLock);
     delete out;
 }
 
@@ -268,7 +270,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
                                    status_t *status,
                                    AudioSystem::audio_in_acoustics acoustics)
 {
-    AutoMutex lock(mLock);
+    AutoW lock(mLock);
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA *in = 0;
@@ -323,8 +325,6 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 void
 AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
-    AutoMutex lock(mLock);
-
     mMicMuteState = false;
 
     delete in;

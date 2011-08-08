@@ -32,6 +32,8 @@
 namespace android
 {
 
+typedef RWLock::AutoRLock AutoR;
+typedef RWLock::AutoWLock AutoW;
 class AudioHardwareALSA;
 
 /**
@@ -420,7 +422,7 @@ protected:
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
-    Mutex               mLock;
+    RWLock                mLock;
     bool mMicMuteState;
 };
 

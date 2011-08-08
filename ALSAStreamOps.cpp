@@ -47,7 +47,7 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle) :
 
 ALSAStreamOps::~ALSAStreamOps()
 {
-    AutoMutex lock(mLock);
+    AutoW lock(mParent->mLock);
 
     close();
 }
@@ -168,7 +168,7 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
     status_t err_a = BAD_VALUE;
     int device;
     LOGV("setParameters() %s", keyValuePairs.string());
-    AutoMutex lock(mLock);
+    AutoW lock(mParent->mLock);
 
     if (param.getInt(key, device) == NO_ERROR) {
 
@@ -182,10 +182,7 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
                         status = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
                         if(status == NO_ERROR) {
                             if(mParent->mvpcdevice->mix_disable) {
-                                if(AudioSystem::MODE_IN_CALL  ==  mParent->mode()) {
-                                    mParent->mALSADevice->standby(mHandle);
                                     mParent->mvpcdevice->mix_disable(mParent->mode());
-				}
                             }
                             //Call lpecontrol
                             if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {

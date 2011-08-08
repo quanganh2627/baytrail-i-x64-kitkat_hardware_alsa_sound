@@ -70,7 +70,7 @@ status_t AudioStreamOutALSA::setVolume(float left, float right)
 
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
-    AutoMutex lock(mLock);
+    AutoR lock(mParent->mLock);
     if (!mPowerLock) {
         acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioOutLock");
         mPowerLock = true;
@@ -155,14 +155,14 @@ status_t AudioStreamOutALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioStreamOutALSA::open(int mode)
 {
-    AutoMutex lock(mLock);
+    AutoW lock(mParent->mLock);
 
     return ALSAStreamOps::open(mode);
 }
 
 status_t AudioStreamOutALSA::close()
 {
-    AutoMutex lock(mLock);
+    AutoW lock(mParent->mLock);
 
     if(!mHandle->handle) {
         LOGD("null\n");
@@ -181,7 +181,7 @@ status_t AudioStreamOutALSA::close()
 
 status_t AudioStreamOutALSA::standby()
 {
-    AutoMutex lock(mLock);
+    AutoW lock(mParent->mLock);
     LOGD("streamoutAlsa standby \n");
 
     if(!mHandle->handle) {
