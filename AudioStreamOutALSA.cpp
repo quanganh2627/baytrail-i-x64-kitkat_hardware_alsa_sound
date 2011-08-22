@@ -222,4 +222,18 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
     return NO_ERROR;
 }
 
+status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
+{
+    // Give a chance to parent to handle the change
+    status_t status = mParent->setStreamParameters(mHandle, true, keyValuePairs);
+
+    if (status != NO_ERROR) {
+
+        return status;
+    }
+
+    return ALSAStreamOps::setParameters(keyValuePairs);
+}
+
+
 }       // namespace android

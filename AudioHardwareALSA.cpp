@@ -30,7 +30,8 @@
 #include <cutils/properties.h>
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
-
+#include "ParameterMgrPlatformConnector.h"
+#include "SelectionCriterionInterface.h"
 #include "AudioHardwareALSA.h"
 
 #define DEFAULTGAIN "1.0"
@@ -47,6 +48,59 @@ extern "C"
 
 namespace android
 {
+/// PFW related definitions
+// Logger
+class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnector::ILogger
+{
+public:
+    CParameterMgrPlatformConnectorLogger() {}
+
+    virtual void log(const std::string& strLog)
+    {
+        LOGD(strLog.c_str());
+    }
+};
+
+// Mode type
+const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mModeValuePairs[] = {
+    { AudioSystem::MODE_NORMAL, "Normal" },
+    { AudioSystem::MODE_RINGTONE, "RingTone" },
+    { AudioSystem::MODE_IN_CALL, "InCsvCall" },
+    { AudioSystem::MODE_IN_COMMUNICATION, "InVoipCall" }
+};
+const uint32_t AudioHardwareALSA::mNbModeValuePairs = sizeof(AudioHardwareALSA::mModeValuePairs)/sizeof(AudioHardwareALSA::mModeValuePairs[0]);
+
+// Selected Input Device type
+const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSelectedInputDeviceValuePairs[] = {
+    { AudioSystem::DEVICE_IN_COMMUNICATION, "Communication" },
+    { AudioSystem::DEVICE_IN_AMBIENT, "Ambient" },
+    { AudioSystem::DEVICE_IN_BUILTIN_MIC, "Main" },
+    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET, "SCO_Headset" },
+    { AudioSystem::DEVICE_IN_WIRED_HEADSET, "Headset" },
+    { AudioSystem::DEVICE_IN_AUX_DIGITAL, "AuxDigital" },
+    { AudioSystem::DEVICE_IN_VOICE_CALL, "VoiceCall" },
+    { AudioSystem::DEVICE_IN_BACK_MIC, "Back" }
+};
+const uint32_t AudioHardwareALSA::mNbSelectedInputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs[0]);
+
+// Selected Output Device type
+const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSelectedOutputDeviceValuePairs[] = {
+    { AudioSystem::DEVICE_OUT_EARPIECE, "Earpiece" },
+    { AudioSystem::DEVICE_OUT_SPEAKER, "IHF" },
+    { AudioSystem::DEVICE_OUT_WIRED_HEADSET, "Headset" },
+    { AudioSystem::DEVICE_OUT_WIRED_HEADPHONE, "Headphones" },
+    { AudioSystem::DEVICE_OUT_BLUETOOTH_SCO, "SCO" },
+    { AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET, "SCO_Headset" },
+    { AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT, "SCO_CarKit" },
+    { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP, "A2DP" },
+    { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES, "A2DP_Headphones" },
+    { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER, "A2DP_Speaker" },
+    { AudioSystem::DEVICE_OUT_AUX_DIGITAL, "AuxDigital" },
+    { AudioSystem::DEVICE_OUT_HDMI, "HDMI" }
+};
+const uint32_t AudioHardwareALSA::mNbSelectedOutputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs[0]);
+
+
 // ----------------------------------------------------------------------------
 
 static void ALSAErrorHandler(const char *file,
@@ -76,8 +130,39 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mALSADevice(0),
     mAcousticDevice(0),
     mvpcdevice(0),
-    mlpedevice(0)
+    mlpedevice(0),
+    mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("Audio")),
+    mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger)
 {
+    // Logger
+    mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
+
+    /// Criteria Types
+    // Mode
+    mModeType = mParameterMgrPlatformConnector->createSelectionCriterionType();
+    fillSelectionCriterionType(mModeType, mModeValuePairs, mNbModeValuePairs);
+
+    // InputDevice
+    mInputDeviceType = mParameterMgrPlatformConnector->createSelectionCriterionType(true);
+    fillSelectionCriterionType(mInputDeviceType, mSelectedInputDeviceValuePairs, mNbSelectedInputDeviceValuePairs);
+
+    // OutputDevice
+    mOutputDeviceType = mParameterMgrPlatformConnector->createSelectionCriterionType(true);
+    fillSelectionCriterionType(mOutputDeviceType, mSelectedOutputDeviceValuePairs, mNbSelectedOutputDeviceValuePairs);
+
+    /// Criteria
+    mSelectedMode = mParameterMgrPlatformConnector->createSelectionCriterion("Mode", mModeType);
+    mSelectedInputDevice = mParameterMgrPlatformConnector->createSelectionCriterion("SelectedInputDevice", mInputDeviceType);
+    mSelectedOutputDevice = mParameterMgrPlatformConnector->createSelectionCriterion("SelectedOutputDevice", mOutputDeviceType);
+
+    /// Start
+    std::string strError;
+    if (!mParameterMgrPlatformConnector->start(strError)) {
+
+        LOGE(strError.c_str());
+    }
+
+    // Reset
     snd_lib_error_set_handler(&ALSAErrorHandler);
     mMixer = new ALSAMixer(this);
 #ifdef USE_INTEL_SRC
@@ -149,6 +234,13 @@ AudioHardwareALSA::AudioHardwareALSA() :
 
 AudioHardwareALSA::~AudioHardwareALSA()
 {
+    // Unset logger
+    mParameterMgrPlatformConnector->setLogger(NULL);
+    // Remove logger
+    delete mParameterMgrPlatformConnectorLogger;
+    // Remove connector
+    delete mParameterMgrPlatformConnector;
+
     if (mMixer) delete mMixer;
 
 #ifdef USE_INTEL_SRC
@@ -175,6 +267,19 @@ status_t AudioHardwareALSA::initCheck()
         return NO_ERROR;
     else
         return NO_INIT;
+}
+
+// Used to fill types for PFW
+void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries)
+{
+    uint32_t uiIndex;
+
+    for (uiIndex = 0; uiIndex < uiNbEntries; uiIndex++) {
+
+        const SSelectionCriterionTypeValuePair* pValuePair = &pSelectionCriterionTypeValuePairs[uiIndex];
+
+        pSelectionCriterionType->addValuePair(pValuePair->iNumerical, pValuePair->pcLiteral);
+    }
 }
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
@@ -204,6 +309,8 @@ status_t AudioHardwareALSA::setMode(int mode)
 
     if (mode != mMode)
         status = AudioHardwareBase::setMode(mode);
+
+    mSelectedMode->setCriterionState(mode, false);
 
     return status;
 }
@@ -409,4 +516,99 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         mvpcdevice->tty_enable(tty);}
     return NO_ERROR;
 }
+
+
+// set Stream Parameters
+status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool bForOutput, const String8& keyValuePairs)
+{
+    AudioParameter param = AudioParameter(keyValuePairs);
+    String8 key = String8(AudioParameter::keyRouting);
+    status_t status;
+    int devices;
+
+    AutoW lock(mLock);
+
+    // Get concerned devices
+    status = param.getInt(key, devices);
+
+    if (status != NO_ERROR) {
+        // Note: this is the only place where we should bail out with an error
+        // since all processing are unrelated to each other, any other error occuring here should be logged
+        // and should not prevent subsequent processings to take place
+        return status;
+    }
+    // Remove parameter
+    param.remove(key);
+
+    LOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
+
+    // Alsa routing
+    if (devices && mALSADevice && mALSADevice->route) {
+
+        status = mALSADevice->route(pAlsaHandle, (uint32_t)devices, mode());
+
+        if (status != NO_ERROR) {
+
+            // Just log!
+            LOGE("alsa route error: %d", status);
+        }
+    }
+
+    if (bForOutput) {
+
+        // Output devices changed
+
+        // amc control
+        if (mvpcdevice && mvpcdevice->amcontrol) {
+
+            status = mvpcdevice->amcontrol(mode(), (uint32_t)devices);
+
+            if (status != NO_ERROR) {
+
+                // Just log!
+                LOGE("amcontrol error: %d", status);
+            }
+        }
+        // Mix disable
+        if(mvpcdevice->mix_disable) {
+            if(AudioSystem::MODE_IN_CALL == mode()) {
+
+                mvpcdevice->mix_disable(mode());
+            }
+        }
+
+         // Warn PFW
+        mSelectedOutputDevice->setCriterionState(devices);
+
+    } else {
+
+        // Input devices changed
+
+        // Call lpecontrol
+        if (mlpedevice && mlpedevice->lpecontrol) {
+
+            status = mlpedevice->lpecontrol(mode(), (uint32_t)devices);
+
+            if (status != NO_ERROR) {
+
+                // Just log!
+                LOGE("lpecontrol error: %d", status);
+            }
+        }
+
+       // Warn PFW
+       mSelectedInputDevice->setCriterionState(devices);
+    }
+
+    // No more?
+    if (param.size()) {
+
+        // Just log!
+        LOGW("Unhandled argument.");
+    }
+
+    return NO_ERROR;
+}
+
+
 }       // namespace android

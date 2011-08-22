@@ -13,7 +13,11 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   LOCAL_CFLAGS := -D_POSIX_SOURCE
 
   LOCAL_C_INCLUDES += \
-    external/alsa-lib/include
+    $(TARGET_OUT_HEADERS)/parameter \
+    external/alsa-lib/include \
+    external/stlport/stlport/ \
+    bionic/libstdc++ \
+    bionic/
 
   LOCAL_SRC_FILES := \
     AudioHardwareALSA.cpp \
@@ -26,6 +30,8 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   LOCAL_MODULE := libaudio
   LOCAL_MODULE_TAGS := optional
 
+  TARGET_ERROR_FLAGS += -Wno-non-virtual-dtor
+
   LOCAL_STATIC_LIBRARIES += libaudiointerface
 
   LOCAL_SHARED_LIBRARIES := \
@@ -35,7 +41,9 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     libmedia \
     libhardware \
     libhardware_legacy \
-    libc
+    libparameter \
+    libstlport \
+    libicuuc
 
 ifeq ($(USE_INTEL_SRC),true)
   LOCAL_CFLAGS += -DUSE_INTEL_SRC

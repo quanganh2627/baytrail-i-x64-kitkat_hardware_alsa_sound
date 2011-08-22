@@ -162,51 +162,7 @@ status_t ALSAStreamOps::set(int      *format,
 
 status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
 {
-    AudioParameter param = AudioParameter(keyValuePairs);
-    String8 key = String8(AudioParameter::keyRouting);
-    status_t status = NO_ERROR;
-    status_t err_a = BAD_VALUE;
-    int device;
-    LOGV("setParameters() %s", keyValuePairs.string());
-    AutoW lock(mParent->mLock);
-
-    if (param.getInt(key, device) == NO_ERROR) {
-
-        if(device != 0) {
-            if (mParent && mParent->mALSADevice && mParent->mALSADevice->route) {
-                status = mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
-                if (status == NO_ERROR) {
-
-                    // Call amcontrol.
-                    if (mParent && mParent->mvpcdevice && mParent->mvpcdevice->amcontrol) {
-                        status = mParent->mvpcdevice->amcontrol(mParent->mode(),(uint32_t)device);
-                        if(status == NO_ERROR) {
-                            if(mParent->mvpcdevice->mix_disable) {
-                                    mParent->mvpcdevice->mix_disable(mParent->mode());
-                            }
-                            //Call lpecontrol
-                            if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {
-                                status = mParent->mlpedevice->lpecontrol(mParent->mode(),(uint32_t)device);
-                                if ( status != NO_ERROR)
-                                    LOGE("lpecontrol error.");
-                            }
-
-                        } else
-                            LOGE("amcontrol error.");
-                    }
-
-                } else
-                    LOGE("route error.");
-            }
-        }
-
-        param.remove(key);
-    }
-    if (param.size()) {
-        LOGW("Unhandled argument.");
-        status = BAD_VALUE;
-    }
-    return status;
+    return NO_ERROR;
 }
 
 String8 ALSAStreamOps::getParameters(const String8& keys)

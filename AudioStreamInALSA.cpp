@@ -206,4 +206,18 @@ status_t AudioStreamInALSA::setAcousticParams(void *params)
     return aDev ? aDev->set_params(aDev, mAcoustics, params) : (status_t)NO_ERROR;
 }
 
+status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
+{
+    // Give a chance to parent to handle the change
+    status_t status = mParent->setStreamParameters(mHandle, false, keyValuePairs);
+
+    if (status != NO_ERROR) {
+
+        return status;
+    }
+
+    return ALSAStreamOps::setParameters(keyValuePairs);
+}
+
+
 }       // namespace android

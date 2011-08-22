@@ -29,8 +29,13 @@
 #include "AudioResamplerALSA.h"
 #endif
 
+class CParameterMgrPlatformConnector;
+class ISelectionCriterionTypeInterface;
+class ISelectionCriterionInterface;
+
 namespace android
 {
+class CParameterMgrPlatformConnectorLogger;
 
 typedef RWLock::AutoRLock AutoR;
 typedef RWLock::AutoWLock AutoW;
@@ -242,9 +247,7 @@ public:
 
     virtual status_t    standby();
 
-    virtual status_t    setParameters(const String8& keyValuePairs) {
-        return ALSAStreamOps::setParameters(keyValuePairs);
-    }
+    virtual status_t    setParameters(const String8& keyValuePairs);
 
     virtual String8     getParameters(const String8& keys) {
         return ALSAStreamOps::getParameters(keys);
@@ -298,10 +301,7 @@ public:
 
     virtual status_t    standby();
 
-    virtual status_t    setParameters(const String8& keyValuePairs)
-    {
-        return ALSAStreamOps::setParameters(keyValuePairs);
-    }
+    virtual status_t    setParameters(const String8& keyValuePairs);
 
     virtual String8     getParameters(const String8& keys)
     {
@@ -365,6 +365,10 @@ public:
     virtual status_t    setParameters(const String8& keyValuePairs);
     //virtual String8     getParameters(const String8& keys);
 
+    // set Stream Parameters
+    virtual status_t    setStreamParameters(alsa_handle_t* pAlsaHandle, bool bForOutput, const String8& keyValuePairs);
+
+
     // Returns audio input buffer size according to parameters passed or 0 if one of the
     // parameters is not supported
     virtual size_t    getInputBufferSize(uint32_t sampleRate, int format, int channels);
@@ -424,6 +428,39 @@ private:
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
     RWLock                mLock;
     bool mMicMuteState;
+
+private:
+    // PFW type value pairs type
+    struct SSelectionCriterionTypeValuePair
+    {
+        int iNumerical;
+        const char* pcLiteral;
+    };
+    // Used to fill types for PFW
+    void fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries);
+
+    // Mode type
+    static const SSelectionCriterionTypeValuePair mModeValuePairs[];
+    static const uint32_t mNbModeValuePairs;
+    // Selected Input Device type
+    static const SSelectionCriterionTypeValuePair mSelectedInputDeviceValuePairs[];
+    static const uint32_t mNbSelectedInputDeviceValuePairs;
+    // Selected Output Device type
+    static const SSelectionCriterionTypeValuePair mSelectedOutputDeviceValuePairs[];
+    static const uint32_t mNbSelectedOutputDeviceValuePairs;
+
+    // The connector
+    CParameterMgrPlatformConnector* mParameterMgrPlatformConnector;
+    // Logger
+    CParameterMgrPlatformConnectorLogger* mParameterMgrPlatformConnectorLogger;
+    // Criteria Types
+    ISelectionCriterionTypeInterface* mModeType;
+    ISelectionCriterionTypeInterface* mInputDeviceType;
+    ISelectionCriterionTypeInterface* mOutputDeviceType;
+    // Criteria
+    ISelectionCriterionInterface* mSelectedMode;
+    ISelectionCriterionInterface* mSelectedInputDevice;
+    ISelectionCriterionInterface* mSelectedOutputDevice;
 };
 
 // ----------------------------------------------------------------------------
