@@ -581,17 +581,6 @@ status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool
         }
     }
 
-    // VPC routing
-    if (devices && mvpcdevice && mvpcdevice->route) {
-
-        status = mvpcdevice->route();
-
-        if (status != NO_ERROR) {
-
-            // Just log!
-            LOGE("VPC route error: %d", status);
-        }
-    }
     // Mix disable
     if (devices && mvpcdevice && mvpcdevice->mix_disable) {
         mvpcdevice->mix_disable(mode());
