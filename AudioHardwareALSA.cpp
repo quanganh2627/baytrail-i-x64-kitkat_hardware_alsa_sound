@@ -353,7 +353,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
             }
             if (mvpcdevice && mvpcdevice->params && mvpcdevice->route) {
                 mvpcdevice->params(mode(), devices);
-                err = mvpcdevice->route();
+                err = mvpcdevice->route(VPC_ROUTE_CLOSE);
                 if (err) {
                     LOGE("openOutputStream called with bad devices");
                 }
