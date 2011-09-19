@@ -311,7 +311,7 @@ status_t AudioHardwareALSA::setMode(int mode)
     if (mode != mMode)
         status = AudioHardwareBase::setMode(mode);
 
-    mSelectedMode->setCriterionState(mode, false);
+    mSelectedMode->setCriterionState(mode);
 
     return status;
 }
@@ -611,6 +611,11 @@ status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool
 
        // Warn PFW
        mSelectedInputDevice->setCriterionState(devices);
+    }
+
+    std::string strError;
+    if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
+        LOGE("%s",strError.c_str());
     }
 
     // No more?
