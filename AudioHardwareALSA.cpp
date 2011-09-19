@@ -57,7 +57,7 @@ public:
 
     virtual void log(const std::string& strLog)
     {
-        LOGD(strLog.c_str());
+        LOGD("%s",strLog.c_str());
     }
 };
 
@@ -159,7 +159,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     std::string strError;
     if (!mParameterMgrPlatformConnector->start(strError)) {
 
-        LOGE(strError.c_str());
+        LOGE("%s",strError.c_str());
     }
 
     // Reset
