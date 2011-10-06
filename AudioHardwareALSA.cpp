@@ -504,15 +504,15 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     // Search TTY mode
     if(strstr(keyValuePairs.string(), "tty_mode=tty_full") != NULL) {
         LOGV("tty full\n");
-        mvpcdevice->tty(VPC_TTY_ON);
+        mvpcdevice->tty(VPC_TTY_FULL);
     }
     else if(strstr(keyValuePairs.string(), "tty_mode=tty_hco") != NULL) {
         LOGV("tty hco\n");
-        mvpcdevice->tty(VPC_TTY_ON);
+        mvpcdevice->tty(VPC_TTY_HCO);
     }
     else if(strstr(keyValuePairs.string(), "tty_mode=tty_vco") != NULL) {
         LOGV("tty vco\n");
-        mvpcdevice->tty(VPC_TTY_ON);
+        mvpcdevice->tty(VPC_TTY_VCO);
     }
     else if (strstr(keyValuePairs.string(), "tty_mode=tty_off") != NULL) {
         LOGV("tty off\n");
