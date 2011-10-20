@@ -42,6 +42,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
     libmedia \
     libhardware \
     libhardware_legacy \
+    libxmlserializer \
     libparameter \
     libstlport \
     libicuuc
