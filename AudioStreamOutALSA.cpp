@@ -37,7 +37,7 @@
 #define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
 #endif
 
-namespace android
+namespace android_audio_legacy
 {
 
 // ----------------------------------------------------------------------------
@@ -79,7 +79,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     if(!mHandle->handle) {
         ALSAStreamOps::open(mHandle->curMode);
     }
-    if(mParent->mvpcdevice->mix_enable) {
+
+    if(mParent && mParent->mvpcdevice && mParent->mvpcdevice->mix_enable) {
         mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
     }
 
@@ -190,7 +191,8 @@ status_t AudioStreamOutALSA::standby()
 
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
-    if(mParent->mvpcdevice->mix_disable)
+
+    if(mParent && mParent->mvpcdevice && mParent->mvpcdevice->mix_disable)
         mParent->mvpcdevice->mix_disable(mHandle->curMode);
 
     if(mParent->mALSADevice->standby)

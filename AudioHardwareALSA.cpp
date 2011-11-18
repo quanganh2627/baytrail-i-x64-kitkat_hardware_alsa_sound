@@ -37,18 +37,18 @@
 
 #define DEFAULTGAIN "1.0"
 
+namespace android_audio_legacy
+{
 extern "C"
 {
     //
     // Function for dlsym() to look up for creating a new AudioHardwareInterface.
     //
-    android::AudioHardwareInterface *createAudioHardware(void) {
-        return android::AudioHardwareALSA::create();
+    AudioHardwareInterface *createAudioHardware(void) {
+        return AudioHardwareALSA::create();
     }
 }         // extern "C"
 
-namespace android
-{
 /// PFW related definitions
 // Logger
 class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnector::ILogger
@@ -97,7 +97,6 @@ const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSe
     { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES, "A2DP_Headphones" },
     { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER, "A2DP_Speaker" },
     { AudioSystem::DEVICE_OUT_AUX_DIGITAL, "AuxDigital" },
-    { AudioSystem::DEVICE_OUT_HDMI, "HDMI" }
 };
 const uint32_t AudioHardwareALSA::mNbSelectedOutputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs[0]);
 

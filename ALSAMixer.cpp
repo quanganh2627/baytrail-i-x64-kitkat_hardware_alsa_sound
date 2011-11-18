@@ -39,7 +39,7 @@
 #define ALSA_NAME_MAX 128
 #define MEDFIELDAUDIO "medfieldaudio"
 
-namespace android
+namespace android_audio_legacy
 {
 
 // ----------------------------------------------------------------------------

@@ -25,6 +25,7 @@
 
 #include <hardware/hardware.h>
 #include <vpc_hardware.h>
+#include <utils/threads.h>
 
 #ifdef USE_INTEL_SRC
 #include "AudioResamplerALSA.h"
@@ -34,10 +35,12 @@ class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 
-namespace android
+namespace android_audio_legacy
 {
 class CParameterMgrPlatformConnectorLogger;
-
+using android::RWLock;
+using android::List;
+using android::Mutex;
 typedef RWLock::AutoRLock AutoR;
 typedef RWLock::AutoWLock AutoW;
 class AudioHardwareALSA;
@@ -49,7 +52,6 @@ class AudioHardwareALSA;
 #define ALSA_HARDWARE_NAME      "alsa"
 
 struct alsa_device_t;
-
 struct alsa_handle_t {
     alsa_device_t *     module;
     uint32_t            devices;
@@ -303,6 +305,8 @@ public:
 
     status_t            open(int mode);
     status_t            close();
+    virtual status_t addAudioEffect(effect_handle_t effect) { return NO_ERROR; };
+    virtual status_t removeAudioEffect(effect_handle_t effect) { return NO_ERROR; };
 
 private:
     AudioStreamInALSA(const AudioStreamInALSA &);

@@ -9,7 +9,7 @@
 #include <alsa/asoundlib.h>
 #include <iasrc_resampler.h>
 
-namespace android {
+namespace android_audio_legacy{
 
 // ----------------------------------------------------------------------------
 

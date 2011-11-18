@@ -33,7 +33,7 @@
 
 #include "AudioHardwareALSA.h"
 
-namespace android
+namespace android_audio_legacy
 {
 
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
@@ -70,7 +70,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if(!mHandle->handle)
         ALSAStreamOps::open(mHandle->curMode);
 
-    if(mParent->mvpcdevice->mix_enable) {
+    if(mParent && mParent->mvpcdevice && mParent->mvpcdevice->mix_enable) {
         mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
     }
 
