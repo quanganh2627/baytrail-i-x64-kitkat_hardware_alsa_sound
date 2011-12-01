@@ -350,6 +350,10 @@ void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
 status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int mode)
 {
     LOGD("setRoute mode=%d", mode);
+    if((mAudioRoute == audioRoute) && (mHandle->curDev == devices) && (mHandle->curMode == mode)) {
+        LOGD("setRoute: stream already attached to the route, identical conditions");
+        return NO_ERROR;
+    }
     // unset stream from previous route (if any)
     if(mAudioRoute != NULL)
         mAudioRoute->unsetStream(this, mode);
