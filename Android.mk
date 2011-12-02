@@ -10,8 +10,7 @@ LOCAL_C_INCLUDES += \
     external/alsa-lib/include \
     external/stlport/stlport/ \
     bionic/libstdc++ \
-    bionic/ \
-    hardware/intel/mfld_cdk/vpc/
+    bionic/
 
 LOCAL_SRC_FILES := \
     AudioHardwareInterface.cpp \
@@ -21,7 +20,13 @@ LOCAL_SRC_FILES := \
     AudioStreamInALSA.cpp \
     ALSAStreamOps.cpp \
     ALSAMixer.cpp \
-    ALSAControl.cpp
+    ALSAControl.cpp \
+    AudioRouteManager.cpp \
+    AudioRoute.cpp \
+    AudioRouteMSICVoice.cpp \
+    AudioRouteBT.cpp \
+    AudioRouteMM.cpp \
+    AudioRouteVoiceRec.cpp
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 

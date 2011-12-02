@@ -31,6 +31,8 @@
 #include "AudioResamplerALSA.h"
 #endif
 
+#define NULL_IN_DEVICE 0
+
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
@@ -44,6 +46,8 @@ using android::Mutex;
 typedef RWLock::AutoRLock AutoR;
 typedef RWLock::AutoWLock AutoW;
 class AudioHardwareALSA;
+class AudioRouteManager;
+class AudioRoute;
 
 /**
  * The id of ALSA module
@@ -77,8 +81,8 @@ struct alsa_device_t {
     status_t (*open)(alsa_handle_t *, uint32_t, int);
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);
-    status_t (*route)(alsa_handle_t *, uint32_t, int);
     status_t (*volume)(alsa_handle_t *, uint32_t, float);
+    status_t (*initStream)(alsa_handle_t *, uint32_t, int);
 };
 
 /* LPE io control module */
@@ -180,8 +184,19 @@ public:
     int                 format() const;
     uint32_t            channels() const;
 
-    status_t            open(int mode);
+    status_t            open(uint32_t devices, int mode);
     void                close();
+    void                doClose();
+    void                doStandby();
+
+    virtual bool        isOut() = 0;
+    status_t            setRoute(AudioRoute *audioRoute, uint32_t devices, int mode);
+
+    status_t            doRoute(int mode);
+
+    status_t            undoRoute();
+
+    bool                routeAvailable();
 
 protected:
     friend class AudioHardwareALSA;
@@ -198,6 +213,13 @@ protected:
 
     Mutex                   mLock;
     bool                    mPowerLock;
+    bool                    mStandby;
+    uint32_t                mDevices;
+
+private:
+    AudioRoute *mAudioRoute;
+
+    void        vpcRoute(uint32_t devices, int mode);
 };
 
 // ----------------------------------------------------------------------------
@@ -243,6 +265,8 @@ public:
     // return the number of audio frames written by the audio dsp to DAC since
     // the output has exited standby
     virtual status_t    getRenderPosition(uint32_t *dspFrames);
+
+    virtual bool        isOut();
 
     status_t            open(int mode);
     status_t            close();
@@ -301,6 +325,8 @@ public:
     // Unit: the number of input audio frames
     virtual unsigned int  getInputFramesLost() const;
 
+    virtual bool        isOut();
+
     status_t            setAcousticParams(void* params);
 
     status_t            open(int mode);
@@ -355,7 +381,7 @@ public:
     //virtual String8     getParameters(const String8& keys);
 
     // set Stream Parameters
-    virtual status_t    setStreamParameters(alsa_handle_t* pAlsaHandle, bool bForOutput, const String8& keyValuePairs);
+    virtual status_t    setStreamParameters(ALSAStreamOps* pStream, bool bForOutput, const String8& keyValuePairs);
 
 
     // Returns audio input buffer size according to parameters passed or 0 if one of the
@@ -450,6 +476,10 @@ private:
     ISelectionCriterionInterface* mSelectedMode;
     ISelectionCriterionInterface* mSelectedInputDevice;
     ISelectionCriterionInterface* mSelectedOutputDevice;
+
+    status_t route(ALSAStreamOps* pStream, uint32_t devices, int mode);
+
+    AudioRouteManager  *mAudioRouteMgr;
 };
 
 // ----------------------------------------------------------------------------

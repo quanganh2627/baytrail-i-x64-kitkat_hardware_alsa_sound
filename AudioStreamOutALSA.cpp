@@ -76,11 +76,19 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         mPowerLock = true;
     }
 
-    if(!mHandle->handle) {
-        ALSAStreamOps::open(mHandle->curMode);
+    // Check if the audio route is available for this stream
+    if(!routeAvailable()) {
+        // Simulate audio output timing in case of route unavailable
+        usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
+        mStandby = false;
+        return bytes;
     }
 
-    if(mParent && mParent->mvpcdevice && mParent->mvpcdevice->mix_enable) {
+    if(mStandby) {
+        ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+        mStandby = false;
+    }
+    if(mParent->mvpcdevice->mix_enable) {
         mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
     }
 
@@ -158,7 +166,7 @@ status_t AudioStreamOutALSA::open(int mode)
 {
     AutoW lock(mParent->mLock);
 
-    return ALSAStreamOps::open(mode);
+    return ALSAStreamOps::open(NULL, mode);
 }
 
 status_t AudioStreamOutALSA::close()
@@ -191,8 +199,7 @@ status_t AudioStreamOutALSA::standby()
 
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
-
-    if(mParent && mParent->mvpcdevice && mParent->mvpcdevice->mix_disable)
+    if(mParent->mvpcdevice->mix_disable)
         mParent->mvpcdevice->mix_disable(mHandle->curMode);
 
     if(mParent->mALSADevice->standby)
@@ -202,7 +209,7 @@ status_t AudioStreamOutALSA::standby()
         release_wake_lock ("AudioOutLock");
         mPowerLock = false;
     }
-
+    mStandby = true;
     mFrameCount = 0;
 
     return NO_ERROR;
@@ -227,7 +234,7 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
 status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
 {
     // Give a chance to parent to handle the change
-    status_t status = mParent->setStreamParameters(mHandle, true, keyValuePairs);
+    status_t status = mParent->setStreamParameters(this, true, keyValuePairs);
 
     if (status != NO_ERROR) {
 
@@ -237,5 +244,9 @@ status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
     return ALSAStreamOps::setParameters(keyValuePairs);
 }
 
+bool AudioStreamOutALSA::isOut()
+{
+    return true;
+}
 
 }       // namespace android

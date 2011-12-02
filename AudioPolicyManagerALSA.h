@@ -16,6 +16,7 @@
 
 
 #include <stdint.h>
+#include <math.h>
 #include <sys/types.h>
 #include <utils/Timers.h>
 #include <utils/Errors.h>
@@ -35,6 +36,9 @@ namespace android_audio_legacy {
 // Time in seconds during which we consider that music is still active after a music
 // track was stopped - see computeVolume()
 #define SONIFICATION_HEADSET_MUSIC_DELAY  5
+// Attenuation applied to STRATEGY_MEDIA streams during VoIP call : 12dB
+#define IN_COMMUNICATION_MEDIA_ATTENUATION_IN_DB 12.0
+
 class AudioPolicyManagerALSA: public AudioPolicyManagerBase
 {
 
@@ -42,7 +46,7 @@ public:
     AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface);
     virtual ~AudioPolicyManagerALSA();
 
-    // Nothing currently different between the Base implementation.
+    virtual float computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device);
 };
 
 };

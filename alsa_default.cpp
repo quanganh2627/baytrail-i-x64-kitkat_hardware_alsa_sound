@@ -49,7 +49,7 @@ static int s_device_close(hw_device_t*);
 static status_t s_init(alsa_device_t *, ALSAHandleList &);
 static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
-static status_t s_route(alsa_handle_t *, uint32_t, int);
+static status_t s_init_stream(alsa_handle_t *handle, uint32_t devices, int mode);
 
 static hw_module_methods_t s_module_methods = {
 open            :
@@ -91,7 +91,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
     dev->init = s_init;
     dev->open = s_open;
     dev->close = s_close;
-    dev->route = s_route;
+    dev->initStream = s_init_stream;
 
     *device = &dev->common;
     return 0;
@@ -483,6 +483,43 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
     list.push_back(_defaultsIn);
 
+    return NO_ERROR;
+}
+
+static status_t s_init_stream(alsa_handle_t *handle, uint32_t devices, int mode)
+{
+    // Close off previously opened device.
+    // It would be nice to determine if the underlying device actually
+    // changes, but we might be recovering from an error or manipulating
+    // mixer settings (see asound.conf).
+    //
+    if(handle->openFlag)
+        s_close(handle);
+
+    LOGD("s_init_stream called for devices %08x in mode %d...", devices, mode);
+
+    const char *stream = streamName(handle);
+    const char *devName = deviceName(handle, devices, mode);
+
+    LOGD("s_init_stream called for devices %s", devName);
+    if (devices & AudioSystem::DEVICE_IN_ALL) {
+        handle->bufferSize = _defaultsIn.bufferSize;
+        handle->latency = _defaultsIn.latency;
+        handle->sampleRate = _defaultsIn.sampleRate;
+        handle->expectedSampleRate = _defaultsIn.expectedSampleRate;
+        handle->channels = _defaultsIn.channels;
+    } else {
+        handle->bufferSize = _defaultsOut.bufferSize;
+        handle->latency = _defaultsOut.latency;
+        handle->sampleRate = _defaultsOut.sampleRate;
+        handle->expectedSampleRate = _defaultsOut.expectedSampleRate;
+        handle->channels = _defaultsOut.channels;
+    }
+    LOGI("Initialized ALSA %s device %s", stream, devName);
+
+    handle->curDev = devices;
+    handle->curMode = mode;
+    handle->openFlag = 0;
     return NO_ERROR;
 }
 

@@ -33,6 +33,12 @@
 #include <hardware_legacy/power.h>
 
 #include "AudioHardwareALSA.h"
+#include "AudioRoute.h"
+
+#define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
+
+#define DEFAULT_SAMPLE_RATE     44100
+#define DEFAULT_BUFFER_SIZE     (DEFAULT_SAMPLE_RATE/ 5)
 
 namespace android_audio_legacy
 {
@@ -42,7 +48,10 @@ namespace android_audio_legacy
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle) :
     mParent(parent),
     mHandle(handle),
-    mPowerLock(false)
+    mPowerLock(false),
+    mStandby(false),
+    mDevices(0),
+    mAudioRoute(NULL)
 {
 }
 
@@ -193,10 +202,14 @@ size_t ALSAStreamOps::bufferSize() const
     snd_pcm_uframes_t bufferSize = mHandle->bufferSize;
     snd_pcm_uframes_t periodSize;
 
-    snd_pcm_get_params(mHandle->handle, &bufferSize, &periodSize);
+    size_t bytes;
 
-    size_t bytes = static_cast<size_t>(snd_pcm_frames_to_bytes(mHandle->handle, bufferSize));
+    if(mHandle->handle) {
+        snd_pcm_get_params(mHandle->handle, &bufferSize, &periodSize);
 
+        bytes = static_cast<size_t>(snd_pcm_frames_to_bytes(mHandle->handle, bufferSize));
+    } else
+        bytes = DEFAULT_BUFFER_SIZE;
     // Not sure when this happened, but unfortunately it now
     // appears that the bufferSize must be reported as a
     // power of 2. This might be for OSS compatibility.
@@ -265,7 +278,25 @@ uint32_t ALSAStreamOps::channels() const
 
 void ALSAStreamOps::close()
 {
+ //   mParent->mALSADevice->close(mHandle);
+    // Call unset stream from route instead
+    if(mAudioRoute) {
+        mAudioRoute->unsetStream(this, mParent->mode());
+        mAudioRoute = NULL;
+    }
+}
+
+void ALSAStreamOps::doClose()
+{
+    LOGD("ALSAStreamOps::doClose");
     mParent->mALSADevice->close(mHandle);
+}
+
+void ALSAStreamOps::doStandby()
+{
+    LOGD("ALSAStreamOps::doStandby");
+    mParent->mALSADevice->standby(mHandle);
+    mStandby = true;
 }
 
 //
@@ -278,11 +309,16 @@ void ALSAStreamOps::close()
 // If the "routes" value does not map to a valid device, the default playback
 // device is used.
 //
-status_t ALSAStreamOps::open(int mode)
+status_t ALSAStreamOps::open(uint32_t devices, int mode)
 {
-    status_t err = BAD_VALUE;
-    err = mParent->mALSADevice->open(mHandle, mHandle->curDev, mode);
+    assert(routeAvailable());
+    assert(!mHandle->handle);
 
+    status_t err = BAD_VALUE;
+    err = mParent->mALSADevice->open(mHandle, devices, mode);
+
+
+    LOGD("ALSAStreamOps::open");
     if(NO_ERROR == err) {
         if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {
             err = mParent->mlpedevice->lpecontrol(mode,mHandle->curDev);
@@ -292,6 +328,59 @@ status_t ALSAStreamOps::open(int mode)
         }
     }
     return err;
+}
+
+bool ALSAStreamOps::routeAvailable()
+{
+    if(mAudioRoute)
+        return mAudioRoute->available(isOut());
+
+    return false;
+}
+
+void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
+{
+    LOGD("vpcRoute");
+    if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL)) {
+        LOGD("vpcRoute BT Playback INCOMMUNICATION");
+        mParent->mvpcdevice->route(VPC_ROUTE_OPEN);
+    }
+}
+
+status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int mode)
+{
+    LOGD("setRoute mode=%d", mode);
+    // unset stream from previous route (if any)
+    if(mAudioRoute != NULL)
+        mAudioRoute->unsetStream(this, mode);
+
+    mAudioRoute = audioRoute;
+    mDevices = devices;
+
+    vpcRoute(mDevices, mode);
+
+    // set stream to new route
+    return mAudioRoute->setStream(this, mode);
+}
+
+status_t ALSAStreamOps::doRoute(int mode)
+{
+    LOGD("doRoute mode=%d", mode);
+    open(mDevices, mode);
+
+    if(mStandby) {
+        LOGD("doRoute standby mode -> standby the device immediately after routing");
+        doStandby();
+    }
+    return NO_ERROR;
+}
+
+status_t ALSAStreamOps::undoRoute()
+{
+    LOGD("doRoute undoRoute");
+    doClose();
+
+    return NO_ERROR;
 }
 
 }       // namespace android

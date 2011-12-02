@@ -35,6 +35,13 @@
 #include "SelectionCriterionInterface.h"
 #include "AudioHardwareALSA.h"
 
+#include "AudioRouteMSICVoice.h"
+#include "AudioRouteManager.h"
+#include "AudioRouteBT.h"
+#include "AudioRouteMM.h"
+#include "AudioRouteVoiceRec.h"
+#include "AudioRoute.h"
+
 #define DEFAULTGAIN "1.0"
 
 namespace android_audio_legacy
@@ -132,7 +139,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mvpcdevice(0),
     mlpedevice(0),
     mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("Audio")),
-    mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger)
+    mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
+    mAudioRouteMgr(new AudioRouteManager)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -154,6 +162,12 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mSelectedMode = mParameterMgrPlatformConnector->createSelectionCriterion("Mode", mModeType);
     mSelectedInputDevice = mParameterMgrPlatformConnector->createSelectionCriterion("SelectedInputDevice", mInputDeviceType);
     mSelectedOutputDevice = mParameterMgrPlatformConnector->createSelectionCriterion("SelectedOutputDevice", mOutputDeviceType);
+
+    /// Creates the routes and adds them to the route mgr
+    mAudioRouteMgr->addRoute(new AudioRouteMSICVoice(String8("MSIC_Voice")));
+    mAudioRouteMgr->addRoute(new AudioRouteMM(String8("MultiMedia")));
+    mAudioRouteMgr->addRoute(new AudioRouteBT(String8("BT")));
+    mAudioRouteMgr->addRoute(new AudioRouteVoiceRec(String8("VoiceRec")));
 
     /// Start
     std::string strError;
@@ -234,6 +248,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
 
 AudioHardwareALSA::~AudioHardwareALSA()
 {
+    // Delete route manager, it will detroy all the registered routes
+    delete mAudioRouteMgr;
     // Unset logger
     mParameterMgrPlatformConnector->setLogger(NULL);
     // Remove logger
@@ -339,7 +355,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
-            err = mALSADevice->open(&(*it), devices, mode());
+            err = mALSADevice->initStream(&(*it), devices, mode());
             if (err) {
                 LOGE("Open error.");
                 break;
@@ -350,16 +366,8 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
                 LOGE("set error.");
                 break;
             }
-            if (mvpcdevice && mvpcdevice->params && mvpcdevice->route) {
-                mvpcdevice->params(mode(), devices);
-                err = mvpcdevice->route(VPC_ROUTE_CLOSE);
-                if (err) {
-                    LOGE("openOutputStream called with bad devices");
-                }
-            }
-            break;
         }
-
+    LOGD("openOutputStream OUT");
     if (status) *status = err;
     return out;
 }
@@ -391,6 +399,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
         if (status) *status = err;
         return in;
     }
+    LOGD("openInputStream IN");
 
     property_get ("alsa.mixer.defaultGain",
             str,
@@ -401,7 +410,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
-            err = mALSADevice->open(&(*it), devices, mode());
+            err = mALSADevice->initStream(&(*it), devices, mode());
             if (err) {
                 LOGE("Open error.");
                 break;
@@ -420,12 +429,12 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
             if (mlpedevice && mlpedevice->lpecontrol) {
                 err = mlpedevice->lpecontrol(mode(), devices);
                 if (err) {
-                    LOGE("openOutputStream called with bad devices");
+                    LOGE("openInputStream called with bad devices");
                 }
             }
             break;
         }
-
+    LOGD("openInputStream OUT");
     if (status) *status = err;
     return in;
 }
@@ -434,7 +443,7 @@ void
 AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
     mMicMuteState = false;
-
+    LOGD("closeInputStream");
     delete in;
 }
 
@@ -533,12 +542,13 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 
 
 // set Stream Parameters
-status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool bForOutput, const String8& keyValuePairs)
+status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bForOutput, const String8& keyValuePairs)
 {
     AudioParameter param = AudioParameter(keyValuePairs);
     String8 key = String8(AudioParameter::keyRouting);
     status_t status;
     int devices;
+    alsa_handle_t* pAlsaHandle = pStream->mHandle;
 
     AutoW lock(mLock);
 
@@ -569,10 +579,10 @@ status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool
     }
 
     // Alsa routing
-    if (devices && mALSADevice && mALSADevice->route) {
+    if (devices && mALSADevice) {
 
-        status = mALSADevice->route(pAlsaHandle, (uint32_t)devices, mode());
-
+        // Ask the route manager to route the new stream
+        status = mAudioRouteMgr->route(pStream, devices, mode(), bForOutput);
         if (status != NO_ERROR) {
 
             // Just log!
@@ -624,6 +634,10 @@ status_t AudioHardwareALSA::setStreamParameters(alsa_handle_t* pAlsaHandle, bool
         LOGW("Unhandled argument.");
     }
 
+    return NO_ERROR;
+}
+
+status_t AudioHardwareALSA::route(ALSAStreamOps* pStream, uint32_t devices, int mode) {
     return NO_ERROR;
 }
 
