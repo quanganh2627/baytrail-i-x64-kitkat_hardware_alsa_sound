@@ -287,8 +287,8 @@ status_t ALSAMixer::setMasterGain(float gain)
 {
     status_t err = NO_ERROR;
 
-    if (mHardwareAlsa && mHardwareAlsa->mlpedevice && mHardwareAlsa->mlpedevice->lpeSetMasterGain)
-        err = mHardwareAlsa->mlpedevice->lpeSetMasterGain(gain);
+    // Do nothing, handled through PFW
+
     return err;
 }
 
