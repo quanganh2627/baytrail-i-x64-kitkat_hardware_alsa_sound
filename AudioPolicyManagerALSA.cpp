@@ -38,6 +38,25 @@ extern "C" void destroyAudioPolicyManager(AudioPolicyInterface *interface)
     delete interface;
 }
 
+audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
+                                                   uint32_t samplingRate,
+                                                   uint32_t format,
+                                                   uint32_t channels,
+                                                   AudioSystem::audio_in_acoustics acoustics)
+{
+    uint32_t device = getDeviceForInputSource(inputSource);
+
+    // If one input (device in capture) is used then the policy
+    // shall refuse to any record application to acquire another input
+    if (!mInputs.isEmpty()) {
+        LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used, return invalid audio input handle!",
+             mPhoneState, device);
+        return 0;
+    }
+
+    // Call base implementation
+    return AudioPolicyManagerBase::getInput(inputSource, samplingRate, format, channels, acoustics);
+}
 
 float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device)
 {

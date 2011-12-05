@@ -28,14 +28,6 @@ namespace android_audio_legacy {
 
 // ----------------------------------------------------------------------------
 
-#define MAX_DEVICE_ADDRESS_LEN 20
-// Attenuation applied to STRATEGY_SONIFICATION streams when a headset is connected: 6dB
-#define SONIFICATION_HEADSET_VOLUME_FACTOR 0.5
-// Min volume for STRATEGY_SONIFICATION streams when limited by music volume: -36dB
-#define SONIFICATION_HEADSET_VOLUME_MIN  0.016
-// Time in seconds during which we consider that music is still active after a music
-// track was stopped - see computeVolume()
-#define SONIFICATION_HEADSET_MUSIC_DELAY  5
 // Attenuation applied to STRATEGY_MEDIA streams during VoIP call : 12dB
 #define IN_COMMUNICATION_MEDIA_ATTENUATION_IN_DB 12.0
 
@@ -45,6 +37,13 @@ class AudioPolicyManagerALSA: public AudioPolicyManagerBase
 public:
     AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface);
     virtual ~AudioPolicyManagerALSA();
+
+    // Gets audio input handle from current input source and parameters
+    virtual audio_io_handle_t getInput(int inputSource,
+                                       uint32_t samplingRate,
+                                       uint32_t format,
+                                       uint32_t channels,
+                                       AudioSystem::audio_in_acoustics acoustics);
 
     virtual float computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device);
 };
