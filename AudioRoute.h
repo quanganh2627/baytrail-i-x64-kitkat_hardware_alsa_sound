@@ -36,7 +36,7 @@ public:
 
     virtual bool isApplicable(uint32_t devices, int mode, bool bForOutput) = 0;
 
-    status_t apply(int mode, bool bForOutput);
+    status_t applyRoutingStrategy(int mode, bool bForOutput);
 
     status_t setStream(ALSAStreamOps* pStream, int mode);
 
@@ -44,8 +44,15 @@ public:
 
     bool available(bool bForOutput);
 
+    void setRouteAccessible(bool isAccessible, int mode);
+
+    const String8& getName() const { return mName; }
+
 private:
     status_t route(int mode, bool bForOutput);
+
+    status_t unRoute(bool bForOutput);
+
     static bool tieStreams(int mode);
 
     ALSAStreamOps* captureStream() { return mStreams[0]; }
@@ -61,6 +68,7 @@ private:
     String8 mName;
     ALSAStreamOps* mStreams[2];
     bool mIsCaptureRouted;
+    bool mIsRouteAccessible;
 };
 // ----------------------------------------------------------------------------
 

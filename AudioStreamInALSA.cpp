@@ -62,6 +62,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     AutoR lock(mParent->mLock);
 
+    status_t err;
+
     if (!mPowerLock) {
         acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioInLock");
         mPowerLock = true;
@@ -78,7 +80,11 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     }
 
     if(mStandby) {
-        ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+        err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+        if (err < 0) {
+            LOGE("Read: Cannot open alsa device(0x%x) in mode (%d)", mHandle->curDev, mHandle->curMode);
+            return err;
+        }
         mStandby = false;
     }
 
@@ -96,7 +102,6 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     snd_pcm_sframes_t n;
     ssize_t            received = 0;
-    status_t          err = NO_ERROR;
 
     do {
         n = snd_pcm_readi(mHandle->handle,
@@ -107,6 +112,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
             snd_pcm_wait(mHandle->handle, 1000);
         }
         else if (n == -EBADFD) {
+            LOGE("read err: %s, TRY REOPEN...", snd_strerror(n));
             err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
             if(err != NO_ERROR) {
                 LOGE("Open device error");

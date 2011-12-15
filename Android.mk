@@ -12,8 +12,17 @@ LOCAL_C_INCLUDES += \
     bionic/libstdc++ \
     bionic/
 
-LOCAL_SRC_FILES := \
-    AudioHardwareInterface.cpp \
+LOCAL_C_INCLUDES += \
+        hardware/intel/IFX-modem
+
+# for testing with dummy-stmd daemon, comment previous include
+# path and uncomment the following one
+#LOCAL_C_INCLUDES += \
+#        hardware/alsa_sound/test-app/
+#
+
+  LOCAL_SRC_FILES := \
+	AudioHardwareInterface.cpp \
     audio_hw_hal.cpp \
     AudioHardwareALSA.cpp \
     AudioStreamOutALSA.cpp \
@@ -26,7 +35,8 @@ LOCAL_SRC_FILES := \
     AudioRouteMSICVoice.cpp \
     AudioRouteBT.cpp \
     AudioRouteMM.cpp \
-    AudioRouteVoiceRec.cpp
+    AudioRouteVoiceRec.cpp \
+    AudioModemStateListener.cpp
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 

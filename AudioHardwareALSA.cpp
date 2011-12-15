@@ -41,6 +41,7 @@
 #include "AudioRouteMM.h"
 #include "AudioRouteVoiceRec.h"
 #include "AudioRoute.h"
+#include "AudioModemStateListener.h"
 
 #define DEFAULTGAIN "1.0"
 
@@ -140,7 +141,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mlpedevice(0),
     mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("Audio")),
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
-    mAudioRouteMgr(new AudioRouteManager)
+    mAudioRouteMgr(new AudioRouteManager),
+    mAudioModemStateListener(new AudioModemStateListener(this))
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -168,6 +170,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mAudioRouteMgr->addRoute(new AudioRouteMM(String8("MultiMedia")));
     mAudioRouteMgr->addRoute(new AudioRouteBT(String8("BT")));
     mAudioRouteMgr->addRoute(new AudioRouteVoiceRec(String8("VoiceRec")));
+
+    // Starts the modem state listener
+    if(mAudioModemStateListener->start() != 0)
+        LOGE("AudioHardwareALSA: could not start modem state listener");
 
     /// Start
     std::string strError;
@@ -221,9 +227,13 @@ AudioHardwareALSA::AudioHardwareALSA() :
             LOGD("VPC MODULE OK.");
             mvpcdevice = (vpc_device_t *) device;
             err = mvpcdevice->init();
+
             if (err)
-                LOGE("audience init FAILED");
-            }
+                LOGE("VPC MODULE init FAILED");
+            else
+                if (mvpcdevice->set_modem_state)
+                    mvpcdevice->set_modem_state(mAudioModemStateListener->getModemStatus());
+        }
         else
             LOGE("VPC Module not found");
     }
@@ -248,6 +258,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
 
 AudioHardwareALSA::~AudioHardwareALSA()
 {
+    // Delete AudioModemStateListener
+    delete mAudioModemStateListener;
     // Delete route manager, it will detroy all the registered routes
     delete mAudioRouteMgr;
     // Unset logger
@@ -322,6 +334,12 @@ status_t AudioHardwareALSA::setMode(int mode)
     AutoW lock(mLock);
     status_t status = NO_ERROR;
     status_t err_a = BAD_VALUE;
+
+    if(mode == AudioSystem::MODE_IN_CALL && mAudioModemStateListener->getModemStatus() != MODEM_UP)
+    {
+        LOGD("setMode: cannot switch to INCALL mode as modem not available");
+        return status;
+    }
 
     if (mode != mMode)
         status = AudioHardwareBase::setMode(mode);
@@ -567,7 +585,8 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     LOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
 
     // VPC params
-    if (devices && mvpcdevice && mvpcdevice->params) {
+    // Refreshed only on out stream changes
+    if (devices && mvpcdevice && mvpcdevice->params && bForOutput) {
 
         status = mvpcdevice->params(mode(), (uint32_t)devices);
 
@@ -639,6 +658,85 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
 status_t AudioHardwareALSA::route(ALSAStreamOps* pStream, uint32_t devices, int mode) {
     return NO_ERROR;
+}
+
+status_t AudioHardwareALSA::forceModeChangeOnStreams() {
+    LOGD("forceModeChangeOnStreams");
+    status_t status = NO_ERROR;
+    /* Force route with new mode */
+    for(ALSAHandleList::iterator it = mDeviceList.begin();
+            it != mDeviceList.end(); ++it)
+        if (it->curDev & AudioSystem::DEVICE_OUT_ALL && !(it->curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL)) {
+            int err, devices = it->curDev;
+            LOGD("onModemStateChange found outstream on device=%d", devices);
+            if (devices && mvpcdevice && mvpcdevice->params) {
+                status = mvpcdevice->params(mode(), (uint32_t)devices);
+
+                if (status != NO_ERROR) {
+
+                    // Just log!
+                    LOGE("VPC params error: %d", status);
+                }
+            }
+            LOGD("onModemStateChange opening device=%d", devices);
+            err = mALSADevice->open(&(*it), devices, mode());
+            if (err) {
+                LOGE("Open error.");
+                break;
+            }
+        }
+    return status;
+}
+
+void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
+    LOGD("onModemStateChange before lock");
+    AutoW lock(mLock);
+    LOGD("onModemStateChange");
+    bool isModemAvailable;
+    status_t status;
+
+    /*
+     * Informs VPC of modem status change
+     * VPC might not be loaded at boot time, so
+     * the modem state will also be set after loading VPC
+     * HW module
+     */
+    if (mvpcdevice && mvpcdevice->set_modem_state) {
+        mvpcdevice->set_modem_state(mModemStatus);
+    }
+
+    /*
+     * If any Input / output streams are opened on the shared I2S bus, make their routes
+     * inaccessible (ie close the hw device but returning silence for capture
+     * and trashing the playback datas) until the modem is back up.
+     * Do not perform this in call on MSIC voice since lost network tone would not be played
+     */
+    isModemAvailable = (mModemStatus == MODEM_UP);
+    if (mode() != AudioSystem::MODE_IN_CALL)
+    {
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), isModemAvailable, mode());
+    }
+    mAudioRouteMgr->setRouteAccessible(String8("BT"), isModemAvailable, mode());
+    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), isModemAvailable, mode());
+
+    /*
+     * Side effect of delaying setMode(NORMAL) once call is finished in case of modem reset
+     * Lost Network tone cannot be played on IN_CALL path as modem is ... in reset!!!
+     * We will force a mode change to NORMAL in order to be able
+     * to listen the lost network tones. In other words, it will route the stream on
+     * MM route.
+     * If delayed mode change is reverted, this following code can be remove
+     * Remark: the device is kept the same, only the mode is changed in order not to disturb
+     * user experience.
+     */
+    if(mode() == AudioSystem::MODE_IN_CALL && mModemStatus == MODEM_DOWN)
+    {
+        LOGD("onModemStateChange modem crashed, FORCE MODE change to NORMAL");
+        setMode(AudioSystem::MODE_NORMAL);
+
+        if(forceModeChangeOnStreams())
+            LOGD("onModemStateChange: failed to force mode change on streams");
+    }
 }
 
 

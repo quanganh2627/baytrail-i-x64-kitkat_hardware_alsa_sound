@@ -102,4 +102,37 @@ AudioRoute* AudioRouteManager::getRoute(uint32_t devices, int mode, bool bForOut
     return NULL;
 }
 
+AudioRoute* AudioRouteManager::findRouteByName(const String8& name)
+{
+    LOGD("findRouteByName");
+    AudioRoute* aRoute =  NULL;
+    AudioRouteListIterator it;
+
+    // Find the applicable route for this route request
+    for (it = _audioRouteList.begin(); it != _audioRouteList.end(); ++it) {
+        aRoute = *it;
+        if(name == aRoute->getName()) {
+            break;
+        }
+    }
+    return aRoute;
+}
+
+status_t AudioRouteManager::setRouteAccessible(const String8& name, bool isAccessible, int mode)
+{
+    LOGD("setRouteAccessible");
+    AudioRoute* aRoute =  NULL;
+    AudioRouteListIterator it;
+
+    // Find the applicable route for this route request
+    aRoute = findRouteByName(name);
+
+    if(aRoute != NULL)
+        aRoute->setRouteAccessible(isAccessible, mode);
+    else
+        return BAD_VALUE;
+
+    return NO_ERROR;
+}
+
 }       // namespace android

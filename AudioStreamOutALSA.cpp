@@ -37,6 +37,9 @@
 #define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
 #endif
 
+#define MAX_AGAIN_RETRY     2
+#define WAIT_TIME_MS        20
+
 namespace android_audio_legacy
 {
 
@@ -71,6 +74,8 @@ status_t AudioStreamOutALSA::setVolume(float left, float right)
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
     AutoR lock(mParent->mLock);
+
+    status_t err = NO_ERROR;
     if (!mPowerLock) {
         acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioOutLock");
         mPowerLock = true;
@@ -78,6 +83,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     // Check if the audio route is available for this stream
     if(!routeAvailable()) {
+        LOGD("Write: on alsa device(0x%x) in mode(0x%x): generating silence", mHandle->curDev, mHandle->curMode);
         // Simulate audio output timing in case of route unavailable
         usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
         mStandby = false;
@@ -85,7 +91,12 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     }
 
     if(mStandby) {
-        ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+        err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+
+        if (err < 0) {
+            LOGE("Write: Cannot open alsa device(0x%x) in mode(0x%x).", mHandle->curDev, mHandle->curMode);
+            return err;
+        }
         mStandby = false;
     }
     if(mParent->mvpcdevice->mix_enable) {
@@ -101,7 +112,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     snd_pcm_sframes_t n;
     size_t            sent = 0;
-    status_t          err = NO_ERROR;
+    int it = 0;
 
 #ifdef USE_INTEL_SRC
     int32_t outBytes;
@@ -114,6 +125,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
             buffer = buf;
             bytes = outBytes;
         }
+        else
+            LOGE("write: resampler error, could not set sample rate");
     }
 #endif
 
@@ -123,9 +136,15 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
                            snd_pcm_bytes_to_frames(mHandle->handle, bytes - sent));
 
         if(n == -EAGAIN || (n >= 0 && static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n)) + sent < bytes)) {
-            snd_pcm_wait(mHandle->handle, 1000);
+            it++;
+            if (it > MAX_AGAIN_RETRY){
+                LOGE("write err: EAGAIN breaking...");
+                return n;
+            }
+            snd_pcm_wait(mHandle->handle, WAIT_TIME_MS);
         }
         else if (n == -EBADFD) {
+            LOGE("write err: %s, TRY REOPEN...", snd_strerror(n));
             err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
             if(err != NO_ERROR) {
                 LOGE("Open device error");

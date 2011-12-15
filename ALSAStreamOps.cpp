@@ -281,7 +281,7 @@ void ALSAStreamOps::close()
  //   mParent->mALSADevice->close(mHandle);
     // Call unset stream from route instead
     if(mAudioRoute) {
-        mAudioRoute->unsetStream(this, mParent->mode());
+        mAudioRoute->unsetStream(this, mHandle->curMode);
         mAudioRoute = NULL;
     }
 }
@@ -361,16 +361,22 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
     mAudioRoute = audioRoute;
     mDevices = devices;
 
-    vpcRoute(mDevices, mode);
-
     // set stream to new route
     return mAudioRoute->setStream(this, mode);
 }
 
 status_t ALSAStreamOps::doRoute(int mode)
 {
+    status_t err = NO_ERROR;
     LOGD("doRoute mode=%d", mode);
-    open(mDevices, mode);
+
+    vpcRoute(mDevices, mode);
+
+    err = open(mDevices, mode);
+    if (err < 0) {
+        LOGE("Cannot open alsa device(0x%x) in mode (%d)", mDevices, mode);
+        return err;
+    }
 
     if(mStandby) {
         LOGD("doRoute standby mode -> standby the device immediately after routing");

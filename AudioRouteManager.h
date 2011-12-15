@@ -39,6 +39,8 @@ public:
 
     status_t addRoute(AudioRoute *route);
 
+    status_t setRouteAccessible(const String8& name, bool isAccessible, int mode);
+
     status_t route(ALSAStreamOps* pStream, uint32_t devices, int mode, bool bForOutput);
 
 protected:
@@ -48,6 +50,7 @@ protected:
     AudioRoute* getRoute(uint32_t devices, int mode, bool bForOutput);
 
 private:
+    AudioRoute* findRouteByName(const String8& name);
     List<AudioRoute*> _audioRouteList;
 };
 // ----------------------------------------------------------------------------

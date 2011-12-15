@@ -31,7 +31,8 @@
 #include "AudioResamplerALSA.h"
 #endif
 
-#define NULL_IN_DEVICE 0
+#include "AudioHardwareALSACommon.h"
+#include "AudioModemStateObserver.h"
 
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
@@ -48,81 +49,10 @@ typedef RWLock::AutoWLock AutoW;
 class AudioHardwareALSA;
 class AudioRouteManager;
 class AudioRoute;
+class AudioModemStateListener;
 
-/**
- * The id of ALSA module
- */
-#define ALSA_HARDWARE_MODULE_ID "alsa"
-#define ALSA_HARDWARE_NAME      "alsa"
+const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
 
-struct alsa_device_t;
-struct alsa_handle_t {
-    alsa_device_t *     module;
-    uint32_t            devices;
-    uint32_t            curDev;
-    int                 curMode;
-    snd_pcm_t *         handle;
-    snd_pcm_format_t    format;
-    uint32_t            channels;
-    uint32_t            sampleRate;
-    uint32_t            expectedSampleRate;
-    unsigned int        latency;         // Delay in usec
-    unsigned int        bufferSize;      // Size of sample buffer
-    void *              modPrivate;
-    bool                openFlag;        //if handle has opened openFlag = 1 esle openFlag = 0
-};
-
-typedef List<alsa_handle_t> ALSAHandleList;
-
-struct alsa_device_t {
-    hw_device_t common;
-
-    status_t (*init)(alsa_device_t *, ALSAHandleList &);
-    status_t (*open)(alsa_handle_t *, uint32_t, int);
-    status_t (*standby)(alsa_handle_t *);
-    status_t (*close)(alsa_handle_t *);
-    status_t (*volume)(alsa_handle_t *, uint32_t, float);
-    status_t (*initStream)(alsa_handle_t *, uint32_t, int);
-};
-
-/* LPE io control module */
-#define LPE_HARDWARE_MODULE_ID "lpe"
-#define LPE_HARDWARE_NAME      "lpe"
-struct lpe_device_t;
-
-struct lpe_device_t {
-    hw_device_t common;
-
-    status_t (*init)(void);
-    status_t (*lpecontrol)(int,uint32_t);
-    status_t (*lpeSetMasterVolume)(float volume);
-    status_t (*lpeSetMasterGain)(float gain);
-};
-
-/**
- * The id of acoustics module
- */
-#define ACOUSTICS_HARDWARE_MODULE_ID    "acoustics"
-#define ACOUSTICS_HARDWARE_NAME         "acoustics"
-
-struct acoustic_device_t {
-    hw_device_t common;
-
-    // Required methods...
-    status_t (*use_handle)(acoustic_device_t *, alsa_handle_t *);
-    status_t (*cleanup)(acoustic_device_t *);
-
-    status_t (*set_params)(acoustic_device_t *, AudioSystem::audio_in_acoustics, void *);
-
-    // Optional methods...
-    ssize_t (*read)(acoustic_device_t *, void *, size_t);
-    ssize_t (*write)(acoustic_device_t *, const void *, size_t);
-    status_t (*recover)(acoustic_device_t *, int);
-
-    void *              modPrivate;
-};
-
-// ----------------------------------------------------------------------------
 
 class ALSAMixer
 {
@@ -343,7 +273,7 @@ private:
     AudioSystem::audio_in_acoustics mAcoustics;
 };
 
-class AudioHardwareALSA : public AudioHardwareBase
+class AudioHardwareALSA : public AudioHardwareBase, public AudioModemStateObserver
 {
 public:
     AudioHardwareALSA();
@@ -417,6 +347,9 @@ public:
         return mMode;
     }
 
+    /* from AudioModemStateOberser: notified on modem status changes */
+    virtual void onModemStateChange(int mModemStatus);
+
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
 
@@ -441,6 +374,9 @@ protected:
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
+
+    status_t forceModeChangeOnStreams();
+
     RWLock                mLock;
     bool mMicMuteState;
 
@@ -480,6 +416,7 @@ private:
     status_t route(ALSAStreamOps* pStream, uint32_t devices, int mode);
 
     AudioRouteManager  *mAudioRouteMgr;
+    AudioModemStateListener *mAudioModemStateListener;
 };
 
 // ----------------------------------------------------------------------------
