@@ -55,16 +55,10 @@ struct alsa_properties_t
 };
 
 static alsa_properties_t mixerPropOut[] = {
-    {AudioSystem::DEVICE_OUT_EARPIECE, "alsa.mixer.earpiece", "Headphone", NULL},
-    {AudioSystem::DEVICE_OUT_SPEAKER, "alsa.mixer.speaker", "Speaker", NULL},
-    {AudioSystem::DEVICE_OUT_WIRED_HEADSET, "alsa.mixer.headset", "Headphone", NULL},
-    {AudioSystem::DEVICE_OUT_WIRED_HEADPHONE, "alsa.mixer.headphone", "Headphone", NULL},
     {static_cast<AudioSystem::audio_devices>(0), "alsa.mixer.", NULL, NULL}
 };
 
 static alsa_properties_t mixerPropIn[] = {
-    {AudioSystem::DEVICE_IN_BUILTIN_MIC, "alsa.mixer.builtinMic", "Mic1", NULL},
-    {AudioSystem::DEVICE_IN_WIRED_HEADSET, "alsa.mixer.headsetMic", "Mic1", NULL}, //FIXME: Mic1 is adjusted whith Headset? Is there AMic? It looks like should be adjusted AMic.
     {static_cast<AudioSystem::audio_devices>(0), "alsa.mixer.", NULL, NULL}
 };
 
@@ -278,8 +272,8 @@ status_t ALSAMixer::setMasterVolume(float volume)
 {
     status_t err = NO_ERROR;
 
-    if (mHardwareAlsa && mHardwareAlsa->mlpedevice && mHardwareAlsa->mlpedevice->lpeSetMasterVolume)
-        err = mHardwareAlsa->mlpedevice->lpeSetMasterVolume(volume);
+    // Do nothing, handled through PFW
+
     return err;
 }
 
