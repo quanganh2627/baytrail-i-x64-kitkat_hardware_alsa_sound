@@ -45,13 +45,18 @@ namespace android_audio_legacy
 
 // ----------------------------------------------------------------------------
 
+static const char* heasetPmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Headset/pmdown_time";
+static const char* speakerPmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Speaker/pmdown_time";
+static const char* voicePmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Voice/pmdown_time";
+
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle) :
     mParent(parent),
     mHandle(handle),
     mPowerLock(false),
     mStandby(false),
     mDevices(0),
-    mAudioRoute(NULL)
+    mAudioRoute(NULL),
+    isResetted(false)
 {
 }
 
@@ -354,6 +359,13 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
         LOGD("setRoute: stream already attached to the route, identical conditions");
         return NO_ERROR;
     }
+
+    bool restore_needed = false;
+    if((mode == AudioSystem::MODE_IN_CALL) && (mHandle->curMode != mode) &&(isOut())) {
+        storeAndResetPmDownDelay();
+        restore_needed = true;
+    }
+
     // unset stream from previous route (if any)
     if(mAudioRoute != NULL)
         mAudioRoute->unsetStream(this, mode);
@@ -362,7 +374,13 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
     mDevices = devices;
 
     // set stream to new route
-    return mAudioRoute->setStream(this, mode);
+    int ret = mAudioRoute->setStream(this, mode);
+
+    if(restore_needed) {
+        restorePmDownDelay();
+    }
+
+    return ret;
 }
 
 status_t ALSAStreamOps::doRoute(int mode)
@@ -391,6 +409,81 @@ status_t ALSAStreamOps::undoRoute()
     doClose();
 
     return NO_ERROR;
+}
+
+int ALSAStreamOps::readSysEntry(const char* filePath)
+{
+    int fd;
+    int val = 0;
+    if ((fd = ::open(filePath, O_RDONLY)) == 0)
+    {
+        LOGE("Could not open file %s", filePath);
+        return 0;
+    }
+    char buff[20];
+    if(::read(fd, buff, sizeof(buff)) < 1)
+    {
+        LOGE("Could not read file");
+    }
+    LOGD("read =%s", buff);
+    ::close(fd);
+    return strtol(buff, NULL, 0);
+}
+
+
+void ALSAStreamOps::writeSysEntry(const char* filePath, int value)
+{
+    int fd;
+
+    if ((fd = ::open(filePath, O_WRONLY)) < 0)
+    {
+        LOGE("Could not open file %s", filePath);
+        return ;
+    }
+    char buff[20];
+    int ret;
+    snprintf(buff, sizeof(buff), "%d", value);
+    if ((ret = ::write(fd, buff, strlen(buff))) != strlen(buff))
+        LOGE("could not write ret=%d", ret);
+    else
+        LOGD("written %d bytes = %s", ret, buff);
+    ::close(fd);
+}
+
+void ALSAStreamOps::storeAndResetPmDownDelay()
+{
+    LOGD("storeAndResetPmDownDelay");
+    if (!isResetted)
+    {
+        LOGD("storeAndResetPmDownDelay not resetted");
+        headsetPmDownDelay = readSysEntry(heasetPmDownDelaySysFile);
+        speakerPmDownDelay = readSysEntry(speakerPmDownDelaySysFile);
+        voicePmDownDelay = readSysEntry(voicePmDownDelaySysFile);
+
+        writeSysEntry(heasetPmDownDelaySysFile, 0);
+        writeSysEntry(speakerPmDownDelaySysFile, 0);
+        writeSysEntry(voicePmDownDelaySysFile, 0);
+
+        isResetted = true;
+    }
+    else
+        LOGD("storeAndResetPmDownDelay already resetted -> nothing to do");
+}
+
+void ALSAStreamOps::restorePmDownDelay()
+{
+    LOGD("restorePmDownDelay");
+    if(isResetted)
+    {
+        LOGD("restorePmDownDelay restoring");
+        writeSysEntry(heasetPmDownDelaySysFile, headsetPmDownDelay);
+        writeSysEntry(speakerPmDownDelaySysFile, speakerPmDownDelay);
+        writeSysEntry(voicePmDownDelaySysFile, voicePmDownDelay);
+
+        isResetted = false;
+    }
+    else
+        LOGD("restorePmDownDelay -> nothing to do");
 }
 
 }       // namespace android

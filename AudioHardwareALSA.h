@@ -150,6 +150,17 @@ private:
     AudioRoute *mAudioRoute;
 
     void        vpcRoute(uint32_t devices, int mode);
+    void	storeAndResetPmDownDelay();
+    void	restorePmDownDelay();
+
+    void 	writeSysEntry(const char* filePath, int value);
+    int		readSysEntry(const char* filePath);
+
+    int 	headsetPmDownDelay;
+    int 	speakerPmDownDelay;
+    int 	voicePmDownDelay;
+
+    bool	isResetted;
 };
 
 // ----------------------------------------------------------------------------
