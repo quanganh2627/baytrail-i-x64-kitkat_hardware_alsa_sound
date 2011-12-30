@@ -18,7 +18,7 @@
 #define LOG_TAG "AcousticsModule"
 #include <utils/Log.h>
 
-#include "AudioHardwareALSA.h"
+#include "AudioHardwareALSACommon.h"
 
 namespace android
 {

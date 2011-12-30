@@ -41,11 +41,13 @@ namespace android_audio_legacy
 {
 
 AudioRoute::AudioRoute(const String8& mName) :
-    mName(mName), mStreams({NULL, NULL}),
+    mName(mName),
     mIsCaptureRouted(false),
     mIsRouteAccessible(true)
 {
     LOGD("AudioRoute %s", mName.string());
+    mStreams[INPUT_STREAM] = NULL;
+    mStreams[OUTPUT_STREAM] = NULL;
 }
 
 AudioRoute::~AudioRoute()

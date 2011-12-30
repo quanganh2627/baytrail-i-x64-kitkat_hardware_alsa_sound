@@ -13,7 +13,9 @@ LOCAL_C_INCLUDES += \
     bionic/
 
 LOCAL_C_INCLUDES += \
-        hardware/intel/IFX-modem
+        hardware/intel/IFX-modem \
+        $(LOCAL_PATH)/../intel/mfld_cdk/amc/at-manager \
+        $(LOCAL_PATH)/../intel/mfld_cdk/amc/event-listener
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -35,8 +37,7 @@ LOCAL_C_INCLUDES += \
     AudioRouteMSICVoice.cpp \
     AudioRouteBT.cpp \
     AudioRouteMM.cpp \
-    AudioRouteVoiceRec.cpp \
-    AudioModemStateListener.cpp
+    AudioRouteVoiceRec.cpp
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 
@@ -59,7 +60,8 @@ LOCAL_SHARED_LIBRARIES := \
     libxmlserializer \
     libparameter \
     libstlport \
-    libicuuc
+    libicuuc \
+    libat-manager
 
 ifeq ($(USE_INTEL_SRC),true)
   LOCAL_CFLAGS += -DUSE_INTEL_SRC

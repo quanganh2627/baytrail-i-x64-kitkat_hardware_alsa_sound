@@ -19,6 +19,7 @@
 #define ANDROID_AUDIO_HARDWARE_ALSA_H
 
 #include <utils/List.h>
+#include <list>
 #include <hardware_legacy/AudioHardwareBase.h>
 
 #include <alsa/asoundlib.h>
@@ -32,13 +33,13 @@
 #endif
 
 #include "AudioHardwareALSACommon.h"
-#include "AudioModemStateObserver.h"
+#include "ATNotifier.h"
 
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 class CATManager;
-class CProgressUnsollicitedATCommand;
+class CCallStatUnsollicitedATCommand;
 
 using namespace std;
 
@@ -53,7 +54,6 @@ typedef RWLock::AutoWLock AutoW;
 class AudioHardwareALSA;
 class AudioRouteManager;
 class AudioRoute;
-class AudioModemStateListener;
 
 const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
 
@@ -293,8 +293,18 @@ private:
     AudioSystem::audio_in_acoustics mAcoustics;
 };
 
-class AudioHardwareALSA : public AudioHardwareBase, public AudioModemStateObserver
+class AudioHardwareALSA : public AudioHardwareBase, public IATNotifier
 {
+    enum RoutingEvent {
+        EModeChange,
+        ECallStatusOn,
+        ECallStatusOff,
+        EModemStateChange
+    };
+
+    typedef list<AudioStreamOutALSA*>::iterator CAudioStreamOutALSAListIterator;
+    typedef list<AudioStreamOutALSA*>::const_iterator CAudioStreamOutALSAListConstIterator;
+
 public:
     AudioHardwareALSA();
     virtual            ~AudioHardwareALSA();
@@ -368,6 +378,8 @@ public:
     }
 
     /* from AudioModemStateOberser: notified on modem status changes */
+    virtual bool onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollicitedCmd) ;
+    virtual bool onAnsynchronousError(const CATcommand* pATCmd, int errorType);
     virtual void onModemStateChange(int mModemStatus);
 
 protected:
@@ -395,12 +407,17 @@ private:
     AudioHardwareALSA(const AudioHardwareALSA &);
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
 
+    // Private function to set the mode
+    status_t    setModeLocal(int mode);
+
+    // Force a mode change on running streams
     status_t forceModeChangeOnStreams();
 
     // State machine of route accessibility
     void applyRouteAccessibilityRules(RoutingEvent aRoutEvent);
 
-    void onCsvCallInProgressReceived();
+    //
+    void onModemCallStateReceived(CCallStatUnsollicitedATCommand* pXCallStatCmd);
 
     const bool& modemCallStateActive() const { return mModemCallActive; }
 
@@ -442,7 +459,7 @@ private:
 
     AudioRouteManager  *mAudioRouteMgr;
     CATManager *mATManager;
-    CProgressUnsollicitedATCommand* mXProgressCmd;
+    CCallStatUnsollicitedATCommand* mXCallStatCmd;
 
     // Modem Call state
     bool mModemCallActive;
@@ -450,8 +467,8 @@ private:
     // Modem State
     bool mModemAvailable;
 
-    AudioRouteManager  *mAudioRouteMgr;
-    AudioModemStateListener *mAudioModemStateListener;
+    // Output Streams list
+    list<AudioStreamOutALSA*> mStreamOutList;
 };
 
 // ----------------------------------------------------------------------------

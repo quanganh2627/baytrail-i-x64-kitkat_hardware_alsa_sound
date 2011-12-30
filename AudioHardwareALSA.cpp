@@ -42,7 +42,7 @@
 #include "AudioRouteVoiceRec.h"
 #include "AudioRoute.h"
 #include "ATManager.h"
-#include "ProgressUnsollicitedATCommand.h"
+#include "CallStatUnsollicitedATCommand.h"
 
 #include "stmd.h"
 
@@ -59,6 +59,9 @@ extern "C"
         return AudioHardwareALSA::create();
     }
 }         // extern "C"
+
+#define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
+#define MAX_WAIT_ACK_SECONDS    2
 
 /// PFW related definitions
 // Logger
@@ -146,7 +149,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mAudioRouteMgr(new AudioRouteManager),
     mATManager(new CATManager(this)),
-    mXProgressCmd(NULL),
+    mXCallStatCmd(NULL),
     mModemCallActive(false),
     mModemAvailable(false),
     mStreamOutList(NULL)
@@ -179,12 +182,12 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mAudioRouteMgr->addRoute(new AudioRouteVoiceRec(String8("VoiceRec")));
 
     // Starts the modem state listener
-    if(mAudioModemStateListener->start() != 0)
+    if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS) != 0)
         LOGE("AudioHardwareALSA: could not start modem state listener");
 
-    // Add XProgress command to Unsollicited command list of the ATManager
+    // Add XCallStat command to Unsollicited command list of the ATManager
     // (it will be automatically resent after reset of the modem)
-    mATManager->addUnsollicitedATCommand(mXProgressCmd = new CProgressUnsollicitedATCommand());
+    mATManager->addUnsollicitedATCommand(mXCallStatCmd = new CCallStatUnsollicitedATCommand());
 
     /// Start
     std::string strError;
@@ -243,7 +246,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
                 LOGE("VPC MODULE init FAILED");
             else
                 if (mvpcdevice->set_modem_state)
-                    mvpcdevice->set_modem_state(mAudioModemStateListener->getModemStatus());
+                    mvpcdevice->set_modem_state(mATManager->getModemStatus());
         }
         else
             LOGE("VPC Module not found");
@@ -269,8 +272,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
 
 AudioHardwareALSA::~AudioHardwareALSA()
 {
-    // Delete AudioModemStateListener
-    delete mAudioModemStateListener;
+    // Delete ATManager
+    delete mATManager;
     // Delete route manager, it will detroy all the registered routes
     delete mAudioRouteMgr;
     // Unset logger
@@ -343,17 +346,42 @@ status_t AudioHardwareALSA::setMasterVolume(float volume)
 status_t AudioHardwareALSA::setMode(int mode)
 {
     AutoW lock(mLock);
-    status_t status = NO_ERROR;
-    status_t err_a = BAD_VALUE;
 
-    if(mode == AudioSystem::MODE_IN_CALL && mAudioModemStateListener->getModemStatus() != MODEM_UP)
+    LOGD("%s: in", __FUNCTION__);
+
+    status_t status = NO_ERROR;
+
+    if(mode == AudioSystem::MODE_IN_CALL && mATManager->getModemStatus() != MODEM_UP)
     {
         LOGD("setMode: cannot switch to INCALL mode as modem not available");
         return status;
     }
 
-    if (mode != mMode)
-        status = AudioHardwareBase::setMode(mode);
+    if (mode != mMode) {
+
+        status = setModeLocal(mode);
+
+        // According to the new mode, re-evaluate accessibility of the audio routes
+        applyRouteAccessibilityRules(EModeChange);
+    }
+
+
+    return status;
+}
+
+status_t AudioHardwareALSA::setModeLocal(int mode)
+{
+    LOGD("%s: in", __FUNCTION__);
+
+    status_t status = NO_ERROR;
+
+    status = AudioHardwareBase::setMode(mode);
+
+    // Refresh VPC mode
+    if (mvpcdevice && mvpcdevice->params) {
+
+        mvpcdevice->set_mode(mode);
+    }
 
     mSelectedMode->setCriterionState(mode);
 
@@ -390,6 +418,10 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
                 break;
             }
             out = new AudioStreamOutALSA(this, &(*it));
+
+            // Add Stream Out to the list
+            mStreamOutList.push_back(out);
+
             err = out->set(format, channels, sampleRate);
             if (err) {
                 LOGE("set error.");
@@ -404,6 +436,24 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 void
 AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
+    // Remove Out stream from the list
+
+    CAudioStreamOutALSAListIterator it;
+
+    for (it = mStreamOutList.begin(); it != mStreamOutList.end(); ++it) {
+
+        const AudioStreamOutALSA* pOut = *it;
+
+        if (pOut == out) {
+
+            // Remove element
+            mStreamOutList.erase(it);
+
+            // Done
+            break;
+        }
+    }
+
     delete out;
 }
 
@@ -667,35 +717,37 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     return NO_ERROR;
 }
 
-status_t AudioHardwareALSA::route(ALSAStreamOps* pStream, uint32_t devices, int mode) {
-    return NO_ERROR;
-}
-
+//
+// This function forces a re-routing to be applied in Out Streams
+//
 status_t AudioHardwareALSA::forceModeChangeOnStreams() {
     LOGD("forceModeChangeOnStreams");
     status_t status = NO_ERROR;
     /* Force route with new mode */
-    for(ALSAHandleList::iterator it = mDeviceList.begin();
-            it != mDeviceList.end(); ++it)
-        if (it->curDev & AudioSystem::DEVICE_OUT_ALL && !(it->curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL)) {
-            int err, devices = it->curDev;
-            LOGD("onModemStateChange found outstream on device=%d", devices);
-            if (devices && mvpcdevice && mvpcdevice->params) {
-                status = mvpcdevice->params(mode(), (uint32_t)devices);
 
-                if (status != NO_ERROR) {
+    CAudioStreamOutALSAListConstIterator it;
 
-                    // Just log!
-                    LOGE("VPC params error: %d", status);
-                }
+    for (it = mStreamOutList.begin(); it != mStreamOutList.end(); ++it)
+    {
+        AudioStreamOutALSA* pOut = *it;
+
+        if (pOut->mHandle && pOut->mHandle->openFlag && !(pOut->mHandle->curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL))
+        {
+            // Refresh VPC params
+            if (mvpcdevice && mvpcdevice->params) {
+
+                mvpcdevice->params(mode(), (uint32_t)pOut->mHandle->curDev);
             }
-            LOGD("onModemStateChange opening device=%d", devices);
-            err = mALSADevice->open(&(*it), devices, mode());
-            if (err) {
-                LOGE("Open error.");
-                break;
+
+            // Ask the route manager to route the stream
+            status = mAudioRouteMgr->route(pOut, pOut->mHandle->curDev, mode(), true);
+            if (status != NO_ERROR)
+            {
+                // Just log!
+                LOGE("alsa route error: %d", status);
             }
         }
+    }
     return status;
 }
 
@@ -799,10 +851,9 @@ bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollic
     AutoW lock(mLock);
     LOGD("%s: in", __FUNCTION__);
 
-    if(mXProgressCmd == pUnsollicitedCmd)
+    if(mXCallStatCmd == pUnsollicitedCmd)
     {
-        // Process the answer
-       onCsvCallInProgressReceived();
+        onModemCallStateReceived(mXCallStatCmd);
     }
     return false;
 }
@@ -815,15 +866,16 @@ bool AudioHardwareALSA::onAnsynchronousError(const CATcommand* pATCmd, int error
     return false;
 }
 
-void AudioHardwareALSA::onCsvCallInProgressReceived()
+
+void AudioHardwareALSA::onModemCallStateReceived(CCallStatUnsollicitedATCommand* pXCallStatCmd)
 {
     LOGD("%s: in", __FUNCTION__);
 
     // Process the answer
-    mXProgressCmd->doProcessAnswer();
+    mXCallStatCmd->doProcessAnswer();
 
     // Check if Modem Audio Path is available
-    bool isAudioPathAvail = mXProgressCmd->isAudioPathAvailable();
+    bool isAudioPathAvail = mXCallStatCmd->isAudioPathAvailable();
 
     // Modem Call State has changed?
     if(mModemCallActive != isAudioPathAvail){
@@ -843,10 +895,9 @@ void AudioHardwareALSA::onCsvCallInProgressReceived()
 // Called on Modem State change reported by STMD
 //
 void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
-    LOGD("onModemStateChange before lock");
+
     AutoW lock(mLock);
-    LOGD("onModemStateChange");
-    bool isModemAvailable;
+    LOGD("%s: in: ModemStatus=%d", __FUNCTION__, mModemStatus);
     status_t status;
 
     /*
@@ -859,38 +910,12 @@ void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
         mvpcdevice->set_modem_state(mModemStatus);
     }
 
-    /*
-     * If any Input / output streams are opened on the shared I2S bus, make their routes
-     * inaccessible (ie close the hw device but returning silence for capture
-     * and trashing the playback datas) until the modem is back up.
-     * Do not perform this in call on MSIC voice since lost network tone would not be played
-     */
-    isModemAvailable = (mModemStatus == MODEM_UP);
-    if (mode() != AudioSystem::MODE_IN_CALL)
-    {
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), isModemAvailable, mode());
-    }
-    mAudioRouteMgr->setRouteAccessible(String8("BT"), isModemAvailable, mode());
-    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), isModemAvailable, mode());
+    mModemAvailable = (mModemStatus == MODEM_UP);
 
-    /*
-     * Side effect of delaying setMode(NORMAL) once call is finished in case of modem reset
-     * Lost Network tone cannot be played on IN_CALL path as modem is ... in reset!!!
-     * We will force a mode change to NORMAL in order to be able
-     * to listen the lost network tones. In other words, it will route the stream on
-     * MM route.
-     * If delayed mode change is reverted, this following code can be remove
-     * Remark: the device is kept the same, only the mode is changed in order not to disturb
-     * user experience.
-     */
-    if(mode() == AudioSystem::MODE_IN_CALL && mModemStatus == MODEM_DOWN)
-    {
-        LOGD("onModemStateChange modem crashed, FORCE MODE change to NORMAL");
-        setMode(AudioSystem::MODE_NORMAL);
+    // Re-evaluate accessibility of the audio routes
+    applyRouteAccessibilityRules(EModemStateChange);
 
-        if(forceModeChangeOnStreams())
-            LOGD("onModemStateChange: failed to force mode change on streams");
-    }
+    LOGD("%s: out", __FUNCTION__);
 }
 
 

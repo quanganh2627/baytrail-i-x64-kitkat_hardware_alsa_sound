@@ -18,7 +18,7 @@
 #define LOG_TAG "ALSAModule"
 #include <utils/Log.h>
 
-#include "AudioHardwareALSA.h"
+#include "AudioHardwareALSACommon.h"
 #include <media/AudioRecord.h>
 
 #undef DISABLE_HARWARE_RESAMPLING
