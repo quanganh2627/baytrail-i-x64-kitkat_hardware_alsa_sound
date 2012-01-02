@@ -39,7 +39,7 @@ namespace android_audio_legacy
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
                                      alsa_handle_t *handle,
                                      AudioSystem::audio_in_acoustics audio_acoustics) :
-    ALSAStreamOps(parent, handle),
+    ALSAStreamOps(parent, handle, "AudioInLock"),
     mFramesLost(0),
     mAcoustics(audio_acoustics)
 {
@@ -64,10 +64,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     status_t err;
 
-    if (!mPowerLock) {
-        acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioInLock");
-        mPowerLock = true;
-    }
+    acquirePowerLock();
 
     // Check if the audio route is available for this stream
     if(!routeAvailable()) {
@@ -170,10 +167,7 @@ status_t AudioStreamInALSA::close()
 
     ALSAStreamOps::close();
 
-    if (mPowerLock) {
-        release_wake_lock ("AudioInLock");
-        mPowerLock = false;
-    }
+    releasePowerLock();
 
     return NO_ERROR;
 }
@@ -193,10 +187,8 @@ status_t AudioStreamInALSA::standby()
     if(mParent->mALSADevice->standby)
         mParent->mALSADevice->standby(mHandle);
 
-    if (mPowerLock) {
-        release_wake_lock ("AudioInLock");
-        mPowerLock = false;
-    }
+    releasePowerLock();
+
     mStandby = true;
     return NO_ERROR;
 }

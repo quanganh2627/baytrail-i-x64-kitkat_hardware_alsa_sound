@@ -50,7 +50,7 @@ static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
 // ----------------------------------------------------------------------------
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent, alsa_handle_t *handle) :
-    ALSAStreamOps(parent, handle),
+    ALSAStreamOps(parent, handle, "AudioOutLock"),
     mFrameCount(0)
 {
 }
@@ -76,10 +76,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     AutoR lock(mParent->mLock);
 
     status_t err = NO_ERROR;
-    if (!mPowerLock) {
-        acquire_wake_lock (PARTIAL_WAKE_LOCK, "AudioOutLock");
-        mPowerLock = true;
-    }
+
+    acquirePowerLock();
 
     // Check if the audio route is available for this stream
     if(!routeAvailable()) {
@@ -199,10 +197,7 @@ status_t AudioStreamOutALSA::close()
         snd_pcm_drain (mHandle->handle);
     ALSAStreamOps::close();
 
-    if (mPowerLock) {
-        release_wake_lock ("AudioOutLock");
-        mPowerLock = false;
-    }
+    releasePowerLock();
 
     return NO_ERROR;
 }
@@ -224,10 +219,8 @@ status_t AudioStreamOutALSA::standby()
     if(mParent->mALSADevice->standby)
         mParent->mALSADevice->standby(mHandle);
 
-    if (mPowerLock) {
-        release_wake_lock ("AudioOutLock");
-        mPowerLock = false;
-    }
+    releasePowerLock();
+
     mStandby = true;
     mFrameCount = 0;
 

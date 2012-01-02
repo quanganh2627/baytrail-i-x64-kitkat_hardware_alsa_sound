@@ -101,7 +101,7 @@ private:
 class ALSAStreamOps
 {
 public:
-    ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle);
+    ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle, const char* pcLockTag);
     virtual            ~ALSAStreamOps();
 
     status_t            set(int *format, uint32_t *channels, uint32_t *rate);
@@ -133,6 +133,9 @@ protected:
     ALSAStreamOps(const ALSAStreamOps &);
     ALSAStreamOps& operator = (const ALSAStreamOps &);
 
+    void		acquirePowerLock();
+    void		releasePowerLock();
+
     vpc_device_t *vpc();
     lpe_device_t *lpe();
     acoustic_device_t *acoustics();
@@ -142,13 +145,10 @@ protected:
     alsa_handle_t *         mHandle;
 
     Mutex                   mLock;
-    bool                    mPowerLock;
     bool                    mStandby;
     uint32_t                mDevices;
 
 private:
-    AudioRoute *mAudioRoute;
-
     void        vpcRoute(uint32_t devices, int mode);
     void	storeAndResetPmDownDelay();
     void	restorePmDownDelay();
@@ -161,6 +161,10 @@ private:
     int 	voicePmDownDelay;
 
     bool	isResetted;
+    AudioRoute*             mAudioRoute;
+
+    bool                    mPowerLock;
+    const char*             mPowerLockTag;
 };
 
 // ----------------------------------------------------------------------------

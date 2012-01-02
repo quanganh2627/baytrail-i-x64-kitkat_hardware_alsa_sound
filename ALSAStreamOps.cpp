@@ -49,14 +49,15 @@ static const char* heasetPmDownDelaySysFile = "/sys/devices/platform/msic_audio.
 static const char* speakerPmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Speaker/pmdown_time";
 static const char* voicePmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Voice/pmdown_time";
 
-ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle) :
+ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle, const char* pcLockTag) :
     mParent(parent),
     mHandle(handle),
-    mPowerLock(false),
     mStandby(false),
     mDevices(0),
     mAudioRoute(NULL),
-    isResetted(false)
+    isResetted(false),
+    mPowerLock(false),
+    mPowerLockTag(pcLockTag)
 {
 }
 
@@ -295,6 +296,8 @@ void ALSAStreamOps::doClose()
 {
     LOGD("ALSAStreamOps::doClose");
     mParent->mALSADevice->close(mHandle);
+
+    releasePowerLock();
 }
 
 void ALSAStreamOps::doStandby()
@@ -415,7 +418,7 @@ int ALSAStreamOps::readSysEntry(const char* filePath)
 {
     int fd;
     int val = 0;
-    if ((fd = ::open(filePath, O_RDONLY)) == 0)
+    if ((fd = ::open(filePath, O_RDONLY)) < 0)
     {
         LOGE("Could not open file %s", filePath);
         return 0;
@@ -484,6 +487,22 @@ void ALSAStreamOps::restorePmDownDelay()
     }
     else
         LOGD("restorePmDownDelay -> nothing to do");
+}
+
+void ALSAStreamOps::acquirePowerLock()
+{
+    if (!mPowerLock) {
+	acquire_wake_lock (PARTIAL_WAKE_LOCK, mPowerLockTag);
+	mPowerLock = true;
+    }
+}
+
+void ALSAStreamOps::releasePowerLock()
+{
+    if (mPowerLock) {
+	release_wake_lock (mPowerLockTag);
+	mPowerLock = false;
+    }
 }
 
 }       // namespace android
