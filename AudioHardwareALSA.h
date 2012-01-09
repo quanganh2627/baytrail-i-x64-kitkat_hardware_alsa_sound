@@ -37,6 +37,10 @@
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
+class CATManager;
+class CProgressUnsollicitedATCommand;
+
+using namespace std;
 
 namespace android_audio_legacy
 {
@@ -393,6 +397,13 @@ private:
 
     status_t forceModeChangeOnStreams();
 
+    // State machine of route accessibility
+    void applyRouteAccessibilityRules(RoutingEvent aRoutEvent);
+
+    void onCsvCallInProgressReceived();
+
+    const bool& modemCallStateActive() const { return mModemCallActive; }
+
     RWLock                mLock;
     bool mMicMuteState;
 
@@ -429,7 +440,15 @@ private:
     ISelectionCriterionInterface* mSelectedInputDevice;
     ISelectionCriterionInterface* mSelectedOutputDevice;
 
-    status_t route(ALSAStreamOps* pStream, uint32_t devices, int mode);
+    AudioRouteManager  *mAudioRouteMgr;
+    CATManager *mATManager;
+    CProgressUnsollicitedATCommand* mXProgressCmd;
+
+    // Modem Call state
+    bool mModemCallActive;
+
+    // Modem State
+    bool mModemAvailable;
 
     AudioRouteManager  *mAudioRouteMgr;
     AudioModemStateListener *mAudioModemStateListener;

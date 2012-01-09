@@ -41,7 +41,10 @@
 #include "AudioRouteMM.h"
 #include "AudioRouteVoiceRec.h"
 #include "AudioRoute.h"
-#include "AudioModemStateListener.h"
+#include "ATManager.h"
+#include "ProgressUnsollicitedATCommand.h"
+
+#include "stmd.h"
 
 #define DEFAULTGAIN "1.0"
 
@@ -142,7 +145,11 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("Audio")),
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mAudioRouteMgr(new AudioRouteManager),
-    mAudioModemStateListener(new AudioModemStateListener(this))
+    mATManager(new CATManager(this)),
+    mXProgressCmd(NULL),
+    mModemCallActive(false),
+    mModemAvailable(false),
+    mStreamOutList(NULL)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -174,6 +181,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     // Starts the modem state listener
     if(mAudioModemStateListener->start() != 0)
         LOGE("AudioHardwareALSA: could not start modem state listener");
+
+    // Add XProgress command to Unsollicited command list of the ATManager
+    // (it will be automatically resent after reset of the modem)
+    mATManager->addUnsollicitedATCommand(mXProgressCmd = new CProgressUnsollicitedATCommand());
 
     /// Start
     std::string strError;
@@ -688,6 +699,149 @@ status_t AudioHardwareALSA::forceModeChangeOnStreams() {
     return status;
 }
 
+//
+// Route accessibility state machine
+// NOTE:
+//  An audio route is considered as accessible when a stream can be safely opened
+//  on this route.
+//  An audio route is unaccessible when the platform conditions does not allow to
+//  open streams safely for 2 main reasons:
+//      - Glitch could happen because the modem goes configures its ports and audio
+//        path internally that can have side effects on I2S bus lines
+//      - Modem is resetting, to avoid electrical issues, all I2S port of the platform
+//        must be closed
+//
+void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
+{
+    LOGD("%s: in, mode %d, modemAvailable=%d, ModemCallActive=%d", __FUNCTION__, mode(), mModemAvailable, mModemCallActive);
+
+    switch(mode()) {
+    case AudioSystem::MODE_IN_CALL:
+        if (!mModemAvailable) {
+            /* NOTE:
+             * Side effect of delaying setMode(NORMAL) once call is finished in case of modem reset
+             * Lost Network tone cannot be played on IN_CALL path as modem is ... in reset!!!
+             * We will force a mode change to NORMAL in order to be able
+             * to listen the lost network tones. In other words, it will route the stream on
+             * MM route.
+             * If delayed mode change is reverted, this following code can be remove
+             * Remark: the device is kept the same, only the mode is changed in order not to disturb
+             * user experience.
+             */
+            setModeLocal(AudioSystem::MODE_NORMAL);
+            forceModeChangeOnStreams();
+        }
+        else if (aRoutEvent == ECallStatusOff)
+        {
+            /*
+             * Call Disconnected event
+             * NOTE:
+             * Side effect of delaying setMode(NORMAL) once call is finished
+             * Need to switch to Multimedia path in order to be "glitch safe"
+             */
+            LOGD("%s: FORCE MODE change to NORMAL", __FUNCTION__);
+            setModeLocal(AudioSystem::MODE_NORMAL);
+
+            // Reconsider the routing
+            forceModeChangeOnStreams();
+
+        } else if (!mModemCallActive)
+        {
+            LOGD("%s: FORCE VPC MODE change to NORMAL", __FUNCTION__);
+            //
+            // Force VPC to NORMAL so that route close can be done if needed (from INCOMM mode)
+            //
+            if (mvpcdevice && mvpcdevice->params) {
+
+                mvpcdevice->set_mode(AudioSystem::MODE_NORMAL);
+            }
+        }
+
+        // Accessibility depends on 2 conditions: "Modem is available" AND "Modem Call is Active"
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemCallActive && mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemCallActive && mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemCallActive && mModemAvailable, mode());
+
+        break;
+
+    case AudioSystem::MODE_IN_COMMUNICATION:
+        /*
+         * Accessibility depends on the modem availability
+         * Modem not Available (down or cold reset):
+         *      If any Input / output streams are opened on the shared I2S bus, make their routes
+         *      inaccessible (ie close the hw device but returning silence for capture
+         *      and trashing the playback datas) until the modem is back up.
+         * Modem Available (Up):
+         *      Set the route accessibility to true
+         */
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, mode());
+        break;
+
+    default:
+        // ie NORMAL, IN_RINGTONE ...
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), false, mode());
+        break;
+    }
+
+    LOGD("%s: out", __FUNCTION__);
+}
+
+//
+// From IATNotifier
+// Called when an unsollicited command for which we registered arrived
+//
+bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollicitedCmd)
+{
+    AutoW lock(mLock);
+    LOGD("%s: in", __FUNCTION__);
+
+    if(mXProgressCmd == pUnsollicitedCmd)
+    {
+        // Process the answer
+       onCsvCallInProgressReceived();
+    }
+    return false;
+}
+
+// From IATNotifier
+bool AudioHardwareALSA::onAnsynchronousError(const CATcommand* pATCmd, int errorType)
+{
+    LOGD("%s: in", __FUNCTION__);
+
+    return false;
+}
+
+void AudioHardwareALSA::onCsvCallInProgressReceived()
+{
+    LOGD("%s: in", __FUNCTION__);
+
+    // Process the answer
+    mXProgressCmd->doProcessAnswer();
+
+    // Check if Modem Audio Path is available
+    bool isAudioPathAvail = mXProgressCmd->isAudioPathAvailable();
+
+    // Modem Call State has changed?
+    if(mModemCallActive != isAudioPathAvail){
+
+        // ModemCallActive has changed, keep track
+        mModemCallActive = isAudioPathAvail;
+
+        // Re-evaluate accessibility of the audio routes
+        applyRouteAccessibilityRules(mModemCallActive? ECallStatusOn : ECallStatusOff);
+
+    }
+    LOGD("%s: out", __FUNCTION__);
+}
+
+//
+// From IATNotifier
+// Called on Modem State change reported by STMD
+//
 void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
     LOGD("onModemStateChange before lock");
     AutoW lock(mLock);
