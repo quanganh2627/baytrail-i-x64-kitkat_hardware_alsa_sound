@@ -30,7 +30,7 @@
 
 #include "AudioRouteMM.h"
 
-#define DEVICE_OUT_MM_ALL (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER | AudioSystem::DEVICE_OUT_WIRED_HEADSET |AudioSystem::DEVICE_OUT_WIRED_HEADPHONE | AudioSystem::DEVICE_OUT_AUX_DIGITAL)
+#define DEVICE_OUT_MM_ALL (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER | AudioSystem::DEVICE_OUT_WIRED_HEADSET |AudioSystem::DEVICE_OUT_WIRED_HEADPHONE | AudioSystem::DEVICE_OUT_AUX_DIGITAL | AudioSystem::DEVICE_OUT_WIDI_LOOPBACK)
 
 namespace android_audio_legacy
 {

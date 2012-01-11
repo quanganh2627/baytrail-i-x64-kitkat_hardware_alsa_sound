@@ -24,7 +24,7 @@ LOCAL_C_INCLUDES += \
 #
 
   LOCAL_SRC_FILES := \
-	AudioHardwareInterface.cpp \
+    AudioHardwareInterface.cpp \
     audio_hw_hal.cpp \
     AudioHardwareALSA.cpp \
     AudioStreamOutALSA.cpp \
@@ -37,7 +37,7 @@ LOCAL_C_INCLUDES += \
     AudioRouteMSICVoice.cpp \
     AudioRouteBT.cpp \
     AudioRouteMM.cpp \
-    AudioRouteVoiceRec.cpp 
+    AudioRouteVoiceRec.cpp
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 
@@ -66,7 +66,7 @@ LOCAL_SHARED_LIBRARIES := \
     libparameter \
     libstlport \
     libicuuc \
-    libat-manager 
+    libat-manager
 
 
 ifeq ($(USE_INTEL_SRC),true)
