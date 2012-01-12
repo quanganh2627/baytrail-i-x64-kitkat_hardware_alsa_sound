@@ -302,9 +302,34 @@ void ALSAStreamOps::doClose()
 
 void ALSAStreamOps::doStandby()
 {
-    LOGD("ALSAStreamOps::doStandby");
-    mParent->mALSADevice->standby(mHandle);
+    LOGD("%s",__FUNCTION__);
+
+    standby();
+}
+
+status_t ALSAStreamOps::standby()
+{
+    AutoW lock(mParent->mLock);
+    LOGD("%s",__FUNCTION__);
+
+    if(!mHandle->handle) {
+        LOGD("handle not previously opened");
+    }
+
+    if(mHandle->handle)
+        snd_pcm_drain (mHandle->handle);
+
+    if(mParent->mvpcdevice->mix_disable)
+        mParent->mvpcdevice->mix_disable(isOut());
+
+    if(mParent->mALSADevice->standby)
+        mParent->mALSADevice->standby(mHandle);
+
+    releasePowerLock();
+
     mStandby = true;
+
+    return NO_ERROR;
 }
 
 //

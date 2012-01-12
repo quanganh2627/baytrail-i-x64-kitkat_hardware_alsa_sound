@@ -118,6 +118,7 @@ public:
     void                close();
     void                doClose();
     void                doStandby();
+    status_t            standby();
 
     virtual bool        isOut() = 0;
     status_t            setRoute(AudioRoute *audioRoute, uint32_t devices, int mode);

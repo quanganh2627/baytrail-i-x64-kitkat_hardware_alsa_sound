@@ -97,8 +97,9 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         }
         mStandby = false;
     }
-    if(mParent->mvpcdevice->mix_enable) {
-        mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
+
+    if(mParent->mvpcdevice->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
+        mParent->mvpcdevice->mix_enable(true, mHandle->curDev);
     }
 
     acoustic_device_t *aDev = acoustics();
@@ -204,27 +205,13 @@ status_t AudioStreamOutALSA::close()
 
 status_t AudioStreamOutALSA::standby()
 {
-    AutoW lock(mParent->mLock);
-    LOGD("streamoutAlsa standby \n");
+    LOGD("%s", __FUNCTION__);
 
-    if(!mHandle->handle) {
-        LOGD("nulllllll\n");
-    }
+    status_t status = ALSAStreamOps::standby();
 
-    if(mHandle->handle)
-        snd_pcm_drain (mHandle->handle);
-    if(mParent->mvpcdevice->mix_disable)
-        mParent->mvpcdevice->mix_disable(mHandle->curMode);
-
-    if(mParent->mALSADevice->standby)
-        mParent->mALSADevice->standby(mHandle);
-
-    releasePowerLock();
-
-    mStandby = true;
     mFrameCount = 0;
 
-    return NO_ERROR;
+    return status;
 }
 
 #define USEC_TO_MSEC(x) ((x + 999) / 1000)

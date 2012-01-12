@@ -85,8 +85,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         mStandby = false;
     }
 
-    if(mParent->mvpcdevice->mix_enable) {
-        mParent->mvpcdevice->mix_enable(mParent->mode(),mHandle->curDev);
+    if(mParent->mvpcdevice->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
+        mParent->mvpcdevice->mix_enable(false, mHandle->curDev);
     }
 
     acoustic_device_t *aDev = acoustics();
@@ -174,23 +174,11 @@ status_t AudioStreamInALSA::close()
 
 status_t AudioStreamInALSA::standby()
 {
-    AutoW lock(mParent->mLock);
     LOGD("StreamInAlsa standby.\n");
 
-    if(!mHandle->handle) {
-        LOGD("nulllllll\n");
-    }
+    status_t status = ALSAStreamOps::standby();
 
-    if(mHandle->handle)
-        snd_pcm_drain (mHandle->handle);
-
-    if(mParent->mALSADevice->standby)
-        mParent->mALSADevice->standby(mHandle);
-
-    releasePowerLock();
-
-    mStandby = true;
-    return NO_ERROR;
+    return status;
 }
 
 void AudioStreamInALSA::resetFramesLost()
