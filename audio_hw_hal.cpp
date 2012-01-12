@@ -26,6 +26,11 @@
 #include <hardware_legacy/AudioHardwareInterface.h>
 #include <hardware_legacy/AudioSystemLegacy.h>
 
+#ifdef ENABLE_AUDIO_DUMP
+#include "AudioDumpInterface.h"
+#include <utils/String8.h>
+#endif
+
 namespace android_audio_legacy {
 
 extern "C" {
@@ -569,16 +574,24 @@ static int legacy_adev_open(const hw_module_t* module, const char* name,
     ladev->hwif = createAudioHardware();
     if (!ladev->hwif) {
         ret = -EIO;
-        goto err_create_audio_hw;
-    }
+		free(ladev);
+		return ret;
+    } else {
+#ifdef ENABLE_AUDIO_DUMP
+		// This code adds a record of buffers in a file to write calls made by AudioFlinger.
+		// It replaces the current AudioHardwareInterface object by an intermediate one which
+		// will record buffers in a file (after sending them to hardware) for testing purpose.
+		// This feature is enabled by defining symbol ENABLE_AUDIO_DUMP.
+		// The output file is set with setParameters("test_cmd_file_name=<name>"). Pause are not recorded in the file.
+		LOGV("opening PCM dump interface");
+		ladev->hwif = new AudioDumpInterface(ladev->hwif);    // replace interface
+		String8 audio_dump_filename("test_cmd_file_name=audio_dump");
+		ladev->hwif->setParameters(audio_dump_filename);
+#endif
+		*device = &ladev->device.common;
 
-    *device = &ladev->device.common;
-
-    return 0;
-
-err_create_audio_hw:
-    free(ladev);
-    return ret;
+		return 0;
+	}
 }
 
 static struct hw_module_methods_t legacy_audio_module_methods = {
@@ -592,7 +605,7 @@ struct legacy_audio_module HAL_MODULE_INFO_SYM = {
             version_major: 1,
             version_minor: 0,
             id: AUDIO_HARDWARE_MODULE_ID,
-            name: "Itel Audio HW HAL",
+            name: "Intel Audio HW HAL",
             author: "The Android Open Source Project",
             methods: &legacy_audio_module_methods,
             dso : NULL,

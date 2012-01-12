@@ -41,6 +41,11 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 
+ifeq ($(ENABLE_AUDIO_DUMP),true)
+  LOCAL_CFLAGS += -DENABLE_AUDIO_DUMP
+  LOCAL_SRC_FILES += AudioDumpInterface.cpp
+endif
+
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
   LOCAL_CFLAGS += -DWITH_A2DP
 endif
