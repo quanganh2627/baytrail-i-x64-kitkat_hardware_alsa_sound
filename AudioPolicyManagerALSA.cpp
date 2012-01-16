@@ -46,12 +46,15 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
 {
     uint32_t device = getDeviceForInputSource(inputSource);
 
-    // If one input (device in capture) is used then the policy
-    // shall refuse to any record application to acquire another input
+    // If one input (device in capture) is used then the policy shall refuse to any record
+    // application to acquire another input. Unless the ref count is null, that means that
+    // there is an input created but not used, and we can safely return its input handle.
     if (!mInputs.isEmpty()) {
-        LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used, return invalid audio input handle!",
-             mPhoneState, device);
-        return 0;
+        if(mInputs.valueAt(0)->mRefCount > 0) {
+            LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!",
+                 mPhoneState, device);
+            return 0;
+        }
     }
 
     // Call base implementation
