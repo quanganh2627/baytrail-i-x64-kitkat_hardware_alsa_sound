@@ -20,6 +20,9 @@
 #include "AudioPolicyManagerALSA.h"
 #include <media/mediarecorder.h>
 
+#define baseClass AudioPolicyManagerBase
+
+
 namespace android_audio_legacy {
 
 // ----------------------------------------------------------------------------
@@ -58,14 +61,14 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     }
 
     // Call base implementation
-    return AudioPolicyManagerBase::getInput(inputSource, samplingRate, format, channels, acoustics);
+    return baseClass::getInput(inputSource, samplingRate, format, channels, acoustics);
 }
 
 float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device)
 {
     float volume = 1.0;
 
-    volume = AudioPolicyManagerBase::computeVolume(stream, index, output, device);
+    volume = baseClass::computeVolume(stream, index, output, device);
 
     // Attenuate media streams by 12dB during voice over IP call. For CSV voice call,
     // this attenuation is applied in the 3G modem.
@@ -78,9 +81,53 @@ float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_hand
     return volume;
 }
 
+uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
+{
+
+    uint32_t device = 0;
+
+    device = baseClass::getDeviceForStrategy(strategy, fromCache);
+
+    // this case correspond to playback request during voice reco over BT SCO, voice record or playback of voice memo
+    if (baseClass::mForceUse[AudioSystem::FOR_MEDIA] == AudioSystem::FORCE_BT_SCO) {
+         switch (strategy) {
+            case STRATEGY_SONIFICATION:
+            case STRATEGY_ENFORCED_AUDIBLE:
+                device = AudioSystem::DEVICE_OUT_SPEAKER;
+            case STRATEGY_MEDIA:
+                device |= baseClass::mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
+                                                                AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |
+                                                                AudioSystem::DEVICE_OUT_BLUETOOTH_SCO);
+                LOGD("Request to play on BT SCO device");
+                break;
+            default:
+                // do nothing
+                break;
+        }
+    }
+
+    LOGV("getDeviceForStrategy() strategy %d, device %x", strategy, device);
+
+    return device;
+}
+
+void AudioPolicyManagerALSA::setForceUse(AudioSystem::force_use usage, AudioSystem::forced_config config)
+{
+    // playback on BT SCO requested by application
+    if((usage == AudioSystem::FOR_MEDIA) && (config == AudioSystem::FORCE_BT_SCO)){
+            LOGV("setForceUse() config %d for FOR_MEDIA", config);
+            mForceUse[usage] = config;
+            baseClass::applyForceUse(true);
+    }
+    else {
+        baseClass::setForceUse(usage, config);
+    }
+
+}
+
 
 AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface)
-    : AudioPolicyManagerBase(clientInterface)
+    : baseClass(clientInterface)
 {
 }
 

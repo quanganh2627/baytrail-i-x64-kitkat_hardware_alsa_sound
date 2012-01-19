@@ -37,7 +37,7 @@ LOCAL_C_INCLUDES += \
     AudioRouteMSICVoice.cpp \
     AudioRouteBT.cpp \
     AudioRouteMM.cpp \
-    AudioRouteVoiceRec.cpp
+    AudioRouteVoiceRec.cpp 
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 
@@ -66,7 +66,8 @@ LOCAL_SHARED_LIBRARIES := \
     libparameter \
     libstlport \
     libicuuc \
-    libat-manager
+    libat-manager 
+
 
 ifeq ($(USE_INTEL_SRC),true)
   LOCAL_CFLAGS += -DUSE_INTEL_SRC
@@ -77,6 +78,34 @@ endif
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  LOCAL_SHARED_LIBRARIES += liba2dp
+endif
+
+include $(BUILD_SHARED_LIBRARY)
+
+# This is the ALSA audio policy manager
+
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := \
+    AudioPolicyManagerALSA.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+    libcutils \
+    libutils \
+    libmedia
+
+LOCAL_STATIC_LIBRARIES := \
+    libmedia_helper
+
+LOCAL_WHOLE_STATIC_LIBRARIES := \
+    libaudiopolicy_legacy
+
+LOCAL_MODULE := audio_policy.$(TARGET_DEVICE)
+LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
+LOCAL_MODULE_TAGS := optional
+
+ifeq ($(BOARD_HAVE_BLUETOOTH),true)
+  LOCAL_CFLAGS += -DWITH_A2DP
 endif
 
 include $(BUILD_SHARED_LIBRARY)

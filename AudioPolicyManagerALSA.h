@@ -46,6 +46,8 @@ public:
                                        AudioSystem::audio_in_acoustics acoustics);
 
     virtual float computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device);
+    virtual void setForceUse(AudioSystem::force_use usage, AudioSystem::forced_config config);
+    virtual uint32_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
 };
 
 };
