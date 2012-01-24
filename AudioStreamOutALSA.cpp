@@ -71,6 +71,15 @@ status_t AudioStreamOutALSA::setVolume(float left, float right)
     return mixer()->setVolume (mHandle->curDev, left, right);
 }
 
+size_t AudioStreamOutALSA::generateSilence(size_t bytes)
+{
+    LOGD("%s: on alsa device(0x%x) in mode(0x%x)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
+
+    usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
+    mStandby = false;
+    return bytes;
+}
+
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
     AutoR lock(mParent->mLock);
@@ -81,11 +90,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     // Check if the audio route is available for this stream
     if(!routeAvailable()) {
-        LOGD("Write: on alsa device(0x%x) in mode(0x%x): generating silence", mHandle->curDev, mHandle->curMode);
-        // Simulate audio output timing in case of route unavailable
-        usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
-        mStandby = false;
-        return bytes;
+
+        return generateSilence(bytes);
     }
 
     if(mStandby) {
@@ -96,6 +102,12 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
             return err;
         }
         mStandby = false;
+    }
+
+    // if we deal with a NULL sink -> do not let alsa do the job
+    if (snd_pcm_type(mHandle->handle) == SND_PCM_TYPE_NULL)
+    {
+        return generateSilence(bytes);
     }
 
     if(mParent->mvpcdevice->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {

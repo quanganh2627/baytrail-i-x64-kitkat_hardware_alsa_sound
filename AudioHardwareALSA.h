@@ -225,6 +225,8 @@ public:
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA &);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
+    size_t		generateSilence(size_t bytes);
+
     uint32_t            mFrameCount;
 };
 
@@ -289,6 +291,7 @@ private:
     AudioStreamInALSA(const AudioStreamInALSA &);
     AudioStreamInALSA& operator = (const AudioStreamInALSA &);
     void                resetFramesLost();
+    size_t		generateSilence(void *buffer, size_t bytes);
 
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;

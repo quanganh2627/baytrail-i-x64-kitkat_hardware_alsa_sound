@@ -58,6 +58,15 @@ status_t AudioStreamInALSA::setGain(float gain)
     return mixer() ? mixer()->setMasterGain(gain) : (status_t)NO_INIT;
 }
 
+size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
+{
+    // Simulate audio input timing and send zeroed buffer
+    usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
+    memset(buffer, 0, bytes);
+    mStandby = false;
+    return bytes;
+}
+
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     AutoR lock(mParent->mLock);
@@ -68,12 +77,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     // Check if the audio route is available for this stream
     if(!routeAvailable()) {
-        // Simulate audio output timing in case of route unavailable
-        // and send zeroed buffer
-        usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
-        memset(buffer, 0, bytes);
-        mStandby = false;
-        return bytes;
+
+        return generateSilence(buffer, bytes);
     }
 
     if(mStandby) {
@@ -83,6 +88,12 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
             return err;
         }
         mStandby = false;
+    }
+
+    // if we deal with a NULL sink -> do not let alsa do the job
+    if (snd_pcm_type(mHandle->handle) == SND_PCM_TYPE_NULL)
+    {
+        return generateSilence(buffer, bytes);
     }
 
     if(mParent->mvpcdevice->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
