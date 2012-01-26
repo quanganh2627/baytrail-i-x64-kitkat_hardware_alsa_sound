@@ -659,7 +659,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     }
 
     // Alsa routing
-    if (devices && mALSADevice) {
+    if (mALSADevice) {
 
         // Ask the route manager to route the new stream
         status = mAudioRouteMgr->route(pStream, devices, mode(), bForOutput);

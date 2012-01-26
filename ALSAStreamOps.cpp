@@ -401,6 +401,10 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
     mAudioRoute = audioRoute;
     mDevices = devices;
 
+    // SetRoute is called with a NULL route, it only expects for an "unset" of the route
+    if(!mAudioRoute)
+        return NO_ERROR;
+
     // set stream to new route
     int ret = mAudioRoute->setStream(this, mode);
 

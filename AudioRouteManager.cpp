@@ -56,15 +56,25 @@ status_t AudioRouteManager::route(ALSAStreamOps* pStream, uint32_t devices, int 
     AudioRoute *aRoute;
     LOGD("route mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
 
-    if (_audioRouteList.empty()) {
-
-        // No domains associated
-        return BAD_VALUE;
+    if (!devices)
+    {
+        // Request with NULL device -> unroute request
+        // Set the route to the NULL route
+        LOGD("%s: null device => unroute", __FUNCTION__);
+        aRoute = NULL;
     }
+    else
+    {
+        if (_audioRouteList.empty()) {
 
-    aRoute = getRoute(devices, mode, bForOutput);
-    if(!aRoute)
-        return BAD_VALUE;
+            // No domains associated
+            return BAD_VALUE;
+        }
+
+        aRoute = getRoute(devices, mode, bForOutput);
+        if(!aRoute)
+            return BAD_VALUE;
+    }
 
     // Associate the stream and the route found
     return pStream->setRoute(aRoute, devices, mode);
