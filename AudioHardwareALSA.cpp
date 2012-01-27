@@ -43,6 +43,7 @@
 #include "AudioRoute.h"
 #include "ATManager.h"
 #include "CallStatUnsollicitedATCommand.h"
+#include "ProgressUnsollicitedATCommand.h"
 
 #include "stmd.h"
 
@@ -149,7 +150,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mAudioRouteMgr(new AudioRouteManager),
     mATManager(new CATManager(this)),
-    mXCallStatCmd(NULL),
+    mXProgressCmd(NULL),
+    mXCallstatCmd(NULL),
     mModemCallActive(false),
     mModemAvailable(false),
     mStreamOutList(NULL)
@@ -185,9 +187,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS) != 0)
         LOGE("AudioHardwareALSA: could not start modem state listener");
 
-    // Add XCallStat command to Unsollicited command list of the ATManager
+    // Add XProgress and XCallStat commands to Unsollicited commands list of the ATManager
     // (it will be automatically resent after reset of the modem)
-    mATManager->addUnsollicitedATCommand(mXCallStatCmd = new CCallStatUnsollicitedATCommand());
+    mATManager->addUnsollicitedATCommand(mXProgressCmd = new CProgressUnsollicitedATCommand());
+    mATManager->addUnsollicitedATCommand(mXCallstatCmd = new CCallStatUnsollicitedATCommand());
 
     /// Start
     std::string strError;
@@ -851,10 +854,13 @@ bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollic
     AutoW lock(mLock);
     LOGD("%s: in", __FUNCTION__);
 
-    if(mXCallStatCmd == pUnsollicitedCmd)
+    if(mXProgressCmd == pUnsollicitedCmd || mXCallstatCmd == pUnsollicitedCmd)
     {
-        onModemCallStateReceived(mXCallStatCmd);
+        // Process the answer
+        onModemXCmdReceived();
     }
+
+
     return false;
 }
 
@@ -866,16 +872,14 @@ bool AudioHardwareALSA::onAnsynchronousError(const CATcommand* pATCmd, int error
     return false;
 }
 
-
-void AudioHardwareALSA::onModemCallStateReceived(CCallStatUnsollicitedATCommand* pXCallStatCmd)
+void AudioHardwareALSA::onModemXCmdReceived()
 {
     LOGD("%s: in", __FUNCTION__);
 
-    // Process the answer
-    mXCallStatCmd->doProcessAnswer();
-
     // Check if Modem Audio Path is available
-    bool isAudioPathAvail = mXCallStatCmd->isAudioPathAvailable();
+    // According to network, some can receive XCALLSTAT, some can receive XPROGRESS
+    // so compute both information
+    bool isAudioPathAvail = mXCallstatCmd->isAudioPathAvailable() || mXProgressCmd->isAudioPathAvailable();
 
     // Modem Call State has changed?
     if(mModemCallActive != isAudioPathAvail){

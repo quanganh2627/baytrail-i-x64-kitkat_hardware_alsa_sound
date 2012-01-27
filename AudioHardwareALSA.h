@@ -40,6 +40,7 @@ class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 class CATManager;
 class CCallStatUnsollicitedATCommand;
+class CProgressUnsollicitedATCommand;
 
 using namespace std;
 
@@ -416,10 +417,8 @@ private:
     // State machine of route accessibility
     void applyRouteAccessibilityRules(RoutingEvent aRoutEvent);
 
-    //
-    void onModemCallStateReceived(CCallStatUnsollicitedATCommand* pXCallStatCmd);
-
-    const bool& modemCallStateActive() const { return mModemCallActive; }
+    // Check modem audio path upon XProgress/XCallStat reception
+    void onModemXCmdReceived();
 
     RWLock                mLock;
     bool mMicMuteState;
@@ -459,7 +458,8 @@ private:
 
     AudioRouteManager  *mAudioRouteMgr;
     CATManager *mATManager;
-    CCallStatUnsollicitedATCommand* mXCallStatCmd;
+    CProgressUnsollicitedATCommand* mXProgressCmd;
+    CCallStatUnsollicitedATCommand* mXCallstatCmd;
 
     // Modem Call state
     bool mModemCallActive;
