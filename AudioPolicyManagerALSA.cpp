@@ -49,18 +49,33 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
 {
     uint32_t device = getDeviceForInputSource(inputSource);
 
+    audio_io_handle_t activeInput = getActiveInput();
+
     // If one input (device in capture) is used then the policy shall refuse to any record
-    // application to acquire another input. Unless the ref count is null, that means that
-    // there is an input created but not used, and we can safely return its input handle.
-    if (!mInputs.isEmpty()) {
-        if(mInputs.valueAt(0)->mRefCount > 0) {
-            LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!",
-                 mPhoneState, device);
+    // application to acquire another input, unless a VoIP call or a voice call record preempts.
+    // Or unless the ref count is null, that means that there is an input created but not used,
+    // and we can safely return its input handle.
+    if (!mInputs.isEmpty() && activeInput) {
+        AudioInputDescriptor *inputDesc = mInputs.valueFor(activeInput);
+
+        uint32_t deviceMediaRecMic = (AudioSystem::DEVICE_IN_BUILTIN_MIC | AudioSystem::DEVICE_IN_BACK_MIC |
+                                      AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET);
+
+        // If an application uses already an input and the requested input is from a VoIP call
+        // or a CSV call record, stop the current active input to enable requested input start.
+        if(((inputDesc->mDevice & deviceMediaRecMic) &&
+            (inputDesc->mInputSource != AUDIO_SOURCE_VOICE_COMMUNICATION)) &&
+           ((device & AudioSystem::DEVICE_IN_VOICE_CALL) ||
+            (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION))) {
+              LOGI("Stop current active input %d because of higher priority input %d !", inputDesc->mInputSource, inputSource);
+              baseClass::stopInput(activeInput);
+        }
+        else {
+            LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
             return 0;
         }
     }
 
-    // Call base implementation
     return baseClass::getInput(inputSource, samplingRate, format, channels, acoustics);
 }
 
