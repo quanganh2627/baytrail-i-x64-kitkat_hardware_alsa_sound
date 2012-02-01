@@ -45,17 +45,17 @@ namespace android_audio_legacy
 
 // ----------------------------------------------------------------------------
 
-static const char* heasetPmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Headset/pmdown_time";
-static const char* speakerPmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Speaker/pmdown_time";
-static const char* voicePmDownDelaySysFile = "/sys/devices/platform/msic_audio.19/Medfield\ Voice/pmdown_time";
+static const char* heasetPmDownDelaySysFile = "//sys//devices//platform//intel_msic//msic_audio//Medfield Headset//pmdown_time";
+static const char* speakerPmDownDelaySysFile = "//sys//devices//platform//intel_msic//msic_audio//Medfield Speaker//pmdown_time";
+static const char* voicePmDownDelaySysFile = "//sys//devices//platform//intel_msic//msic_audio//Medfield Voice//pmdown_time";
 
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle, const char* pcLockTag) :
     mParent(parent),
     mHandle(handle),
     mStandby(false),
     mDevices(0),
-    mAudioRoute(NULL),
     isResetted(false),
+    mAudioRoute(NULL),
     mPowerLock(false),
     mPowerLockTag(pcLockTag)
 {
@@ -82,15 +82,15 @@ static inline uint32_t popCount(uint32_t u)
 
 acoustic_device_t *ALSAStreamOps::acoustics()
 {
-    return mParent->mAcousticDevice;
+    return mParent->getAcousticHwDevice();
 }
 vpc_device_t *ALSAStreamOps::vpc()
 {
-   return mParent->mvpcdevice;
+   return mParent->getVpcHwDevice();
 }
 lpe_device_t *ALSAStreamOps::lpe()
 {
-   return mParent->mlpedevice;
+   return mParent->getLpeHwDevice();
 }
 
 ALSAMixer *ALSAStreamOps::mixer()
@@ -295,7 +295,7 @@ void ALSAStreamOps::close()
 void ALSAStreamOps::doClose()
 {
     LOGD("ALSAStreamOps::doClose");
-    mParent->mALSADevice->close(mHandle);
+    mParent->getAlsaHwDevice()->close(mHandle);
 
     releasePowerLock();
 }
@@ -319,11 +319,11 @@ status_t ALSAStreamOps::standby()
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
 
-    if(mParent->mvpcdevice->mix_disable)
-        mParent->mvpcdevice->mix_disable(isOut());
+    if(mParent->getVpcHwDevice()->mix_disable)
+        mParent->getVpcHwDevice()->mix_disable(isOut());
 
-    if(mParent->mALSADevice->standby)
-        mParent->mALSADevice->standby(mHandle);
+    if(mParent->getAlsaHwDevice()->standby)
+        mParent->getAlsaHwDevice()->standby(mHandle);
 
     releasePowerLock();
 
@@ -348,13 +348,13 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
     assert(!mHandle->handle);
 
     status_t err = BAD_VALUE;
-    err = mParent->mALSADevice->open(mHandle, devices, mode);
+    err = mParent->getAlsaHwDevice()->open(mHandle, devices, mode);
 
 
     LOGD("ALSAStreamOps::open");
     if(NO_ERROR == err) {
-        if (mParent && mParent->mlpedevice && mParent->mlpedevice->lpecontrol) {
-            err = mParent->mlpedevice->lpecontrol(mode,mHandle->curDev);
+        if (mParent && mParent->getLpeHwDevice() && mParent->getLpeHwDevice()->lpecontrol) {
+            err = mParent->getLpeHwDevice()->lpecontrol(mode,mHandle->curDev);
             if (err) {
                 LOGE("setparam for lpe called with bad devices");
             }
@@ -373,10 +373,18 @@ bool ALSAStreamOps::routeAvailable()
 
 void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
 {
-    LOGD("vpcRoute");
     if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL)) {
-        LOGD("vpcRoute BT Playback INCOMMUNICATION");
-        mParent->mvpcdevice->route(VPC_ROUTE_OPEN);
+        LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
+        mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
+    }
+}
+
+void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
+{
+    if((curMode == AudioSystem::MODE_IN_COMMUNICATION) && (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL ))
+    {
+        LOGD("%s", __FUNCTION__);
+        mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
     }
 }
 
@@ -395,8 +403,11 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
     }
 
     // unset stream from previous route (if any)
-    if(mAudioRoute != NULL)
-        mAudioRoute->unsetStream(this, mode);
+    if(mAudioRoute != NULL) {
+        // unset the streams in the mode in which streams
+        // were running until now (usefull for tied attribute)...
+        mAudioRoute->unsetStream(this, mHandle->curMode);
+    }
 
     mAudioRoute = audioRoute;
     mDevices = devices;
@@ -438,7 +449,12 @@ status_t ALSAStreamOps::doRoute(int mode)
 status_t ALSAStreamOps::undoRoute()
 {
     LOGD("doRoute undoRoute");
+
+    int curMode = mHandle->curMode;
+    int curDev = mHandle->curDev;
     doClose();
+
+    vpcUnroute(curDev, curMode);
 
     return NO_ERROR;
 }
@@ -473,7 +489,7 @@ void ALSAStreamOps::writeSysEntry(const char* filePath, int value)
         return ;
     }
     char buff[20];
-    int ret;
+    uint32_t ret;
     snprintf(buff, sizeof(buff), "%d", value);
     if ((ret = ::write(fd, buff, strlen(buff))) != strlen(buff))
         LOGE("could not write ret=%d", ret);

@@ -128,7 +128,7 @@ AudioRoute* AudioRouteManager::findRouteByName(const String8& name)
     return aRoute;
 }
 
-status_t AudioRouteManager::setRouteAccessible(const String8& name, bool isAccessible, int mode)
+status_t AudioRouteManager::setRouteAccessible(const String8& name, bool isAccessible, int mode, AudioRoute::Direction dir)
 {
     LOGD("setRouteAccessible");
     AudioRoute* aRoute =  NULL;
@@ -138,9 +138,23 @@ status_t AudioRouteManager::setRouteAccessible(const String8& name, bool isAcces
     aRoute = findRouteByName(name);
 
     if(aRoute != NULL)
-        aRoute->setRouteAccessible(isAccessible, mode);
+        aRoute->setRouteAccessible(isAccessible, mode, dir);
     else
         return BAD_VALUE;
+
+    return NO_ERROR;
+}
+
+status_t AudioRouteManager::setSharedRouteAccessible(bool isAccessible, int mode, AudioRoute::Direction dir)
+{
+    LOGD("%s", __FUNCTION__);
+    AudioRoute* aRoute =  NULL;
+    AudioRouteListIterator it;
+
+    // Set all the routes that belong to the shared route
+    setRouteAccessible(String8("VoiceRec"), isAccessible, mode, dir);
+    setRouteAccessible(String8("BT"), isAccessible, mode, dir);
+    setRouteAccessible(String8("MSIC_Voice"), isAccessible, mode, dir);
 
     return NO_ERROR;
 }

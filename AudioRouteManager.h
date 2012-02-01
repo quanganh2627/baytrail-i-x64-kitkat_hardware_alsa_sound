@@ -22,6 +22,8 @@
 
 #include <hardware_legacy/AudioHardwareBase.h>
 
+#include "AudioRoute.h"
+
 namespace android_audio_legacy
 {
 
@@ -39,7 +41,9 @@ public:
 
     status_t addRoute(AudioRoute *route);
 
-    status_t setRouteAccessible(const String8& name, bool isAccessible, int mode);
+    status_t setRouteAccessible(const String8& name, bool isAccessible, int mode, AudioRoute::Direction dir = AudioRoute::FullDuplex);
+
+    status_t setSharedRouteAccessible(bool isAccessible, int mode, AudioRoute::Direction dir = AudioRoute::FullDuplex);
 
     status_t route(ALSAStreamOps* pStream, uint32_t devices, int mode, bool bForOutput);
 

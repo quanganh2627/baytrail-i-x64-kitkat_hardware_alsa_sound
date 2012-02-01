@@ -110,8 +110,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         return generateSilence(bytes);
     }
 
-    if(mParent->mvpcdevice->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
-        mParent->mvpcdevice->mix_enable(true, mHandle->curDev);
+    if(mParent->getVpcHwDevice()->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
+        mParent->getVpcHwDevice()->mix_enable(true, mHandle->curDev);
     }
 
     acoustic_device_t *aDev = acoustics();
@@ -161,6 +161,10 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
                 LOGE("Open device error");
                 return err;
             }
+        }
+        else if (n == -ENODEV) {
+             LOGE("write err: %s, bailing out", snd_strerror(n));
+             return err;
         }
         else if (n < 0) {
             LOGE("write err: %s", snd_strerror(n));

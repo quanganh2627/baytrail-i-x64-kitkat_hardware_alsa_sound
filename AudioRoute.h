@@ -30,6 +30,12 @@ class AudioRoute;
 class AudioRoute
 {
 public:
+    enum Direction {
+        Capture = 0x1,
+        Playback = 0x2,
+        FullDuplex = 0x3
+    };
+
     AudioRoute(const String8& strName);
     virtual           ~AudioRoute();
 
@@ -44,7 +50,7 @@ public:
 
     bool available(bool bForOutput);
 
-    void setRouteAccessible(bool isAccessible, int mode);
+    void setRouteAccessible(bool isAccessible, int mode, Direction dir = FullDuplex);
 
     const String8& getName() const { return mName; }
 
@@ -68,7 +74,7 @@ private:
     String8 mName;
     ALSAStreamOps* mStreams[2];
     bool mIsCaptureRouted;
-    bool mIsRouteAccessible;
+    bool mIsRouteAccessible[2];
 };
 // ----------------------------------------------------------------------------
 

@@ -64,6 +64,26 @@ extern "C"
 #define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
 #define MAX_WAIT_ACK_SECONDS    2
 
+enum HW_DEVICE {
+    ALSA_HW_DEV = 0,
+    ACOUSTIC_HW_DEV,
+    VPC_HW_DEV,
+    LPE_HW_DEV,
+    NB_HW_DEV
+};
+
+struct hw_module {
+    const char* module_id;
+    const char* module_name;
+};
+
+static const hw_module hw_module_list[NB_HW_DEV] = {
+    { ALSA_HARDWARE_MODULE_ID, ALSA_HARDWARE_NAME },
+    { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
+    { VPC_HARDWARE_MODULE_ID, VPC_HARDWARE_NAME },
+    { LPE_HARDWARE_MODULE_ID, LPE_HARDWARE_NAME },
+};
+
 /// PFW related definitions
 // Logger
 class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnector::ILogger
@@ -143,10 +163,6 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 }
 
 AudioHardwareALSA::AudioHardwareALSA() :
-    mALSADevice(0),
-    mAcousticDevice(0),
-    mvpcdevice(0),
-    mlpedevice(0),
     mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("Audio")),
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mAudioRouteMgr(new AudioRouteManager),
@@ -155,6 +171,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mXCallstatCmd(NULL),
     mModemCallActive(false),
     mModemAvailable(false),
+    mMSICVoiceRouteForcedOnMMRoute(false),
     mStreamOutList(NULL)
 {
     // Logger
@@ -184,9 +201,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mAudioRouteMgr->addRoute(new AudioRouteBT(String8("BT")));
     mAudioRouteMgr->addRoute(new AudioRouteVoiceRec(String8("VoiceRec")));
 
-    // Starts the modem state listener
-    if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS) != 0)
-        LOGE("AudioHardwareALSA: could not start modem state listener");
 
     // Add XProgress and XCallStat commands to Unsollicited commands list of the ATManager
     // (it will be automatically resent after reset of the modem)
@@ -206,72 +220,83 @@ AudioHardwareALSA::AudioHardwareALSA() :
 #ifdef USE_INTEL_SRC
     mResampler = new AudioResamplerALSA();
 #endif
-    status_t err_a = BAD_VALUE;
 
-    hw_module_t *module;
-    int err = hw_get_module(ALSA_HARDWARE_MODULE_ID,
-                            (hw_module_t const**)&module);
+    // HW Modules initialisation
+    hw_module_t* module;
+    hw_device_t* device;
 
-    if (err == 0) {
-        hw_device_t* device;
-        err = module->methods->open(module, ALSA_HARDWARE_NAME, &device);
-        if (err == 0) {
-            mALSADevice = (alsa_device_t *)device;
-            mALSADevice->init(mALSADevice, mDeviceList);
-        } else
-            LOGE("ALSA Module could not be opened!!!");
-    } else
-        LOGE("ALSA Module not found!!!");
-
-    err = hw_get_module(ACOUSTICS_HARDWARE_MODULE_ID,
-    (hw_module_t const**)&module);
-    if (err == 0) {
-        hw_device_t* device;
-        err = module->methods->open(module,
-        ACOUSTICS_HARDWARE_NAME, &device);
-        if (err == 0)
-            mAcousticDevice = (acoustic_device_t *)device;
-        else
-            LOGE("Acoustics Module not found.");
-    }
-
-    err = hw_get_module(VPC_HARDWARE_MODULE_ID,
-    (hw_module_t const**)&module);
-
-    if (err == 0) {
-        hw_device_t* device;
-        err = module->methods->open(module,VPC_HARDWARE_NAME, &device);
-        if (err == 0){
-            LOGD("VPC MODULE OK.");
-            mvpcdevice = (vpc_device_t *) device;
-            err = mvpcdevice->init();
-
-            if (err)
-                LOGE("VPC MODULE init FAILED");
-            else
-                if (mvpcdevice->set_modem_state)
-                    mvpcdevice->set_modem_state(mATManager->getModemStatus());
+    int ret = 0;
+    for (int i = 0; i < NB_HW_DEV; i++)
+    {
+        if (hw_get_module(hw_module_list[i].module_id, (hw_module_t const**)&module))
+        {
+            LOGE("%s Module not found!!!", hw_module_list[i].module_id);
+            mHwDeviceArray.push_back(NULL);
         }
-        else
-            LOGE("VPC Module not found");
+        else if (module->methods->open(module, hw_module_list[i].module_name, &device))
+        {
+            LOGE("%s Module could not be opened!!!", hw_module_list[i].module_name);
+            mHwDeviceArray.push_back(NULL);
+        }
+        else {
+
+            mHwDeviceArray.push_back(device);
+        }
     }
 
-    err = hw_get_module(LPE_HARDWARE_MODULE_ID,
-    (hw_module_t const**)&module);
-
-    if (err == 0) {
-        hw_device_t* device;
-        err = module->methods->open(module,LPE_HARDWARE_NAME, &device);
-        if (err == 0){
-            LOGD("LPE MODULE OK.");
-            mlpedevice = (lpe_device_t *) device;
-            err = mlpedevice->init();
-            if (err)
-                LOGE("LPE init FAILED");
-            }
-        else
-            LOGE("LPE Module not found");
+    getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList);
+    if (getVpcHwDevice()->init())
+    {
+        LOGE("VPC MODULE init FAILED");
+        // if any open issue, bailing out...
+        getVpcHwDevice()->common.close(&getVpcHwDevice()->common);
+        return ;
     }
+    else
+    {
+        getVpcHwDevice()->set_modem_state(mATManager->getModemStatus());
+    }
+
+    if (getLpeHwDevice()->init())
+    {
+        LOGE("LPE init FAILED");
+        // if any open issue, bailing out...
+        getLpeHwDevice()->common.close(&getLpeHwDevice()->common);
+        return ;
+    }
+
+    // Starts the modem state listener
+    if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS)) {
+        LOGE("AudioHardwareALSA: could not start modem state listener");
+    }
+}
+
+alsa_device_t* AudioHardwareALSA::getAlsaHwDevice() const
+{
+    assert(mHwDeviceArray.size() > ALSA_HW_DEV);
+
+    return (alsa_device_t *)mHwDeviceArray[ALSA_HW_DEV];
+}
+
+vpc_device_t* AudioHardwareALSA::getVpcHwDevice() const
+{
+    assert(mHwDeviceArray.size() > VPC_HW_DEV);
+
+    return (vpc_device_t *)mHwDeviceArray[VPC_HW_DEV];
+}
+
+lpe_device_t* AudioHardwareALSA::getLpeHwDevice() const
+{
+    assert(mHwDeviceArray.size() > LPE_HW_DEV);
+
+    return (lpe_device_t *)mHwDeviceArray[LPE_HW_DEV];
+}
+
+acoustic_device_t* AudioHardwareALSA::getAcousticHwDevice() const
+{
+    assert(mHwDeviceArray.size() > ACOUSTIC_HW_DEV);
+
+    return (acoustic_device_t *)mHwDeviceArray[ACOUSTIC_HW_DEV];
 }
 
 AudioHardwareALSA::~AudioHardwareALSA()
@@ -293,22 +318,22 @@ AudioHardwareALSA::~AudioHardwareALSA()
     if (mResampler) delete mResampler;
 #endif
 
-    if (mALSADevice)
-        mALSADevice->common.close(&mALSADevice->common);
-    if (mAcousticDevice)
-        mAcousticDevice->common.close(&mAcousticDevice->common);
-    if (mvpcdevice)
-        mvpcdevice->common.close(&mvpcdevice->common);
-    if (mlpedevice)
-        mlpedevice->common.close(&mlpedevice->common);
+    for (int i = 0; i < NB_HW_DEV; i++) {
+
+        if (mHwDeviceArray[i]) {
+
+            mHwDeviceArray[i]->close(mHwDeviceArray[i]);
+        }
+
+    }
 }
 
 status_t AudioHardwareALSA::initCheck()
 {
 #ifdef USE_INTEL_SRC
-    if (mALSADevice && mMixer && mMixer->isValid() && mResampler)
+    if (getAlsaHwDevice() && mMixer && mMixer->isValid() && mResampler)
 #else
-    if (mALSADevice && mMixer && mMixer->isValid())
+    if (getAlsaHwDevice() && mMixer && mMixer->isValid())
 #endif
         return NO_ERROR;
     else
@@ -332,8 +357,8 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
     // The voice volume is used by the VOICE_CALL audio stream.
     AutoW lock(mLock);
-    if (mvpcdevice)
-        return mvpcdevice->volume(volume);
+    if (getVpcHwDevice())
+        return getVpcHwDevice()->volume(volume);
     else
         return INVALID_OPERATION;
 }
@@ -355,39 +380,21 @@ status_t AudioHardwareALSA::setMode(int mode)
 
     status_t status = NO_ERROR;
 
-    if(mode == AudioSystem::MODE_IN_CALL && mATManager->getModemStatus() != MODEM_UP)
-    {
-        LOGD("setMode: cannot switch to INCALL mode as modem not available");
-        return status;
-    }
-
     if (mode != mMode) {
 
-        status = setModeLocal(mode);
+        status = AudioHardwareBase::setMode(mode);
+
+        // Refresh VPC mode
+        if (getVpcHwDevice() && getVpcHwDevice()->set_mode) {
+
+            getVpcHwDevice()->set_mode(mode);
+        }
+
+        mSelectedMode->setCriterionState(mode);
 
         // According to the new mode, re-evaluate accessibility of the audio routes
         applyRouteAccessibilityRules(EModeChange);
     }
-
-
-    return status;
-}
-
-status_t AudioHardwareALSA::setModeLocal(int mode)
-{
-    LOGD("%s: in", __FUNCTION__);
-
-    status_t status = NO_ERROR;
-
-    status = AudioHardwareBase::setMode(mode);
-
-    // Refresh VPC mode
-    if (mvpcdevice && mvpcdevice->params) {
-
-        mvpcdevice->set_mode(mode);
-    }
-
-    mSelectedMode->setCriterionState(mode);
 
     return status;
 }
@@ -416,7 +423,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
-            err = mALSADevice->initStream(&(*it), devices, mode());
+            err = getAlsaHwDevice()->initStream(&(*it), devices, mode());
             if (err) {
                 LOGE("Open error.");
                 break;
@@ -493,7 +500,8 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
-            err = mALSADevice->initStream(&(*it), devices, mode());
+
+            err = getAlsaHwDevice()->initStream(&(*it), devices, mode());
             if (err) {
                 LOGE("Open error.");
                 break;
@@ -509,8 +517,8 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
                 LOGE("Set error.");
                 break;
             }
-            if (mlpedevice && mlpedevice->lpecontrol) {
-                err = mlpedevice->lpecontrol(mode(), devices);
+            if (getLpeHwDevice() && getLpeHwDevice()->lpecontrol) {
+                err = getLpeHwDevice()->lpecontrol(mode(), devices);
                 if (err) {
                     LOGE("openInputStream called with bad devices");
                 }
@@ -595,29 +603,29 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     // Search TTY mode
     if(strstr(keyValuePairs.string(), "tty_mode=tty_full") != NULL) {
         LOGV("tty full\n");
-        mvpcdevice->tty(VPC_TTY_FULL);
+        getVpcHwDevice()->tty(VPC_TTY_FULL);
     }
     else if(strstr(keyValuePairs.string(), "tty_mode=tty_hco") != NULL) {
         LOGV("tty hco\n");
-        mvpcdevice->tty(VPC_TTY_HCO);
+        getVpcHwDevice()->tty(VPC_TTY_HCO);
     }
     else if(strstr(keyValuePairs.string(), "tty_mode=tty_vco") != NULL) {
         LOGV("tty vco\n");
-        mvpcdevice->tty(VPC_TTY_VCO);
+        getVpcHwDevice()->tty(VPC_TTY_VCO);
     }
     else if (strstr(keyValuePairs.string(), "tty_mode=tty_off") != NULL) {
         LOGV("tty off\n");
-        mvpcdevice->tty(VPC_TTY_OFF);
+        getVpcHwDevice()->tty(VPC_TTY_OFF);
     }
 
     // Search BT NREC parameter
     if ((strstr(keyValuePairs.string(), "bt_headset_nrec=on")) != NULL) {
         LOGV("bt with acoustic\n");
-        mvpcdevice->bt_nrec(VPC_BT_NREC_ON);
+        getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
     }
     else if ((strstr(keyValuePairs.string(), "bt_headset_nrec=off")) != NULL) {
         LOGV("bt without acoustic\n");
-        mvpcdevice->bt_nrec(VPC_BT_NREC_OFF);
+        getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
     }
 
     return NO_ERROR;
@@ -651,9 +659,9 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
     // VPC params
     // Refreshed only on out stream changes
-    if (devices && mvpcdevice && mvpcdevice->params && bForOutput) {
+    if (devices && getVpcHwDevice() && getVpcHwDevice()->params && bForOutput) {
 
-        status = mvpcdevice->params(mode(), (uint32_t)devices);
+        status = getVpcHwDevice()->params(mode(), (uint32_t)devices);
 
         if (status != NO_ERROR) {
 
@@ -663,10 +671,10 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     }
 
     // Alsa routing
-    if (mALSADevice) {
+    if (getAlsaHwDevice()) {
 
         // Ask the route manager to route the new stream
-        status = mAudioRouteMgr->route(pStream, devices, mode(), bForOutput);
+        status = mAudioRouteMgr->route(pStream, devices, audioMode(), bForOutput);
         if (status != NO_ERROR) {
 
             // Just log!
@@ -675,8 +683,9 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     }
 
     // Mix disable
-    if (devices && mvpcdevice && mvpcdevice->mix_disable) {
-        mvpcdevice->mix_disable(mode());
+    if (devices && getVpcHwDevice() && getVpcHwDevice()->mix_disable) {
+
+        getVpcHwDevice()->mix_disable(mode());
     }
 
     if (bForOutput) {
@@ -691,9 +700,9 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         // Input devices changed
 
         // Call lpecontrol
-        if (mlpedevice && mlpedevice->lpecontrol) {
+        if (getLpeHwDevice() && getLpeHwDevice()->lpecontrol) {
 
-            status = mlpedevice->lpecontrol(mode(), (uint32_t)devices);
+            status = getLpeHwDevice()->lpecontrol(mode(), (uint32_t)devices);
 
             if (status != NO_ERROR) {
 
@@ -724,9 +733,13 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 //
 // This function forces a re-routing to be applied in Out Streams
 //
-status_t AudioHardwareALSA::forceModeChangeOnStreams() {
-    LOGD("forceModeChangeOnStreams");
-    status_t status = NO_ERROR;
+void AudioHardwareALSA::forceRouteMSICVoiceOnMM() {
+    LOGD("forceRouteMSICVoiceOnMM");
+
+    mMSICVoiceRouteForcedOnMMRoute = true;
+
+    assert(mode() == AudioSystem::MODE_IN_CALL);
+
     /* Force route with new mode */
 
     CAudioStreamOutALSAListConstIterator it;
@@ -737,22 +750,12 @@ status_t AudioHardwareALSA::forceModeChangeOnStreams() {
 
         if (pOut->mHandle && pOut->mHandle->openFlag && !(pOut->mHandle->curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL))
         {
-            // Refresh VPC params
-            if (mvpcdevice && mvpcdevice->params) {
 
-                mvpcdevice->params(mode(), (uint32_t)pOut->mHandle->curDev);
-            }
-
-            // Ask the route manager to route the stream
-            status = mAudioRouteMgr->route(pOut, pOut->mHandle->curDev, mode(), true);
-            if (status != NO_ERROR)
-            {
-                // Just log!
-                LOGE("alsa route error: %d", status);
-            }
+            // Ask the route manager to route the stream on MM route
+            // ie force the mode to NORMAL
+            mAudioRouteMgr->route(pOut, pOut->mHandle->curDev, audioMode(), true);
         }
     }
-    return status;
 }
 
 //
@@ -773,6 +776,10 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
 
     switch(mode()) {
     case AudioSystem::MODE_IN_CALL:
+
+        // Reset force route flag
+        mMSICVoiceRouteForcedOnMMRoute = false;
+
         if (!mModemAvailable) {
             /* NOTE:
              * Side effect of delaying setMode(NORMAL) once call is finished in case of modem reset
@@ -784,40 +791,32 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
              * Remark: the device is kept the same, only the mode is changed in order not to disturb
              * user experience.
              */
-            setModeLocal(AudioSystem::MODE_NORMAL);
-            forceModeChangeOnStreams();
+            forceRouteMSICVoiceOnMM();
         }
-        else if (aRoutEvent == ECallStatusOff)
-        {
-            /*
-             * Call Disconnected event
-             * NOTE:
-             * Side effect of delaying setMode(NORMAL) once call is finished
-             * Need to switch to Multimedia path in order to be "glitch safe"
-             */
-            LOGD("%s: FORCE MODE change to NORMAL", __FUNCTION__);
-            setModeLocal(AudioSystem::MODE_NORMAL);
+        else if (aRoutEvent == ECallStatusChange) {
 
-            // Reconsider the routing
-            forceModeChangeOnStreams();
+            if (!mModemCallActive) {
 
-        } else if (!mModemCallActive)
-        {
-            LOGD("%s: FORCE VPC MODE change to NORMAL", __FUNCTION__);
-            //
-            // Force VPC to NORMAL so that route close can be done if needed (from INCOMM mode)
-            //
-            if (mvpcdevice && mvpcdevice->params) {
-
-                mvpcdevice->set_mode(AudioSystem::MODE_NORMAL);
+                //
+                // Call was active and status changed => Disconnected event
+                // NOTE:
+                // Side effect of delaying setMode(NORMAL) once call is finished
+                // Need to switch to Multimedia path in order to be "glitch safe"
+                //
+                LOGD("%s: FORCE ROUTE change from MSICVoice to MM", __FUNCTION__);
+                // Reconsider the routing
+                forceRouteMSICVoiceOnMM();
             }
         }
 
         // Accessibility depends on 2 conditions: "Modem is available" AND "Modem Call is Active"
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemCallActive && mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemCallActive && mModemAvailable, mode());
         mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemCallActive && mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemCallActive && mModemAvailable, mode());
 
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemCallActive && mModemAvailable, mode(), AudioRoute::Playback);
+
+        // Capture on MSIC_Voice route is not accessible since controled by the modem
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), false, mode(), AudioRoute::Capture);
         break;
 
     case AudioSystem::MODE_IN_COMMUNICATION:
@@ -830,16 +829,12 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
          * Modem Available (Up):
          *      Set the route accessibility to true
          */
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, mode());
+        mAudioRouteMgr->setSharedRouteAccessible(mModemAvailable, mode());
         break;
 
     default:
-        // ie NORMAL, IN_RINGTONE ...
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), false, mode());
+        // ie NORMAL, RINGTONE ...
+        mAudioRouteMgr->setSharedRouteAccessible(mModemAvailable, mode());
         break;
     }
 
@@ -855,7 +850,7 @@ bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollic
     AutoW lock(mLock);
     LOGD("%s: in", __FUNCTION__);
 
-    if(mXProgressCmd == pUnsollicitedCmd || mXCallstatCmd == pUnsollicitedCmd)
+    if (mXProgressCmd == pUnsollicitedCmd || mXCallstatCmd == pUnsollicitedCmd)
     {
         // Process the answer
         onModemXCmdReceived();
@@ -883,13 +878,19 @@ void AudioHardwareALSA::onModemXCmdReceived()
     bool isAudioPathAvail = mXCallstatCmd->isAudioPathAvailable() || mXProgressCmd->isAudioPathAvailable();
 
     // Modem Call State has changed?
-    if(mModemCallActive != isAudioPathAvail){
+    if (mModemCallActive != isAudioPathAvail){
 
         // ModemCallActive has changed, keep track
         mModemCallActive = isAudioPathAvail;
 
+        // Inform VPC of call status
+        if (getVpcHwDevice() && getVpcHwDevice()->set_call_status) {
+
+            getVpcHwDevice()->set_call_status(mModemCallActive);
+        }
+
         // Re-evaluate accessibility of the audio routes
-        applyRouteAccessibilityRules(mModemCallActive? ECallStatusOn : ECallStatusOff);
+        applyRouteAccessibilityRules(ECallStatusChange);
 
     }
     LOGD("%s: out", __FUNCTION__);
@@ -899,11 +900,12 @@ void AudioHardwareALSA::onModemXCmdReceived()
 // From IATNotifier
 // Called on Modem State change reported by STMD
 //
-void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
+void  AudioHardwareALSA::onModemStateChanged() {
 
     AutoW lock(mLock);
-    LOGD("%s: in: ModemStatus=%d", __FUNCTION__, mModemStatus);
-    status_t status;
+    LOGD("%s: in: ModemStatus", __FUNCTION__);
+
+    int modemStatus = mATManager->getModemStatus();
 
     /*
      * Informs VPC of modem status change
@@ -911,11 +913,11 @@ void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
      * the modem state will also be set after loading VPC
      * HW module
      */
-    if (mvpcdevice && mvpcdevice->set_modem_state) {
-        mvpcdevice->set_modem_state(mModemStatus);
+    if (getVpcHwDevice() && getVpcHwDevice()->set_modem_state) {
+        getVpcHwDevice()->set_modem_state(modemStatus);
     }
 
-    mModemAvailable = (mModemStatus == MODEM_UP);
+    mModemAvailable = (modemStatus == MODEM_UP);
 
     // Re-evaluate accessibility of the audio routes
     applyRouteAccessibilityRules(EModemStateChange);
@@ -923,5 +925,14 @@ void  AudioHardwareALSA::onModemStateChange(int mModemStatus) {
     LOGD("%s: out", __FUNCTION__);
 }
 
+inline int AudioHardwareALSA::audioMode()
+{
+    //
+    // The mode to be set is matching the mode of AudioHAL
+    // EXCEPT when we are in call and the audio route is forced on MM
+    //
+    return (mMSICVoiceRouteForcedOnMMRoute && mode() == AudioSystem::MODE_IN_CALL)?
+                        AudioSystem::MODE_NORMAL : mode();
+}
 
 }       // namespace android

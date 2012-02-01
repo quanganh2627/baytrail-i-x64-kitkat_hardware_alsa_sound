@@ -20,6 +20,7 @@
 
 #include <utils/List.h>
 #include <list>
+#include <vector>
 #include <hardware_legacy/AudioHardwareBase.h>
 
 #include <alsa/asoundlib.h>
@@ -155,7 +156,8 @@ protected:
     uint32_t                mDevices;
 
 private:
-    void        vpcRoute(uint32_t devices, int mode);
+    void	vpcRoute(uint32_t devices, int mode);
+    void	vpcUnroute(uint32_t curDev, int curMode);
     void	storeAndResetPmDownDelay();
     void	restorePmDownDelay();
 
@@ -301,8 +303,7 @@ class AudioHardwareALSA : public AudioHardwareBase, public IATNotifier
 {
     enum RoutingEvent {
         EModeChange,
-        ECallStatusOn,
-        ECallStatusOff,
+        ECallStatusChange,
         EModemStateChange
     };
 
@@ -384,10 +385,17 @@ public:
     /* from AudioModemStateOberser: notified on modem status changes */
     virtual bool onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollicitedCmd) ;
     virtual bool onAnsynchronousError(const CATcommand* pATCmd, int errorType);
-    virtual void onModemStateChange(int mModemStatus);
+    virtual void onModemStateChanged();
 
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
+
+
+    // Cast Hw device from mHwDeviceArray to the corresponding hw device type
+    alsa_device_t* getAlsaHwDevice() const;
+    vpc_device_t* getVpcHwDevice() const;
+    lpe_device_t* getLpeHwDevice() const;
+    acoustic_device_t* getAcousticHwDevice() const;
 
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
@@ -395,11 +403,6 @@ protected:
     friend class ALSAMixer;
 
     ALSAMixer *         mMixer;
-
-    alsa_device_t *     mALSADevice;
-    acoustic_device_t * mAcousticDevice;
-    vpc_device_t * mvpcdevice;
-    lpe_device_t * mlpedevice;
 
     ALSAHandleList      mDeviceList;
 
@@ -411,17 +414,17 @@ private:
     AudioHardwareALSA(const AudioHardwareALSA &);
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
 
-    // Private function to set the mode
-    status_t    setModeLocal(int mode);
-
-    // Force a mode change on running streams
-    status_t forceModeChangeOnStreams();
+    // Force a re-routing of MSIC Voice route on MM route
+    void forceRouteMSICVoiceOnMM();
 
     // State machine of route accessibility
     void applyRouteAccessibilityRules(RoutingEvent aRoutEvent);
 
     // Check modem audio path upon XProgress/XCallStat reception
     void onModemXCmdReceived();
+
+    // Translate the mode and force route flag into a new mode
+    int audioMode();
 
     RWLock                mLock;
     bool mMicMuteState;
@@ -470,8 +473,14 @@ private:
     // Modem State
     bool mModemAvailable;
 
+    // MSIC voice Route forced on MM flag
+    bool mMSICVoiceRouteForcedOnMMRoute;
+
     // Output Streams list
     list<AudioStreamOutALSA*> mStreamOutList;
+
+    // HW device array
+    vector<hw_device_t*> mHwDeviceArray;
 };
 
 // ----------------------------------------------------------------------------

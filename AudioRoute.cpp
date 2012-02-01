@@ -42,12 +42,13 @@ namespace android_audio_legacy
 
 AudioRoute::AudioRoute(const String8& mName) :
     mName(mName),
-    mIsCaptureRouted(false),
-    mIsRouteAccessible(true)
+    mIsCaptureRouted(false)
 {
     LOGD("AudioRoute %s", mName.string());
     mStreams[INPUT_STREAM] = NULL;
     mStreams[OUTPUT_STREAM] = NULL;
+    mIsRouteAccessible[INPUT_STREAM] = true;
+    mIsRouteAccessible[OUTPUT_STREAM] = true;
 }
 
 AudioRoute::~AudioRoute()
@@ -97,6 +98,7 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
             }
         }
     } else {
+
         LOGD("execute route inconditionnaly");
         //
         // Streams are not tied, route inconditionnaly
@@ -108,8 +110,8 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
 
 status_t AudioRoute::route(int mode, bool bForOutput)
 {
-    LOGD("route mode=%d isAccessible=%d", mode, mIsRouteAccessible);
-    if(mIsRouteAccessible) {
+    LOGD("route mode=%d isAccessible=%d", mode, mIsRouteAccessible[bForOutput]);
+    if(mIsRouteAccessible[bForOutput]) {
         if(bForOutput) {
             playbackStream()->doRoute(mode);
         } else {
@@ -122,8 +124,8 @@ status_t AudioRoute::route(int mode, bool bForOutput)
 
 status_t AudioRoute::unRoute(bool bForOutput)
 {
-    LOGD("unRoute isAvailable=%d", mIsRouteAccessible);
-    if(mIsRouteAccessible) {
+    LOGD("unRoute isAvailable=%d", mIsRouteAccessible[bForOutput]);
+    if(mIsRouteAccessible[bForOutput]) {
         if(bForOutput) {
             playbackStream()->undoRoute();
         } else {
@@ -172,10 +174,24 @@ status_t AudioRoute::unsetStream(ALSAStreamOps* pStream, int mode)
     return NO_ERROR;
 }
 
-void AudioRoute::setRouteAccessible(bool isAccessible, int mode)
+void AudioRoute::setRouteAccessible(bool isAccessible, int mode, Direction dir)
 {
     LOGD("setRouteAccessible mIsRouteAccessible=%d", isAccessible);
-    if(isAccessible == mIsRouteAccessible) {
+
+    bool action_requested = false;
+    if (dir & Capture) {
+        if (mIsRouteAccessible[INPUT_STREAM] != isAccessible) {
+            action_requested = true;
+        }
+    }
+    if (dir & Playback) {
+        if (mIsRouteAccessible[OUTPUT_STREAM] != isAccessible) {
+            action_requested = true;
+        }
+    }
+
+    if (!action_requested)
+    {
         LOGD("setRouteAccessible Nothing to do");
         return ;
     }
@@ -187,37 +203,48 @@ void AudioRoute::setRouteAccessible(bool isAccessible, int mode)
          * streams attached to the route to recover when the route is
          * once again accessible
          */
-        if(captureStream() && mIsCaptureRouted) {
-            LOGD("setRouteAccessible undoRoute capture stream");
-            unRoute(INPUT_STREAM);
+        if ( dir & Capture) {
+            if(captureStream() && mIsCaptureRouted) {
+                LOGD("setRouteAccessible undoRoute capture stream");
+                unRoute(INPUT_STREAM);
+            }
+            mIsRouteAccessible[INPUT_STREAM] = isAccessible;
         }
-        if(playbackStream()) {
-            LOGD("setRouteAccessible undoRoute playback stream");
-            unRoute(OUTPUT_STREAM);
+        if (dir & Playback) {
+            if (playbackStream()) {
+                LOGD("setRouteAccessible undoRoute playback stream");
+                unRoute(OUTPUT_STREAM);
+            }
+            mIsRouteAccessible[OUTPUT_STREAM] = isAccessible;
         }
-        /* Set now the route available flag */
-        mIsRouteAccessible = isAccessible;
     } else {
-        /* Set now the route accessible flag so that routing will be done */
-        mIsRouteAccessible = isAccessible;
-        /*
-         * The route is now accessible, meaning, streams can be
+        /* The route is now accessible, meaning, streams can be
          * opened again on this route if still attached to it.
          */
-        if(playbackStream()) {
-            LOGD("setRouteAccessible route playback stream");
-            applyRoutingStrategy(mode, OUTPUT_STREAM);
+        if (dir & Playback) {
+
+            mIsRouteAccessible[OUTPUT_STREAM] = isAccessible;
+
+            if(playbackStream()) {
+                LOGD("setRouteAccessible route playback stream");
+                applyRoutingStrategy(mode, OUTPUT_STREAM);
+            }
         }
-        if(captureStream()) {
-            LOGD("setRouteAccessible route capture stream");
-            applyRoutingStrategy(mode, INPUT_STREAM);
+        if ( dir & Capture) {
+
+             mIsRouteAccessible[INPUT_STREAM] = isAccessible;
+
+            if(captureStream()) {
+                LOGD("setRouteAccessible route capture stream");
+                applyRoutingStrategy(mode, INPUT_STREAM);
+            }
         }
     }
 }
 
 bool AudioRoute::available(bool bForOutput)
 {
-    if(mIsRouteAccessible)
+    if(mIsRouteAccessible[bForOutput])
     {
         if(bForOutput) {
             if(playbackStream())

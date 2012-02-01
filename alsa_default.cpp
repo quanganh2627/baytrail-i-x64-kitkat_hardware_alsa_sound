@@ -607,13 +607,4 @@ static status_t s_close(alsa_handle_t *handle)
     return err;
 }
 
-static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
-{
-    LOGD("route called for devices %08x in mode %d...", devices, mode);
-
-    if (handle->handle && handle->curDev == devices && handle->curMode == mode) return NO_ERROR;
-
-    return s_open(handle, devices, mode);
-}
-
 }
