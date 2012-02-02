@@ -89,13 +89,16 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
     device = baseClass::getDeviceForStrategy(strategy, fromCache);
 
     // this case correspond to playback request during voice reco over BT SCO, voice record or playback of voice memo
-    if (baseClass::mForceUse[AudioSystem::FOR_MEDIA] == AudioSystem::FORCE_BT_SCO) {
+    if (baseClass::getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
          switch (strategy) {
             case STRATEGY_SONIFICATION:
+            case STRATEGY_SONIFICATION_LOCAL:
             case STRATEGY_ENFORCED_AUDIBLE:
+                //in this case play only on local - limitation of our HW cannot play on both sco+ihf
                 device = AudioSystem::DEVICE_OUT_SPEAKER;
+                break;
             case STRATEGY_MEDIA:
-                device |= baseClass::mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
+                device = baseClass::mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
                                                                 AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |
                                                                 AudioSystem::DEVICE_OUT_BLUETOOTH_SCO);
                 LOGD("Request to play on BT SCO device");
