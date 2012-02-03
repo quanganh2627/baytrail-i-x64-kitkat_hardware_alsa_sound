@@ -163,7 +163,7 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 }
 
 AudioHardwareALSA::AudioHardwareALSA() :
-    mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("Audio")),
+    mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("/etc/parameter-framework/ParameterFrameworkConfiguration.xml")),
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mAudioRouteMgr(new AudioRouteManager),
     mATManager(new CATManager(this)),
