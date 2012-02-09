@@ -413,7 +413,7 @@ private:
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
 
     // Force a re-routing of MSIC Voice route on MM route
-    void forceRouteMSICVoiceOnMM();
+    void reconsiderRouting();
 
     // State machine of route accessibility
     void applyRouteAccessibilityRules(RoutingEvent aRoutEvent);
@@ -423,6 +423,9 @@ private:
 
     // Translate the mode and force route flag into a new mode
     int audioMode();
+
+    // set the force MM route flag
+    void forceMediaRoute(bool isForced);
 
     RWLock                mLock;
     bool mMicMuteState;

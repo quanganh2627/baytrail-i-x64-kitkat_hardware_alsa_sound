@@ -703,14 +703,9 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 //
 // This function forces a re-routing to be applied in Out Streams
 //
-void AudioHardwareALSA::forceRouteMSICVoiceOnMM() {
-    LOGD("forceRouteMSICVoiceOnMM");
+void AudioHardwareALSA::reconsiderRouting() {
 
-    mMSICVoiceRouteForcedOnMMRoute = true;
-
-    assert(mode() == AudioSystem::MODE_IN_CALL);
-
-    /* Force route with new mode */
+    LOGD("%s", __FUNCTION__);
 
     CAudioStreamOutALSAListConstIterator it;
 
@@ -721,8 +716,7 @@ void AudioHardwareALSA::forceRouteMSICVoiceOnMM() {
         if (pOut->mHandle && pOut->mHandle->openFlag && !(pOut->mHandle->curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL))
         {
 
-            // Ask the route manager to route the stream on MM route
-            // ie force the mode to NORMAL
+            // Ask the route manager to reconsider the routing
             mAudioRouteMgr->route(pOut, pOut->mHandle->curDev, audioMode(), true);
         }
     }
@@ -747,8 +741,9 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
     switch(mode()) {
     case AudioSystem::MODE_IN_CALL:
 
-        // Reset force route flag
-        mMSICVoiceRouteForcedOnMMRoute = false;
+        // Mode in call but ModemCallActive is false => route on Media path
+        // Mode in call, ModemCallActive is true => route on Voice path
+        forceMediaRoute(!mModemCallActive);
 
         if (!mModemAvailable) {
             /* NOTE:
@@ -761,22 +756,11 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
              * Remark: the device is kept the same, only the mode is changed in order not to disturb
              * user experience.
              */
-            forceRouteMSICVoiceOnMM();
+            reconsiderRouting();
         }
         else if (aRoutEvent == ECallStatusChange) {
 
-            if (!mModemCallActive) {
-
-                //
-                // Call was active and status changed => Disconnected event
-                // NOTE:
-                // Side effect of delaying setMode(NORMAL) once call is finished
-                // Need to switch to Multimedia path in order to be "glitch safe"
-                //
-                LOGD("%s: FORCE ROUTE change from MSICVoice to MM", __FUNCTION__);
-                // Reconsider the routing
-                forceRouteMSICVoiceOnMM();
-            }
+            reconsiderRouting();
         }
 
         // Accessibility depends on 2 conditions: "Modem is available" AND "Modem Call is Active"
@@ -889,6 +873,9 @@ void  AudioHardwareALSA::onModemStateChanged() {
 
     mModemAvailable = (modemStatus == MODEM_UP);
 
+    // Reset ModemCallStatus boolean
+    mModemCallActive = false;
+
     // Re-evaluate accessibility of the audio routes
     applyRouteAccessibilityRules(EModemStateChange);
 
@@ -903,6 +890,11 @@ inline int AudioHardwareALSA::audioMode()
     //
     return (mMSICVoiceRouteForcedOnMMRoute && mode() == AudioSystem::MODE_IN_CALL)?
                         AudioSystem::MODE_NORMAL : mode();
+}
+
+void AudioHardwareALSA::forceMediaRoute(bool isForced)
+{
+    mMSICVoiceRouteForcedOnMMRoute = isForced;
 }
 
 }       // namespace android
