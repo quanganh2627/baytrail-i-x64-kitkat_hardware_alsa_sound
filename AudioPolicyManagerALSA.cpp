@@ -104,27 +104,55 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
     device = baseClass::getDeviceForStrategy(strategy, fromCache);
 
     // this case correspond to playback request during voice reco over BT SCO, voice record or playback of voice memo
-    if (baseClass::getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
-         switch (strategy) {
-            case STRATEGY_SONIFICATION:
-            case STRATEGY_SONIFICATION_LOCAL:
-            case STRATEGY_ENFORCED_AUDIBLE:
+    switch (strategy) {
+        case STRATEGY_PHONE:
+            // do not change the case of voice call thru Bluetooth
+            if ( getForceUse(AudioSystem::FOR_COMMUNICATION) != AudioSystem::FORCE_BT_SCO) {
+                // in voice call, the ouput device can not be DGTL_DOCK_HEADSET, AUX_DIGITAL (i.e. HDMI) or  ANLG_DOCK_HEADSET
+                if( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL) ||
+                    ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
+                    ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ) {
+                        device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE;
+                        if (device != 0) {
+                            LOGD("%s- Unsupported device in STRATEGY_PHONE: set Earpiece as ouput", __FUNCTION__);
+                        } else {
+                            LOGE("%s- Earpiece device not found", __FUNCTION__);
+                        }
+
+                }
+            }
+
+            break;
+        case STRATEGY_SONIFICATION:
+        case STRATEGY_SONIFICATION_LOCAL:
+        case STRATEGY_ENFORCED_AUDIBLE:
+            if (getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
                 //in this case play only on local - limitation of our HW cannot play on both sco+ihf
-                device = AudioSystem::DEVICE_OUT_SPEAKER;
-                break;
-            case STRATEGY_MEDIA:
-                device = baseClass::mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
+                device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
+                if (device == 0) {
+                    LOGE("%s- Speaker device not found", __FUNCTION__);
+                }
+
+            }
+            break;
+        case STRATEGY_MEDIA:
+            if (getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
+                device = mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
                                                                 AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |
                                                                 AudioSystem::DEVICE_OUT_BLUETOOTH_SCO);
-                LOGD("Request to play on BT SCO device");
-                break;
-            default:
-                // do nothing
-                break;
-        }
+                if (device != 0) {
+                    LOGD("Request to play on BT SCO device");
+                } else {
+                    LOGE("%s- BT SCO device not found", __FUNCTION__);
+                }
+            }
+            break;
+         default:
+            // do nothing
+            break;
     }
 
-    LOGV("getDeviceForStrategy() strategy %d, device %x", strategy, device);
+    LOGV("getDeviceForStrategy() strategy %d, device 0x%x", strategy, device);
 
     return device;
 }
