@@ -96,6 +96,7 @@ float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_hand
     return volume;
 }
 
+
 uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
 {
 
@@ -107,18 +108,32 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
     switch (strategy) {
         case STRATEGY_PHONE:
             // do not change the case of voice call thru Bluetooth
-            if ( getForceUse(AudioSystem::FOR_COMMUNICATION) != AudioSystem::FORCE_BT_SCO) {
-                // in voice call, the ouput device can not be DGTL_DOCK_HEADSET, AUX_DIGITAL (i.e. HDMI) or  ANLG_DOCK_HEADSET
-                if( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL) ||
-                    ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
-                    ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ) {
+
+            // in voice call, the ouput device can not be DGTL_DOCK_HEADSET, AUX_DIGITAL (i.e. HDMI) or  ANLG_DOCK_HEADSET
+            if ( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL) ||
+                 ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
+                 ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ) {
+
+                uint32_t forceUseInComm =  getForceUse(AudioSystem::FOR_COMMUNICATION);
+                switch (forceUseInComm) {
+
+                    case AudioSystem::FORCE_SPEAKER:
+                        device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
+                        if (device != 0) {
+                            LOGD("%s- Unsupported device in STRATEGY_PHONE: set Speaker as ouput", __FUNCTION__);
+                        } else {
+                            LOGE("%s- Earpiece device not found", __FUNCTION__);
+                        }
+                        break;
+
+                    default:
                         device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE;
                         if (device != 0) {
                             LOGD("%s- Unsupported device in STRATEGY_PHONE: set Earpiece as ouput", __FUNCTION__);
                         } else {
                             LOGE("%s- Earpiece device not found", __FUNCTION__);
                         }
-
+                        break;
                 }
             }
 
