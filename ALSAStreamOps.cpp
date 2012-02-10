@@ -319,10 +319,10 @@ status_t ALSAStreamOps::standby()
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
 
-    if(mParent->getVpcHwDevice()->mix_disable)
+    if(mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->mix_disable)
         mParent->getVpcHwDevice()->mix_disable(isOut());
 
-    if(mParent->getAlsaHwDevice()->standby)
+    if(mParent->getAlsaHwDevice() && mParent->getAlsaHwDevice()->standby)
         mParent->getAlsaHwDevice()->standby(mHandle);
 
     releasePowerLock();
@@ -373,7 +373,8 @@ bool ALSAStreamOps::routeAvailable()
 
 void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
 {
-    if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL)) {
+    if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
+       mParent->getVpcHwDevice()) {
         LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
         mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
     }
@@ -381,7 +382,8 @@ void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
 
 void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
 {
-    if((curMode == AudioSystem::MODE_IN_COMMUNICATION) && (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL ))
+    if((curMode == AudioSystem::MODE_IN_COMMUNICATION) && (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
+       mParent->getVpcHwDevice())
     {
         LOGD("%s", __FUNCTION__);
         mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
@@ -537,16 +539,16 @@ void ALSAStreamOps::restorePmDownDelay()
 void ALSAStreamOps::acquirePowerLock()
 {
     if (!mPowerLock) {
-	acquire_wake_lock (PARTIAL_WAKE_LOCK, mPowerLockTag);
-	mPowerLock = true;
+        acquire_wake_lock (PARTIAL_WAKE_LOCK, mPowerLockTag);
+        mPowerLock = true;
     }
 }
 
 void ALSAStreamOps::releasePowerLock()
 {
     if (mPowerLock) {
-	release_wake_lock (mPowerLockTag);
-	mPowerLock = false;
+        release_wake_lock (mPowerLockTag);
+        mPowerLock = false;
     }
 }
 

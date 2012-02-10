@@ -245,12 +245,13 @@ AudioHardwareALSA::AudioHardwareALSA() :
     }
 
     getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList);
+
     if (getVpcHwDevice()->init())
     {
         LOGE("VPC MODULE init FAILED");
         // if any open issue, bailing out...
         getVpcHwDevice()->common.close(&getVpcHwDevice()->common);
-        return ;
+        mHwDeviceArray[VPC_HW_DEV] = NULL;
     }
     else
     {
@@ -259,10 +260,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
 
     if (getLpeHwDevice()->init())
     {
-        LOGE("LPE init FAILED");
+        LOGE("LPE MODULE init FAILED");
         // if any open issue, bailing out...
         getLpeHwDevice()->common.close(&getLpeHwDevice()->common);
-        return ;
+        mHwDeviceArray[LPE_HW_DEV] = NULL;
     }
 
     // Starts the modem state listener
@@ -599,6 +600,10 @@ status_t AudioHardwareALSA::dump(int fd, const Vector<String16>& args)
 status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 {
     LOGI("key value pair %s\n", keyValuePairs.string());
+
+    if (!getVpcHwDevice()) {
+        return NO_ERROR;
+    }
 
     // Search TTY mode
     if(strstr(keyValuePairs.string(), "tty_mode=tty_full") != NULL) {
