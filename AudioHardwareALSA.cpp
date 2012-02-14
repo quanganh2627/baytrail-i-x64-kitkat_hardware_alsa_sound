@@ -68,7 +68,6 @@ enum HW_DEVICE {
     ALSA_HW_DEV = 0,
     ACOUSTIC_HW_DEV,
     VPC_HW_DEV,
-    LPE_HW_DEV,
     NB_HW_DEV
 };
 
@@ -81,7 +80,6 @@ static const hw_module hw_module_list[NB_HW_DEV] = {
     { ALSA_HARDWARE_MODULE_ID, ALSA_HARDWARE_NAME },
     { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
     { VPC_HARDWARE_MODULE_ID, VPC_HARDWARE_NAME },
-    { LPE_HARDWARE_MODULE_ID, LPE_HARDWARE_NAME },
 };
 
 /// PFW related definitions
@@ -258,14 +256,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
         getVpcHwDevice()->set_modem_state(mATManager->getModemStatus());
     }
 
-    if (getLpeHwDevice()->init())
-    {
-        LOGE("LPE MODULE init FAILED");
-        // if any open issue, bailing out...
-        getLpeHwDevice()->common.close(&getLpeHwDevice()->common);
-        mHwDeviceArray[LPE_HW_DEV] = NULL;
-    }
-
     // Starts the modem state listener
     if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS)) {
         LOGE("AudioHardwareALSA: could not start modem state listener");
@@ -284,13 +274,6 @@ vpc_device_t* AudioHardwareALSA::getVpcHwDevice() const
     assert(mHwDeviceArray.size() > VPC_HW_DEV);
 
     return (vpc_device_t *)mHwDeviceArray[VPC_HW_DEV];
-}
-
-lpe_device_t* AudioHardwareALSA::getLpeHwDevice() const
-{
-    assert(mHwDeviceArray.size() > LPE_HW_DEV);
-
-    return (lpe_device_t *)mHwDeviceArray[LPE_HW_DEV];
 }
 
 acoustic_device_t* AudioHardwareALSA::getAcousticHwDevice() const
@@ -518,12 +501,6 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
                 LOGE("Set error.");
                 break;
             }
-            if (getLpeHwDevice() && getLpeHwDevice()->lpecontrol) {
-                err = getLpeHwDevice()->lpecontrol(mode(), devices);
-                if (err) {
-                    LOGE("openInputStream called with bad devices");
-                }
-            }
             break;
         }
     LOGD("openInputStream OUT");
@@ -702,19 +679,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
     } else {
 
-        // Input devices changed
-
-        // Call lpecontrol
-        if (getLpeHwDevice() && getLpeHwDevice()->lpecontrol) {
-
-            status = getLpeHwDevice()->lpecontrol(mode(), (uint32_t)devices);
-
-            if (status != NO_ERROR) {
-
-                // Just log!
-                LOGE("lpecontrol error: %d", status);
-            }
-        }
+       // Input devices changed
 
        // Warn PFW
        mSelectedInputDevice->setCriterionState(devices);

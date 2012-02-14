@@ -144,7 +144,6 @@ protected:
     void		releasePowerLock();
 
     vpc_device_t *vpc();
-    lpe_device_t *lpe();
     acoustic_device_t *acoustics();
     ALSAMixer *mixer();
 
@@ -394,7 +393,6 @@ protected:
     // Cast Hw device from mHwDeviceArray to the corresponding hw device type
     alsa_device_t* getAlsaHwDevice() const;
     vpc_device_t* getVpcHwDevice() const;
-    lpe_device_t* getLpeHwDevice() const;
     acoustic_device_t* getAcousticHwDevice() const;
 
     friend class AudioStreamOutALSA;

@@ -88,10 +88,6 @@ vpc_device_t *ALSAStreamOps::vpc()
 {
    return mParent->getVpcHwDevice();
 }
-lpe_device_t *ALSAStreamOps::lpe()
-{
-   return mParent->getLpeHwDevice();
-}
 
 ALSAMixer *ALSAStreamOps::mixer()
 {
@@ -352,14 +348,6 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
 
 
     LOGD("ALSAStreamOps::open");
-    if(NO_ERROR == err) {
-        if (mParent && mParent->getLpeHwDevice() && mParent->getLpeHwDevice()->lpecontrol) {
-            err = mParent->getLpeHwDevice()->lpecontrol(mode,mHandle->curDev);
-            if (err) {
-                LOGE("setparam for lpe called with bad devices");
-            }
-        }
-    }
     return err;
 }
 

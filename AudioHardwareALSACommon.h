@@ -74,20 +74,6 @@ struct alsa_device_t {
     status_t (*initStream)(alsa_handle_t *, uint32_t, int);
 };
 
-/* LPE io control module */
-#define LPE_HARDWARE_MODULE_ID "lpe"
-#define LPE_HARDWARE_NAME      "lpe"
-struct lpe_device_t;
-
-struct lpe_device_t {
-    hw_device_t common;
-
-    status_t (*init)(void);
-    status_t (*lpecontrol)(int,uint32_t);
-    status_t (*lpeSetMasterVolume)(float volume);
-    status_t (*lpeSetMasterGain)(float gain);
-};
-
 /**
  * The id of acoustics module
  */
