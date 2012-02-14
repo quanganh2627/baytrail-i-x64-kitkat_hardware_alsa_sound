@@ -858,9 +858,13 @@ void  AudioHardwareALSA::onModemStateChanged() {
 
     AutoW lock(mLock);
     LOGD("%s: in: ModemStatus", __FUNCTION__);
+    char g_szDualSim[PROPERTY_VALUE_MAX];
+    int modemStatus = MODEM_DOWN;
 
-    int modemStatus = mATManager->getModemStatus();
-
+    property_get("persist.dual_sim", g_szDualSim, "none");
+    if (strncmp(g_szDualSim, "dsds_2230", 9) != 0) {
+        modemStatus = mATManager->getModemStatus();
+    }
     /*
      * Informs VPC of modem status change
      * VPC might not be loaded at boot time, so
