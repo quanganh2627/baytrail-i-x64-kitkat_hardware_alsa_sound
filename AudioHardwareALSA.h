@@ -430,6 +430,23 @@ private:
     RWLock                mLock;
     bool mMicMuteState;
 
+    enum HW_DEVICE {
+        ALSA_HW_DEV = 0,
+        ACOUSTIC_HW_DEV,
+        VPC_HW_DEV,
+        NB_HW_DEV
+    };
+
+    struct hw_module {
+        const char* module_id;
+        const char* module_name;
+    };
+
+    static const hw_module hw_module_list[NB_HW_DEV];
+
+    static const char* const gapcDefaultSampleRates[2];
+    static const uint32_t DEFAULT_SAMPLE_RATE;
+
 private:
     // PFW type value pairs type
     struct SSelectionCriterionTypeValuePair
@@ -438,7 +455,10 @@ private:
         const char* pcLiteral;
     };
     // Used to fill types for PFW
-    void fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries);
+    void fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries) const;
+
+    // Default Alsa sample rate discovery
+    uint32_t getDefaultSampleRate(bool bOut) const;
 
     // Mode type
     static const SSelectionCriterionTypeValuePair mModeValuePairs[];

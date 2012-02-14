@@ -66,7 +66,8 @@ struct alsa_handle_t {
 struct alsa_device_t {
     hw_device_t common;
 
-    status_t (*init)(alsa_device_t *, ALSAHandleList &);
+    // Methods
+    status_t (*init)(alsa_device_t *, ALSAHandleList &, uint32_t defaultInputSampleRate, uint32_t defaultOutputSampleRate);
     status_t (*open)(alsa_handle_t *, uint32_t, int);
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);

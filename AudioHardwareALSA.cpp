@@ -64,19 +64,14 @@ extern "C"
 #define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
 #define MAX_WAIT_ACK_SECONDS    2
 
-enum HW_DEVICE {
-    ALSA_HW_DEV = 0,
-    ACOUSTIC_HW_DEV,
-    VPC_HW_DEV,
-    NB_HW_DEV
+const char* const AudioHardwareALSA::gapcDefaultSampleRates [2] = { // [0] == IN, [1] == OUT
+    "/Audio/CONFIGURATION/ALSA_CONF/IN/DEFAULT_SAMPLE_RATE", // Type = unsigned integer
+    "/Audio/CONFIGURATION/ALSA_CONF/OUT/DEFAULT_SAMPLE_RATE" // Type = unsigned integer
 };
+//default sampling rate in case the valu eis not found in xml file
+const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 44100;
 
-struct hw_module {
-    const char* module_id;
-    const char* module_name;
-};
-
-static const hw_module hw_module_list[NB_HW_DEV] = {
+const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardwareALSA::NB_HW_DEV]= {
     { ALSA_HARDWARE_MODULE_ID, ALSA_HARDWARE_NAME },
     { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
     { VPC_HARDWARE_MODULE_ID, VPC_HARDWARE_NAME },
@@ -209,8 +204,12 @@ AudioHardwareALSA::AudioHardwareALSA() :
     std::string strError;
     if (!mParameterMgrPlatformConnector->start(strError)) {
 
-        LOGE("%s",strError.c_str());
+        LOGE("parameter-framework start error: %s", strError.c_str());
+        // Bailing out        
+        return;
     }
+    LOGI("parameter-framework successfully started!");
+
 
     // Reset
     snd_lib_error_set_handler(&ALSAErrorHandler);
@@ -242,7 +241,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
         }
     }
 
-    getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList);
+    getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList, getDefaultSampleRate(false), getDefaultSampleRate(true));
 
     if (getVpcHwDevice()->init())
     {
@@ -325,7 +324,7 @@ status_t AudioHardwareALSA::initCheck()
 }
 
 // Used to fill types for PFW
-void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries)
+void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries) const
 {
     uint32_t uiIndex;
 
@@ -335,6 +334,50 @@ void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterf
 
         pSelectionCriterionType->addValuePair(pValuePair->iNumerical, pValuePair->pcLiteral);
     }
+}
+
+// Default Alsa sample rate discovery
+uint32_t AudioHardwareALSA::getDefaultSampleRate(bool bOut) const
+{
+    LOGD("%s in", __FUNCTION__);
+
+    string strError;
+    // Get handle
+    CParameterHandle* pDefaultSampleRateHandle = mParameterMgrPlatformConnector->createParameterHandle(gapcDefaultSampleRates[bOut], strError);
+
+    if (!pDefaultSampleRateHandle) {
+
+        strError = gapcDefaultSampleRates[bOut];
+        strError += " not found!";
+
+        LOGE("Unable to get parameter handle: %s", strError.c_str());
+
+        LOGD("%s returning %d", __FUNCTION__, DEFAULT_SAMPLE_RATE);
+
+        return DEFAULT_SAMPLE_RATE;
+    }
+
+    // Retrieve sample rate
+    uint32_t uiDefaultSampleRate;
+
+    if (!pDefaultSampleRateHandle->getAsInteger(uiDefaultSampleRate, strError)) {
+
+        LOGE("Unable to get default sample rate: %s, from paramter path: %s", strError.c_str(), gapcDefaultSampleRates[bOut]);
+
+        LOGD("%s returning %d", __FUNCTION__, DEFAULT_SAMPLE_RATE);
+
+        // Remove handle
+        delete pDefaultSampleRateHandle;
+
+        return DEFAULT_SAMPLE_RATE;
+    }
+
+    // Remove handle
+    delete pDefaultSampleRateHandle;
+
+    LOGD("%s returning %d", __FUNCTION__, uiDefaultSampleRate);
+
+    return uiDefaultSampleRate;
 }
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
