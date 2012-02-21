@@ -83,6 +83,12 @@ float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_hand
 {
     float volume = 1.0;
 
+    // For CSV voice call, DTMF stream attenuation is only applied in the modem
+    if ( (stream == AudioSystem::DTMF) && (mPhoneState == AudioSystem::MODE_IN_CALL) ) {
+        return volume;
+    }
+
+    // Compute SW attenuation
     volume = baseClass::computeVolume(stream, index, output, device);
 
     // Attenuate media streams by 12dB during voice over IP call. For CSV voice call,
