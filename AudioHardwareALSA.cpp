@@ -64,13 +64,24 @@ extern "C"
 #define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
 #define MAX_WAIT_ACK_SECONDS    2
 
-const char* const AudioHardwareALSA::gapcDefaultSampleRates [2] = { // [0] == IN, [1] == OUT
+// Defines path to parameters in PFW XML config files
+const char* const AudioHardwareALSA::gapcDefaultSampleRates [AudioHardwareALSA::ALSA_CONF_NB_DIRECTIONS] = {
     "/Audio/CONFIGURATION/ALSA_CONF/IN/DEFAULT_SAMPLE_RATE", // Type = unsigned integer
     "/Audio/CONFIGURATION/ALSA_CONF/OUT/DEFAULT_SAMPLE_RATE" // Type = unsigned integer
 };
-//default sampling rate in case the valu eis not found in xml file
+// Default sampling rate in case the value is not found in xml file
 const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 44100;
 
+// Defines path to parameters in PFW XML config files
+const char* const AudioHardwareALSA::gapcModemPortClockSelection[AudioHardwareALSA::IFX_NB_I2S_PORT] = {
+    "/Audio/CONFIGURATION/IFX_MODEM/I2S1/CLK_SELECT", // Type = signed integer
+    "/Audio/CONFIGURATION/IFX_MODEM/I2S2/CLK_SELECT" // Type = signed integer
+};
+
+// Default clock selection
+const uint32_t AudioHardwareALSA::DEFAULT_IFX_CLK_SELECT = -1;
+
+// HAL modules table
 const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardwareALSA::NB_HW_DEV]= {
     { ALSA_HARDWARE_MODULE_ID, ALSA_HARDWARE_NAME },
     { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
@@ -241,9 +252,11 @@ AudioHardwareALSA::AudioHardwareALSA() :
         }
     }
 
-    getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList, getDefaultSampleRate(false), getDefaultSampleRate(true));
+    getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList, getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
+        getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_OUT], false, DEFAULT_SAMPLE_RATE));
 
-    if (getVpcHwDevice()->init())
+    if (getVpcHwDevice()->init(getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S1_PORT], true, DEFAULT_IFX_CLK_SELECT),
+        getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S2_PORT], true, DEFAULT_IFX_CLK_SELECT)))
     {
         LOGE("VPC MODULE init FAILED");
         // if any open issue, bailing out...
@@ -337,47 +350,47 @@ void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterf
 }
 
 // Default Alsa sample rate discovery
-uint32_t AudioHardwareALSA::getDefaultSampleRate(bool bOut) const
+uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const
 {
     LOGD("%s in", __FUNCTION__);
 
     string strError;
     // Get handle
-    CParameterHandle* pDefaultSampleRateHandle = mParameterMgrPlatformConnector->createParameterHandle(gapcDefaultSampleRates[bOut], strError);
+    CParameterHandle* pParameterHandle = mParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
 
-    if (!pDefaultSampleRateHandle) {
+    if (!pParameterHandle) {
 
-        strError = gapcDefaultSampleRates[bOut];
+        strError = strParameterPath.c_str();
         strError += " not found!";
 
         LOGE("Unable to get parameter handle: %s", strError.c_str());
 
-        LOGD("%s returning %d", __FUNCTION__, DEFAULT_SAMPLE_RATE);
+        LOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
-        return DEFAULT_SAMPLE_RATE;
+        return uiDefaultValue;
     }
 
-    // Retrieve sample rate
-    uint32_t uiDefaultSampleRate;
+    // Retrieve value
+    uint32_t uiValue;
 
-    if (!pDefaultSampleRateHandle->getAsInteger(uiDefaultSampleRate, strError)) {
+    if ((!bSigned && !pParameterHandle->getAsInteger(uiValue, strError)) || (bSigned && !pParameterHandle->getAsSignedInteger((int32_t&)uiValue, strError))) {
 
-        LOGE("Unable to get default sample rate: %s, from paramter path: %s", strError.c_str(), gapcDefaultSampleRates[bOut]);
+        LOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
 
-        LOGD("%s returning %d", __FUNCTION__, DEFAULT_SAMPLE_RATE);
+        LOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
         // Remove handle
-        delete pDefaultSampleRateHandle;
+        delete pParameterHandle;
 
-        return DEFAULT_SAMPLE_RATE;
+        return uiDefaultValue;
     }
 
     // Remove handle
-    delete pDefaultSampleRateHandle;
+    delete pParameterHandle;
 
-    LOGD("%s returning %d", __FUNCTION__, uiDefaultSampleRate);
+    LOGD("%s returning %d", __FUNCTION__, uiValue);
 
-    return uiDefaultSampleRate;
+    return uiValue;
 }
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)

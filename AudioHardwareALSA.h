@@ -20,6 +20,7 @@
 
 #include <utils/List.h>
 #include <list>
+#include <string>
 #include <vector>
 #include <hardware_legacy/AudioHardwareBase.h>
 
@@ -444,9 +445,27 @@ private:
 
     static const hw_module hw_module_list[NB_HW_DEV];
 
-    static const char* const gapcDefaultSampleRates[2];
+	// Defines tuning parameters in PFW XML config files and default values
+	// ALSA PLATFORM CONFIGURATION
+	enum ALSA_CONF_DIRECTION {
+		ALSA_CONF_DIRECTION_IN,
+		ALSA_CONF_DIRECTION_OUT,
+	
+		ALSA_CONF_NB_DIRECTIONS
+	};
+    static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
     static const uint32_t DEFAULT_SAMPLE_RATE;
 
+	// MODEM I2S PORTS
+	enum IFX_IS2S_PORT {
+		IFX_I2S1_PORT,
+		IFX_I2S2_PORT,
+	
+		IFX_NB_I2S_PORT
+	};
+    static const char* const gapcModemPortClockSelection[IFX_NB_I2S_PORT];
+    static const uint32_t DEFAULT_IFX_CLK_SELECT;
+    
 private:
     // PFW type value pairs type
     struct SSelectionCriterionTypeValuePair
@@ -457,8 +476,8 @@ private:
     // Used to fill types for PFW
     void fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries) const;
 
-    // Default Alsa sample rate discovery
-    uint32_t getDefaultSampleRate(bool bOut) const;
+    // unsigned integer parameter value retrieval
+    uint32_t getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const;
 
     // Mode type
     static const SSelectionCriterionTypeValuePair mModeValuePairs[];
