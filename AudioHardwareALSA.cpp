@@ -156,6 +156,12 @@ static void ALSAErrorHandler(const char *file,
 
     va_start(arg, fmt);
     l = snprintf(buf, BUFSIZ, "%s:%i:(%s) ", file, line, function);
+    if (l >= BUFSIZ) {
+
+        // return of snprintf higher than size -> the output has been truncated
+        LOGE("%s: log truncated", __FUNCTION__);
+        l = BUFSIZ - 1;
+    }
     vsnprintf(buf + l, BUFSIZ - l, fmt, arg);
     buf[BUFSIZ-1] = '\0';
     LOG(LOG_ERROR, "ALSALib", "%s", buf);
