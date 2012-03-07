@@ -29,9 +29,9 @@
 
 #include "AudioRouteMSICVoice.h"
 
-#define DEVICE_OUT_BUILTIN_ALL (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER | AudioSystem::DEVICE_OUT_WIRED_HEADSET |AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)
+#define DEVICE_OUT_MSIC_VOICE_ALL (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER | AudioSystem::DEVICE_OUT_WIRED_HEADSET |AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)
 
-#define DEVICE_IN_BUILTIN_ALL (AudioSystem::DEVICE_IN_COMMUNICATION | AudioSystem::DEVICE_IN_WIRED_HEADSET | AudioSystem::DEVICE_IN_BACK_MIC | AudioSystem::DEVICE_IN_AUX_DIGITAL | AudioSystem::DEVICE_IN_BUILTIN_MIC)
+#define DEVICE_IN_MSIC_VOICE_ALL (AudioSystem::DEVICE_IN_COMMUNICATION | AudioSystem::DEVICE_IN_WIRED_HEADSET | AudioSystem::DEVICE_IN_BACK_MIC | AudioSystem::DEVICE_IN_AUX_DIGITAL | AudioSystem::DEVICE_IN_BUILTIN_MIC)
 
 namespace android_audio_legacy
 {
@@ -40,11 +40,12 @@ bool AudioRouteMSICVoice::isApplicable(uint32_t devices, int mode, bool bForOutp
 {
     LOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
     if(bForOutput) {
-        if((devices & DEVICE_OUT_BUILTIN_ALL) && (mode == AudioSystem::MODE_IN_COMMUNICATION || mode == AudioSystem::MODE_IN_CALL))
+        if ((devices & DEVICE_OUT_MSIC_VOICE_ALL) && (mode == AudioSystem::MODE_IN_COMMUNICATION || mode == AudioSystem::MODE_IN_CALL)) {
+
             return true;
-    } else {
-	/* Whatever the mode, capture belongs to this route on builtin devices */
-        if(devices & DEVICE_IN_BUILTIN_ALL)
+        }
+    } else if ((devices & DEVICE_IN_MSIC_VOICE_ALL) && (mode != AudioSystem::MODE_NORMAL)) {
+
             return true;
     }
     return false;
