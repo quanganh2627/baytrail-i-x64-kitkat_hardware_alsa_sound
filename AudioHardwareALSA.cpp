@@ -222,11 +222,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     if (!mParameterMgrPlatformConnector->start(strError)) {
 
         LOGE("parameter-framework start error: %s", strError.c_str());
-        // Bailing out        
-        return;
-    }
-    LOGI("parameter-framework successfully started!");
+    } else {
 
+        LOGI("parameter-framework successfully started!");
+    }
 
     // Reset
     snd_lib_error_set_handler(&ALSAErrorHandler);
@@ -257,23 +256,27 @@ AudioHardwareALSA::AudioHardwareALSA() :
             mHwDeviceArray.push_back(device);
         }
     }
+    if (getAlsaHwDevice()) {
 
-    getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList, getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
-        getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_OUT], false, DEFAULT_SAMPLE_RATE));
-
-    if (getVpcHwDevice()->init(getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S1_PORT], true, DEFAULT_IFX_CLK_SELECT),
-        getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S2_PORT], true, DEFAULT_IFX_CLK_SELECT)))
-    {
-        LOGE("VPC MODULE init FAILED");
-        // if any open issue, bailing out...
-        getVpcHwDevice()->common.close(&getVpcHwDevice()->common);
-        mHwDeviceArray[VPC_HW_DEV] = NULL;
-    }
-    else
-    {
-        getVpcHwDevice()->set_modem_state(mATManager->getModemStatus());
+        getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList, getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
+            getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_OUT], false, DEFAULT_SAMPLE_RATE));
     }
 
+    if (getVpcHwDevice()) {
+
+        if (getVpcHwDevice()->init(getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S1_PORT], true, DEFAULT_IFX_CLK_SELECT),
+                                   getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S2_PORT], true, DEFAULT_IFX_CLK_SELECT)))
+        {
+            LOGE("VPC MODULE init FAILED");
+            // if any open issue, bailing out...
+            getVpcHwDevice()->common.close(&getVpcHwDevice()->common);
+            mHwDeviceArray[VPC_HW_DEV] = NULL;
+        }
+        else
+        {
+            getVpcHwDevice()->set_modem_state(mATManager->getModemStatus());
+        }
+    }
     // Starts the modem state listener
     if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS)) {
         LOGE("AudioHardwareALSA: could not start modem state listener");
@@ -332,6 +335,7 @@ AudioHardwareALSA::~AudioHardwareALSA()
 
 status_t AudioHardwareALSA::initCheck()
 {
+
 #ifdef USE_INTEL_SRC
     if (getAlsaHwDevice() && mMixer && mMixer->isValid() && mResampler)
 #else
@@ -359,6 +363,11 @@ void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterf
 uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const
 {
     LOGD("%s in", __FUNCTION__);
+
+    if (!mParameterMgrPlatformConnector->isStarted()) {
+
+        return uiDefaultValue;
+    }
 
     string strError;
     // Get handle
@@ -469,6 +478,14 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
+
+            if (!getAlsaHwDevice()) {
+
+                LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
+                err = DEAD_OBJECT;
+                break;
+            }
+
             err = getAlsaHwDevice()->initStream(&(*it), devices, mode());
             if (err) {
                 LOGE("Open error.");
@@ -546,6 +563,13 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     for(ALSAHandleList::iterator it = mDeviceList.begin();
             it != mDeviceList.end(); ++it)
         if (it->devices & devices) {
+
+            if (!getAlsaHwDevice()) {
+
+                LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
+                err = DEAD_OBJECT;
+                break;
+            }
 
             err = getAlsaHwDevice()->initStream(&(*it), devices, mode());
             if (err) {
@@ -732,24 +756,28 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         getVpcHwDevice()->mix_disable(mode());
     }
 
-    if (bForOutput) {
+    if (mParameterMgrPlatformConnector->isStarted()) {
 
-        // Output devices changed
+        if (bForOutput) {
 
-        // Warn PFW
-        mSelectedOutputDevice->setCriterionState(devices);
+            // Output devices changed
 
-    } else {
+            // Warn PFW
+            mSelectedOutputDevice->setCriterionState(devices);
 
-       // Input devices changed
+        } else {
 
-       // Warn PFW
-       mSelectedInputDevice->setCriterionState(devices);
-    }
+           // Input devices changed
 
-    std::string strError;
-    if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
-        LOGE("%s",strError.c_str());
+           // Warn PFW
+           mSelectedInputDevice->setCriterionState(devices);
+        }
+
+        std::string strError;
+        if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
+
+            LOGE("%s", strError.c_str());
+        }
     }
 
     // No more?
