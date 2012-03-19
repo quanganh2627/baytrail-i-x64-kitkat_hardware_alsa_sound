@@ -45,9 +45,9 @@ namespace android_audio_legacy
 
 // ----------------------------------------------------------------------------
 
-static const char* heasetPmDownDelaySysFile = "//sys//devices//platform//intel_msic//msic_audio//Medfield Headset//pmdown_time";
-static const char* speakerPmDownDelaySysFile = "//sys//devices//platform//intel_msic//msic_audio//Medfield Speaker//pmdown_time";
-static const char* voicePmDownDelaySysFile = "//sys//devices//platform//intel_msic//msic_audio//Medfield Voice//pmdown_time";
+static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Headset//pmdown_time";
+static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
+static const char* voicePmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Voice//pmdown_time";
 
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle, const char* pcLockTag) :
     mParent(parent),
@@ -452,20 +452,28 @@ status_t ALSAStreamOps::undoRoute()
 int ALSAStreamOps::readSysEntry(const char* filePath)
 {
     int fd;
-    int val = 0;
     if ((fd = ::open(filePath, O_RDONLY)) < 0)
     {
         LOGE("Could not open file %s", filePath);
         return 0;
     }
     char buff[20];
-    if(::read(fd, buff, sizeof(buff)) < 1)
+    int val = 0;
+    uint32_t count;
+    if( (count = ::read(fd, buff, sizeof(buff)-1)) < 1 )
     {
         LOGE("Could not read file");
     }
-    LOGD("read =%s", buff);
+    else
+    {
+        // Zero terminate string
+        buff[count] = '\0';
+        LOGD("read %d bytes = %s", count, buff);
+        val = strtol(buff, NULL, 0);
+    }
+
     ::close(fd);
-    return strtol(buff, NULL, 0);
+    return val;
 }
 
 
@@ -479,12 +487,12 @@ void ALSAStreamOps::writeSysEntry(const char* filePath, int value)
         return ;
     }
     char buff[20];
-    uint32_t ret;
+    uint32_t count;
     snprintf(buff, sizeof(buff), "%d", value);
-    if ((ret = ::write(fd, buff, strlen(buff))) != strlen(buff))
-        LOGE("could not write ret=%d", ret);
+    if ((count = ::write(fd, buff, strlen(buff))) != strlen(buff))
+        LOGE("could not write ret=%d", count);
     else
-        LOGD("written %d bytes = %s", ret, buff);
+        LOGD("written %d bytes = %s", count, buff);
     ::close(fd);
 }
 
