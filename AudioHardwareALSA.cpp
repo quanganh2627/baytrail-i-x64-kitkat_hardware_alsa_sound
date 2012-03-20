@@ -498,6 +498,8 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 
             err = out->set(format, channels, sampleRate);
             if (err) {
+                delete out;
+                out = NULL;
                 LOGE("set error.");
                 break;
             }
@@ -552,7 +554,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
         if (status) *status = err;
         return in;
     }
-    LOGD("openInputStream IN");
+    LOGD("openInputStream IN channels:0x%x", *channels);
 
     property_get ("alsa.mixer.defaultGain",
             str,
@@ -580,17 +582,21 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
             err = in->setGain(defaultGain);
             if (err != NO_ERROR) {
                 LOGE("SetGain error.");
+                delete in;
+                in = NULL;
                 break;
             }
             err = in->set(format, channels, sampleRate);
             if (err != NO_ERROR) {
-                LOGE("Set error.");
+                LOGE("openInputStream Set err");
+                delete in;
+                in = NULL;
                 break;
             }
             break;
         }
-    LOGD("openInputStream OUT");
     if (status) *status = err;
+    LOGD("openInputStream OUT: status:%d",*status);
     return in;
 }
 

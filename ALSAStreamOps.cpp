@@ -98,78 +98,91 @@ status_t ALSAStreamOps::set(int      *format,
                             uint32_t *channels,
                             uint32_t *rate)
 {
-    if (channels && *channels != 0) {
-        if (mHandle->channels != popCount(*channels))
-            return BAD_VALUE;
-    } else if (channels) {
-        *channels = 0;
-        if (mHandle->devices & AudioSystem::DEVICE_OUT_ALL)
-            switch(mHandle->channels) {
-            case 4:
-                *channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
-                *channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
-                // Fall through...
-            default:
-            case 2:
-                *channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
-                // Fall through...
-            case 1:
-                *channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
-                break;
+    bool bad_channels = false;
+    bool bad_rate = false;
+    bool bad_format = false;
+
+    LOGD("set IN : format:%d channels:0x%x rate:%d", *format, *channels, *rate);
+
+    if (channels) {
+        if ( (*channels != 0) && ( mHandle->channels != popCount(*channels) ) ) {
+            bad_channels = true;
+        }
+
+        // change channel value in those cases :
+        //  - the channel is not set on entry or
+        //  - the channel is not correctly set according to ALSA
+        if ( (bad_channels) || (*channels == 0) )
+        {
+            *channels = 0;
+            if (mHandle->devices & AudioSystem::DEVICE_OUT_ALL) {
+                switch(mHandle->channels) {
+                case 4:
+                    *channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
+                    *channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
+                    // Fall through...
+                default:
+                case 2:
+                    *channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
+                    // Fall through...
+                case 1:
+                    *channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
+                    break;
+                }
+            } else {
+                switch(mHandle->channels) {
+                default:
+                case 2:
+                    *channels |= AudioSystem::CHANNEL_IN_RIGHT;
+                    // Fall through...
+                case 1:
+                    *channels |= AudioSystem::CHANNEL_IN_LEFT;
+                    break;
+                }
             }
-        else
-            switch(mHandle->channels) {
-            default:
-            case 2:
-                *channels |= AudioSystem::CHANNEL_IN_RIGHT;
-                // Fall through...
-            case 1:
-                *channels |= AudioSystem::CHANNEL_IN_LEFT;
-                break;
-            }
+            LOGD("set : change channels to 0x%x",  *channels);
+        }
     }
 
-    if (rate && *rate > 0) {
-        if (mHandle->sampleRate != *rate)
-            return BAD_VALUE;
-    } else if (rate)
-        *rate = mHandle->sampleRate;
+    if (rate) {
+        if ( (*rate != 0) && (mHandle->sampleRate != *rate) ) {
+            bad_rate = false;
+        }
+
+        if ( (bad_rate) || (*rate == 0) ) {
+            *rate = mHandle->sampleRate;
+            LOGD("set : change rate to %d",  *rate);
+        }
+    }
 
     snd_pcm_format_t iformat = mHandle->format;
 
+    int iActualFormat = AudioSystem::FORMAT_DEFAULT;
+
+    switch(mHandle->format) {
+    case SND_PCM_FORMAT_S16_LE:
+        iActualFormat = AudioSystem::PCM_16_BIT;
+        break;
+    case SND_PCM_FORMAT_S8:
+        iActualFormat = AudioSystem::PCM_8_BIT;
+        break;
+    default:
+        LOGE("Unexpected Sample Format: %d", mHandle->format);
+        return UNKNOWN_ERROR;
+    }
+
     if (format) {
-        switch(*format) {
-        case AudioSystem::FORMAT_DEFAULT:
-            break;
-
-        case AudioSystem::PCM_16_BIT:
-            iformat = SND_PCM_FORMAT_S16_LE;
-            break;
-
-        case AudioSystem::PCM_8_BIT:
-            iformat = SND_PCM_FORMAT_S8;
-            break;
-
-        default:
-            LOGE("Unknown PCM format %i. Forcing default", *format);
-            break;
+        if ( (*format != 0) && (iActualFormat != *format) ) {
+            bad_format = true;
         }
 
-        if (mHandle->format != iformat)
-            return BAD_VALUE;
-
-        switch(iformat) {
-        default:
-        case SND_PCM_FORMAT_S16_LE:
-            *format = AudioSystem::PCM_16_BIT;
-            break;
-        case SND_PCM_FORMAT_S8:
-            *format = AudioSystem::PCM_8_BIT;
-            break;
+        if ( (bad_format) || (*format == 0) ) {
+            *format = iActualFormat;
+            LOGD("set : change format to %d",  *format);
         }
     }
 
-    return NO_ERROR;
+    return (bad_channels || bad_rate || bad_format) ? BAD_VALUE : NO_ERROR;
 }
 
 status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
