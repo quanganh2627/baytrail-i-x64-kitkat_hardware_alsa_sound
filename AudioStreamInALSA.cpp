@@ -96,7 +96,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         return generateSilence(buffer, bytes);
     }
 
-    if(mParent->getVpcHwDevice()->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
+    if (mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->mix_enable && mHandle->curMode == AudioSystem::MODE_IN_CALL) {
+
         mParent->getVpcHwDevice()->mix_enable(false, mHandle->curDev);
     }
 
