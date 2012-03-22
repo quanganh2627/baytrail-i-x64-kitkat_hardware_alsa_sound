@@ -422,6 +422,14 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
     // set stream to new route
     int ret = mAudioRoute->setStream(this, mode);
 
+    if (ret != NO_ERROR) {
+
+        LOGD("%s: error while routing the stream...", __FUNCTION__);
+        // Error while routing the stream to its route, unset it!!!
+        mAudioRoute->unsetStream(this, mode);
+        mAudioRoute = NULL;
+    }
+
     if(restore_needed) {
         restorePmDownDelay();
     }

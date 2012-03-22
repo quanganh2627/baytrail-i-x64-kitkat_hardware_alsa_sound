@@ -60,6 +60,8 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
 {
     LOGD("execute mode=%d", mode);
 
+    status_t ret = NO_ERROR;
+
     //
     // Streams are tied, they must follow each other
     // and only the routing of the playback stream
@@ -71,16 +73,26 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
             if(mIsCaptureRouted) {
                 // if an input stream is right now using this route
                 // unroute input stream
-                unRoute(INPUT_STREAM);
+                (void)unRoute(INPUT_STREAM);
             }
             // Route the playback inconditionnaly (routing depends on it)
             LOGD("execute playback");
-            route(mode, OUTPUT_STREAM);
+            ret = route(mode, OUTPUT_STREAM);
+
+            if (ret != NO_ERROR) {
+
+                return ret;
+            }
             if(captureStream()) {
                 // Now that the playback is routed, the route is established
                 // We can now route the capture stream we unrouted previously
                 LOGD("execute Playback -> Capture previously requested");
-                route(mode, INPUT_STREAM);
+                ret = route(mode, INPUT_STREAM);
+
+                if (ret != NO_ERROR) {
+
+                    return ret;
+                }
             }
 
         } else {
@@ -89,7 +101,11 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
             //      -> NOK if no playback
             if(playbackStream()) {
                 LOGD("execute capture (playback already routed)");
-                route(mode, INPUT_STREAM);
+                ret = route(mode, INPUT_STREAM);
+                if (ret != NO_ERROR) {
+
+                    return ret;
+                }
                 assert(!mIsCaptureRouted);
             } else {
                 // Else: nothing to do, capture stream is attached to the route
@@ -103,23 +119,29 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
         //
         // Streams are not tied, route inconditionnaly
         //
-        route(mode, bForOutput);
+        ret = route(mode, bForOutput);
     }
-    return NO_ERROR;
+    return ret;
 }
 
 status_t AudioRoute::route(int mode, bool bForOutput)
 {
     LOGD("route mode=%d isAccessible=%d", mode, mIsRouteAccessible[bForOutput]);
+
+    status_t ret = NO_ERROR;
+
     if(mIsRouteAccessible[bForOutput]) {
         if(bForOutput) {
-            playbackStream()->doRoute(mode);
+            ret = playbackStream()->doRoute(mode);
         } else {
-            captureStream()->doRoute(mode);
-            mIsCaptureRouted = true;
+            ret = captureStream()->doRoute(mode);
+            if (ret == NO_ERROR) {
+
+                mIsCaptureRouted = true;
+            }
         }
     }
-    return NO_ERROR;
+    return ret;
 }
 
 status_t AudioRoute::unRoute(bool bForOutput)
@@ -145,9 +167,7 @@ status_t AudioRoute::setStream(ALSAStreamOps* pStream, int mode)
 
     mStreams[isOut] = pStream;
 
-    applyRoutingStrategy(mode, isOut);
-
-    return NO_ERROR;
+    return applyRoutingStrategy(mode, isOut);
 }
 
 status_t AudioRoute::unsetStream(ALSAStreamOps* pStream, int mode)
