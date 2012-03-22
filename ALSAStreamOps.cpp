@@ -357,7 +357,7 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
     assert(!mHandle->handle);
 
     status_t err = BAD_VALUE;
-    err = mParent->getAlsaHwDevice()->open(mHandle, devices, mode);
+    err = mParent->getAlsaHwDevice()->open(mHandle, devices, mode, mParent->getFmRxMode());
 
 
     LOGD("ALSAStreamOps::open");
@@ -394,7 +394,8 @@ void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
 status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int mode)
 {
     LOGD("setRoute mode=%d", mode);
-    if((mAudioRoute == audioRoute) && (mHandle->curDev == devices) && (mHandle->curMode == mode)) {
+    if((mAudioRoute == audioRoute) && (mHandle->curDev == devices) && (mHandle->curMode == mode) &&
+       (mParent->getFmRxMode() == mParent->getPrevFmRxMode())) {
         LOGD("setRoute: stream already attached to the route, identical conditions");
         return NO_ERROR;
     }

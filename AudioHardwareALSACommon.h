@@ -68,7 +68,7 @@ struct alsa_device_t {
 
     // Methods
     status_t (*init)(alsa_device_t *, ALSAHandleList &, uint32_t defaultInputSampleRate, uint32_t defaultOutputSampleRate);
-    status_t (*open)(alsa_handle_t *, uint32_t, int);
+    status_t (*open)(alsa_handle_t *, uint32_t, int, int);
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);
     status_t (*volume)(alsa_handle_t *, uint32_t, float);

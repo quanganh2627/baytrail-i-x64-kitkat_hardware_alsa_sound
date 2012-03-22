@@ -86,6 +86,7 @@ const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardw
     { ALSA_HARDWARE_MODULE_ID, ALSA_HARDWARE_NAME },
     { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
     { VPC_HARDWARE_MODULE_ID, VPC_HARDWARE_NAME },
+    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_MODULE_ID },
 };
 
 /// PFW related definitions
@@ -285,6 +286,15 @@ AudioHardwareALSA::AudioHardwareALSA() :
             getVpcHwDevice()->set_modem_state(mATManager->getModemStatus());
         }
     }
+
+#ifdef WITH_FM_SUPPORT
+    if (getFmHwDevice()) {
+        getFmHwDevice()->init();
+    } else {
+        LOGE("Cannot load FM HW Module");
+    }
+#endif
+
     // Starts the modem state listener
     if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS)) {
         LOGE("AudioHardwareALSA: could not start modem state listener");
@@ -303,6 +313,13 @@ vpc_device_t* AudioHardwareALSA::getVpcHwDevice() const
     assert(mHwDeviceArray.size() > VPC_HW_DEV);
 
     return (vpc_device_t *)mHwDeviceArray[VPC_HW_DEV];
+}
+
+fm_device_t* AudioHardwareALSA::getFmHwDevice() const
+{
+    assert(mHwDeviceArray.size() > FM_HW_DEV);
+
+    return (fm_device_t *)mHwDeviceArray[FM_HW_DEV];
 }
 
 acoustic_device_t* AudioHardwareALSA::getAcousticHwDevice() const
@@ -460,6 +477,22 @@ status_t AudioHardwareALSA::setMode(int mode)
     }
 
     return status;
+}
+
+status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
+{
+    AutoW lock(mLock);
+
+    LOGD("%s: in", __FUNCTION__);
+
+    if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS) {
+
+        reconsiderRouting();
+
+        getFmHwDevice()->set_state(fm_mode);
+    }
+
+    return NO_ERROR;
 }
 
 AudioStreamOut *

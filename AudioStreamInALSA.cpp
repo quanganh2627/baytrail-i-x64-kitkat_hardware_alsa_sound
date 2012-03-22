@@ -122,7 +122,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         }
         else if (n == -EBADFD) {
             LOGE("read err: %s, TRY REOPEN...", snd_strerror(n));
-            err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode);
+            err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
             if(err != NO_ERROR) {
                 LOGE("Open device error");
                 return err;

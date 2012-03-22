@@ -28,6 +28,8 @@
 
 #include <hardware/hardware.h>
 #include <vpc_hardware.h>
+#include <fm_module.h>
+
 #include <utils/threads.h>
 
 #ifdef USE_INTEL_SRC
@@ -337,6 +339,8 @@ public:
      */
     virtual status_t    setMode(int mode);
 
+	virtual status_t    setFmRxMode(int mode);
+
     // mic mute
     virtual status_t    setMicMute(bool state);
     virtual status_t    getMicMute(bool* state);
@@ -394,6 +398,7 @@ protected:
     // Cast Hw device from mHwDeviceArray to the corresponding hw device type
     alsa_device_t* getAlsaHwDevice() const;
     vpc_device_t* getVpcHwDevice() const;
+    fm_device_t* getFmHwDevice() const;
     acoustic_device_t* getAcousticHwDevice() const;
 
     friend class AudioStreamOutALSA;
@@ -404,6 +409,8 @@ protected:
     ALSAMixer *         mMixer;
 
     ALSAHandleList      mDeviceList;
+    int getFmRxMode() { return mFmRxMode; }
+    int getPrevFmRxMode() { return mPrevFmRxMode; }
 
 #ifdef USE_INTEL_SRC
     AudioResamplerALSA *mResampler;
@@ -435,6 +442,7 @@ private:
         ALSA_HW_DEV = 0,
         ACOUSTIC_HW_DEV,
         VPC_HW_DEV,
+        FM_HW_DEV,
         NB_HW_DEV
     };
 
