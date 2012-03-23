@@ -156,6 +156,12 @@ static void ALSAErrorHandler(const char *file,
 
     va_start(arg, fmt);
     l = snprintf(buf, BUFSIZ, "%s:%i:(%s) ", file, line, function);
+    if (l < 0) {
+
+        LOGE("%s: error while formating the log", __FUNCTION__);
+        // Bailing out
+        goto error;
+    }
     if (l >= BUFSIZ) {
 
         // return of snprintf higher than size -> the output has been truncated
@@ -165,6 +171,8 @@ static void ALSAErrorHandler(const char *file,
     vsnprintf(buf + l, BUFSIZ - l, fmt, arg);
     buf[BUFSIZ-1] = '\0';
     LOG(LOG_ERROR, "ALSALib", "%s", buf);
+
+error:
     va_end(arg);
 }
 
