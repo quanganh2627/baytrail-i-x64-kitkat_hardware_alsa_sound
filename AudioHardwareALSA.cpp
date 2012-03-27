@@ -501,9 +501,6 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
             }
             out = new AudioStreamOutALSA(this, &(*it));
 
-            // Add Stream Out to the list
-            mStreamOutList.push_back(out);
-
             err = out->set(format, channels, sampleRate);
             if (err) {
                 delete out;
@@ -511,6 +508,9 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
                 LOGE("set error.");
                 break;
             }
+
+            // Add Stream Out to the list
+            mStreamOutList.push_back(out);
         }
     LOGD("openOutputStream OUT");
     if (status) *status = err;
