@@ -110,16 +110,28 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
 
     device = baseClass::getDeviceForStrategy(strategy, fromCache);
 
-    // this case correspond to playback request during voice reco over BT SCO, voice record or playback of voice memo
+    // this case corresponds to playback request during voice reco over BT SCO, voice record or playback of voice memo
     switch (strategy) {
         case STRATEGY_PHONE:
-            // do not change the case of voice call thru Bluetooth
+
+            // change the case of voice call thru Bluetooth for VOIP
+            if (getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
+                uint32_t preferred_device = mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
+                                                                AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |
+                                                                AudioSystem::DEVICE_OUT_BLUETOOTH_SCO);
+                if (preferred_device != 0) {
+                    device = preferred_device;
+                    LOGD("%s- Request to play on BT SCO device", __FUNCTION__);
+                    break;
+                } else {
+                    LOGE("%s- BT SCO device not found", __FUNCTION__);
+                }
+            }
 
             // in voice call, the ouput device can not be DGTL_DOCK_HEADSET, AUX_DIGITAL (i.e. HDMI) or  ANLG_DOCK_HEADSET
             if ( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL) ||
                  ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
                  ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ) {
-
                 uint32_t forceUseInComm =  getForceUse(AudioSystem::FOR_COMMUNICATION);
                 switch (forceUseInComm) {
 
