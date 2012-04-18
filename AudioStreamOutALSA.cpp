@@ -164,8 +164,15 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
             }
         }
         else if (n == -ENODEV) {
-             LOGE("write err: %s, bailing out", snd_strerror(n));
-             return err;
+            LOGE("write err: %s, bailing out", snd_strerror(n));
+            return err;
+        }
+        else if (n == -EPIPE) {
+            LOGE("write err: %s - Silence and recovery in progress", snd_strerror(n));
+            //Consume the data for the remaining duration before recovery
+            generateSilence(bytes - sent);
+            snd_pcm_recover(mHandle->handle, n, 1);
+            return bytes;
         }
         else if (n < 0) {
             LOGE("write err: %s", snd_strerror(n));
