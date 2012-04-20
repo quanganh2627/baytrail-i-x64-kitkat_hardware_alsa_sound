@@ -42,12 +42,22 @@ bool AudioRouteMM::isApplicable(uint32_t devices, int mode, bool bForOutput)
 {
     LOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
     if(bForOutput) {
-        if ((devices & DEVICE_OUT_MM_ALL) && (mode == AudioSystem::MODE_NORMAL || mode == AudioSystem::MODE_RINGTONE))
-            return true;
-    }
-    else if ((devices & DEVICE_IN_MM_ALL) && (mode == AudioSystem::MODE_NORMAL)) {
+#ifndef CUSTOM_BOARD_WITH_AUDIENCE
+        if ((devices & DEVICE_OUT_MM_ALL) && (mode != AudioSystem::MODE_IN_CALL)) {
+#else
+        if ((devices & DEVICE_OUT_MM_ALL) && (mode == AudioSystem::MODE_NORMAL || mode == AudioSystem::MODE_RINGTONE)) {
+#endif
 
             return true;
+        }
+    }
+#ifndef CUSTOM_BOARD_WITH_AUDIENCE
+    else if ((devices & DEVICE_IN_MM_ALL) && (mode == AudioSystem::MODE_NORMAL || mode == AudioSystem::MODE_IN_COMMUNICATION)) {
+#else
+    else if ((devices & DEVICE_IN_MM_ALL) && (mode == AudioSystem::MODE_NORMAL)) {
+#endif
+
+        return true;
     }
     return false;
 }
