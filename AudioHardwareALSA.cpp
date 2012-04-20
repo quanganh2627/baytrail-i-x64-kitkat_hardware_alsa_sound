@@ -919,13 +919,23 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
          *      and trashing the playback datas) until the modem is back up.
          * Modem Available (Up):
          *      Set the route accessibility to true
+         * No Modem on the platform:
+         *      Set the route accessibility to true
          */
+#ifdef CUSTOM_BOARD_WITHOUT_MODEM
+        mAudioRouteMgr->setSharedRouteAccessible(true, mode());
+#else
         mAudioRouteMgr->setSharedRouteAccessible(mModemAvailable, mode());
+#endif
         break;
 
     default:
         // ie NORMAL, RINGTONE ...
+#ifdef CUSTOM_BOARD_WITHOUT_MODEM
+        mAudioRouteMgr->setSharedRouteAccessible(true, mode());
+#else
         mAudioRouteMgr->setSharedRouteAccessible(mModemAvailable, mode());
+#endif
         break;
     }
 
