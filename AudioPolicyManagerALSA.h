@@ -28,8 +28,6 @@ namespace android_audio_legacy {
 
 // ----------------------------------------------------------------------------
 
-// Attenuation applied to STRATEGY_MEDIA streams during VoIP call : 12dB
-#define IN_COMMUNICATION_MEDIA_ATTENUATION_IN_DB 12.0
 
 class AudioPolicyManagerALSA: public AudioPolicyManagerBase
 {

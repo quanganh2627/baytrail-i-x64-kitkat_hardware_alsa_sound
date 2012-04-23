@@ -92,13 +92,6 @@ float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_hand
     // Compute SW attenuation
     volume = baseClass::computeVolume(stream, index, output, device);
 
-    // Attenuate media streams by 12dB during voice over IP call. For CSV voice call,
-    // this attenuation is applied in the 3G modem.
-    if (mPhoneState == AudioSystem::MODE_IN_COMMUNICATION &&
-        getStrategy((AudioSystem::stream_type)stream) == STRATEGY_MEDIA) {
-        volume *= pow(10.0, -IN_COMMUNICATION_MEDIA_ATTENUATION_IN_DB/10.0);
-        LOGV("computeVolume, limit media streams volume during voice over IP calls to %.3f", volume);
-    }
 
     return volume;
 }
