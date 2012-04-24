@@ -395,7 +395,8 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
 {
     LOGD("setRoute mode=%d", mode);
     if((mAudioRoute == audioRoute) && (mHandle->curDev == devices) && (mHandle->curMode == mode) &&
-       (mParent->getFmRxMode() == mParent->getPrevFmRxMode())) {
+            (mParent->getFmRxMode() == mParent->getPrevFmRxMode()) &&
+            !mParent->isReconsiderRoutingForced()) {
         LOGD("setRoute: stream already attached to the route, identical conditions");
         return NO_ERROR;
     }

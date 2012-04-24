@@ -401,6 +401,8 @@ protected:
     fm_device_t* getFmHwDevice() const;
     acoustic_device_t* getAcousticHwDevice() const;
 
+    bool isReconsiderRoutingForced() { return mForceReconsiderInCallRoute; }
+
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
     friend class ALSAStreamOps;
@@ -458,7 +460,7 @@ private:
 	enum ALSA_CONF_DIRECTION {
 		ALSA_CONF_DIRECTION_IN,
 		ALSA_CONF_DIRECTION_OUT,
-	
+
 		ALSA_CONF_NB_DIRECTIONS
 	};
     static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
@@ -468,7 +470,7 @@ private:
 	enum IFX_IS2S_PORT {
 		IFX_I2S1_PORT,
 		IFX_I2S2_PORT,
-	
+
 		IFX_NB_I2S_PORT
 	};
     static const char* const gapcModemPortClockSelection[IFX_NB_I2S_PORT];
@@ -529,6 +531,12 @@ private:
 
     // HW device array
     vector<hw_device_t*> mHwDeviceArray;
+
+    // Reconsider Route force flag
+    bool mForceReconsiderInCallRoute;
+
+    // Current TTY Device
+    vpc_tty_t mCurrentTtyDevice;
 };
 
 // ----------------------------------------------------------------------------

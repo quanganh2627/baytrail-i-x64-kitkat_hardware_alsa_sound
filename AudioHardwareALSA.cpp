@@ -191,7 +191,9 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mModemCallActive(false),
     mModemAvailable(false),
     mMSICVoiceRouteForcedOnMMRoute(false),
-    mStreamOutList(NULL)
+    mStreamOutList(NULL),
+    mForceReconsiderInCallRoute(false),
+    mCurrentTtyDevice(VPC_TTY_OFF)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -709,31 +711,59 @@ status_t AudioHardwareALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 {
+    AutoW lock(mLock);
+
     LOGI("key value pair %s\n", keyValuePairs.string());
 
     if (!getVpcHwDevice()) {
         return NO_ERROR;
     }
 
+    AudioParameter param = AudioParameter(keyValuePairs);
+    status_t status;
+
+    //
     // Search TTY mode
-    if(strstr(keyValuePairs.string(), "tty_mode=tty_full") != NULL) {
-        LOGV("tty full\n");
-        getVpcHwDevice()->tty(VPC_TTY_FULL);
-    }
-    else if(strstr(keyValuePairs.string(), "tty_mode=tty_hco") != NULL) {
-        LOGV("tty hco\n");
-        getVpcHwDevice()->tty(VPC_TTY_HCO);
-    }
-    else if(strstr(keyValuePairs.string(), "tty_mode=tty_vco") != NULL) {
-        LOGV("tty vco\n");
-        getVpcHwDevice()->tty(VPC_TTY_VCO);
-    }
-    else if (strstr(keyValuePairs.string(), "tty_mode=tty_off") != NULL) {
-        LOGV("tty off\n");
-        getVpcHwDevice()->tty(VPC_TTY_OFF);
+    //
+    String8 strTtyDevice;
+    vpc_tty_t iTtyDevice = VPC_TTY_OFF;
+    String8 key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
+
+    // Get concerned devices
+    status = param.get(key, strTtyDevice);
+
+    if (status == NO_ERROR) {
+
+        if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
+            LOGV("tty full\n");
+            iTtyDevice = VPC_TTY_FULL;
+        }
+        else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
+            LOGV("tty hco\n");
+            iTtyDevice = VPC_TTY_HCO;
+        }
+        else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
+            LOGV("tty vco\n");
+            iTtyDevice = VPC_TTY_VCO;
+        }
+        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_OFF) {
+            LOGV("tty off\n");
+            iTtyDevice = VPC_TTY_OFF;
+
+        }
+        if (mCurrentTtyDevice != iTtyDevice) {
+
+            mCurrentTtyDevice = iTtyDevice;
+            getVpcHwDevice()->set_tty(mCurrentTtyDevice);
+            mForceReconsiderInCallRoute = true;
+        }
+        // Remove parameter
+        param.remove(key);
     }
 
+    //
     // Search BT NREC parameter
+    //
     if ((strstr(keyValuePairs.string(), "bt_headset_nrec=on")) != NULL) {
         LOGV("bt with acoustic\n");
         getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
@@ -742,6 +772,14 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         LOGV("bt without acoustic\n");
         getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
     }
+
+    // Reconsider the routing now in case of voice call
+    if (mForceReconsiderInCallRoute && audioMode() == AudioSystem::MODE_IN_CALL) {
+
+        reconsiderRouting();
+    }
+
+    mForceReconsiderInCallRoute = false;
 
     return NO_ERROR;
 }
