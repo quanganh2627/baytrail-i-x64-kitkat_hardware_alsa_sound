@@ -4,10 +4,6 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-ifneq ($(CUSTOM_BOARD),mfld_gi)
-    LOCAL_CFLAGS += -DCUSTOM_BOARD_WITH_AUDIENCE
-endif
-
 LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/parameter \
     $(TARGET_OUT_HEADERS)/hw \
