@@ -13,9 +13,9 @@ LOCAL_C_INCLUDES += \
     bionic/
 
 LOCAL_C_INCLUDES += \
-        hardware/intel/IFX-modem \
-        $(LOCAL_PATH)/../intel/mfld_cdk/amc/at-manager \
-        $(LOCAL_PATH)/../intel/mfld_cdk/amc/event-listener
+    hardware/intel/IFX-modem \
+    $(LOCAL_PATH)/../intel/mfld_cdk/amc/at-manager \
+    $(LOCAL_PATH)/../intel/mfld_cdk/amc/event-listener
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -101,9 +101,18 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
     AudioPolicyManagerALSA.cpp
 
+LOCAL_C_INCLUDES += \
+    external/stlport/stlport/ \
+    bionic/
+
+LOCAL_C_INCLUDES += \
+    $(LOCAL_PATH)/../intel/mfld_cdk/utility/property
+
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libutils \
+    libstlport \
+    libproperty \
     libmedia
 
 LOCAL_STATIC_LIBRARIES := \

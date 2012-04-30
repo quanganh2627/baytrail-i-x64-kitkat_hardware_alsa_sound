@@ -19,6 +19,7 @@
 #include <utils/Log.h>
 #include "AudioPolicyManagerALSA.h"
 #include <media/mediarecorder.h>
+#include <BooleanProperty.h>
 
 #define baseClass AudioPolicyManagerBase
 
@@ -149,7 +150,8 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
                         if (device != 0) {
                             LOGD("%s- Unsupported device in STRATEGY_PHONE: set Earpiece as ouput", __FUNCTION__);
                         } else {
-                            LOGE("%s- Earpiece device not found", __FUNCTION__);
+                            LOGE("%s- Earpiece device not found: set speaker as output", __FUNCTION__);
+                            device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
                         }
                         break;
                 }
@@ -204,10 +206,31 @@ void AudioPolicyManagerALSA::setForceUse(AudioSystem::force_use usage, AudioSyst
 
 }
 
+void AudioPolicyManagerALSA::updateDeviceSupport(const char * property, uint32_t device)
+
+{
+    uint32_t * pAvailableDevice;
+
+    // Input or Output device ?
+    pAvailableDevice = device & AUDIO_DEVICE_OUT_ALL ? &mAvailableOutputDevices : &mAvailableInputDevices;
+    // Check the device property, if the property is not specified then the device is supported by default
+    CBooleanProperty deviceProp(property, true);
+    if (deviceProp.isSet()) {
+        LOGD("%s: Device 0x%08X supported", __FUNCTION__, device);
+        *pAvailableDevice |= device;
+    } else {
+        LOGD("%s: Device 0x%08X not supported", __FUNCTION__, device);
+        *pAvailableDevice &= ~device;
+    }
+}
 
 AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface)
     : baseClass(clientInterface)
 {
+    // check if earpiece device is supported
+    updateDeviceSupport("audiocomms.dev.earpiece.present", AudioSystem::DEVICE_OUT_EARPIECE);
+    // check if back mic device is supported
+    updateDeviceSupport("audiocomms.dev.backmic.present", AudioSystem::DEVICE_IN_BACK_MIC);
 }
 
 AudioPolicyManagerALSA::~AudioPolicyManagerALSA()
