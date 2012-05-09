@@ -143,8 +143,8 @@ protected:
     ALSAStreamOps(const ALSAStreamOps &);
     ALSAStreamOps& operator = (const ALSAStreamOps &);
 
-    void		acquirePowerLock();
-    void		releasePowerLock();
+    void                acquirePowerLock();
+    void                releasePowerLock();
 
     vpc_device_t *vpc();
     acoustic_device_t *acoustics();
@@ -158,19 +158,19 @@ protected:
     uint32_t                mDevices;
 
 private:
-    void	vpcRoute(uint32_t devices, int mode);
-    void	vpcUnroute(uint32_t curDev, int curMode);
-    void	storeAndResetPmDownDelay();
-    void	restorePmDownDelay();
+    void        vpcRoute(uint32_t devices, int mode);
+    void        vpcUnroute(uint32_t curDev, int curMode);
+    void        storeAndResetPmDownDelay();
+    void        restorePmDownDelay();
 
-    void 	writeSysEntry(const char* filePath, int value);
-    int		readSysEntry(const char* filePath);
+    void        writeSysEntry(const char* filePath, int value);
+    int         readSysEntry(const char* filePath);
 
-    int 	headsetPmDownDelay;
-    int 	speakerPmDownDelay;
-    int 	voicePmDownDelay;
+    int         headsetPmDownDelay;
+    int         speakerPmDownDelay;
+    int         voicePmDownDelay;
 
-    bool	isResetted;
+    bool        isResetted;
     AudioRoute*             mAudioRoute;
 
     bool                    mPowerLock;
@@ -229,7 +229,7 @@ public:
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA &);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
-    size_t		generateSilence(size_t bytes);
+    size_t              generateSilence(size_t bytes);
 
     uint32_t            mFrameCount;
 };
@@ -295,7 +295,7 @@ private:
     AudioStreamInALSA(const AudioStreamInALSA &);
     AudioStreamInALSA& operator = (const AudioStreamInALSA &);
     void                resetFramesLost();
-    size_t		generateSilence(void *buffer, size_t bytes);
+    size_t              generateSilence(void *buffer, size_t bytes);
 
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;
@@ -344,7 +344,7 @@ public:
      */
     virtual status_t    setMode(int mode);
 
-	virtual status_t    setFmRxMode(int mode);
+        virtual status_t    setFmRxMode(int mode);
 
     // mic mute
     virtual status_t    setMicMute(bool state);
@@ -460,27 +460,27 @@ private:
 
     static const hw_module hw_module_list[NB_HW_DEV];
 
-	// Defines tuning parameters in PFW XML config files and default values
-	// ALSA PLATFORM CONFIGURATION
-	enum ALSA_CONF_DIRECTION {
-		ALSA_CONF_DIRECTION_IN,
-		ALSA_CONF_DIRECTION_OUT,
+        // Defines tuning parameters in PFW XML config files and default values
+        // ALSA PLATFORM CONFIGURATION
+        enum ALSA_CONF_DIRECTION {
+                ALSA_CONF_DIRECTION_IN,
+                ALSA_CONF_DIRECTION_OUT,
 
-		ALSA_CONF_NB_DIRECTIONS
-	};
+                ALSA_CONF_NB_DIRECTIONS
+        };
     static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
     static const uint32_t DEFAULT_SAMPLE_RATE;
 
-	// MODEM I2S PORTS
-	enum IFX_IS2S_PORT {
-		IFX_I2S1_PORT,
-		IFX_I2S2_PORT,
+        // MODEM I2S PORTS
+        enum IFX_IS2S_PORT {
+                IFX_I2S1_PORT,
+                IFX_I2S2_PORT,
 
-		IFX_NB_I2S_PORT
-	};
+                IFX_NB_I2S_PORT
+        };
     static const char* const gapcModemPortClockSelection[IFX_NB_I2S_PORT];
     static const uint32_t DEFAULT_IFX_CLK_SELECT;
-    
+
 private:
     // PFW type value pairs type
     struct SSelectionCriterionTypeValuePair
@@ -545,6 +545,9 @@ private:
 
     // Current TTY Device
     vpc_tty_t mCurrentTtyDevice;
+
+    // Current HAC Setting
+    vpc_hac_set_t mCurrentHACSetting;
 };
 
 // ----------------------------------------------------------------------------

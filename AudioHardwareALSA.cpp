@@ -194,7 +194,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mStreamOutList(NULL),
     mStreamInList(NULL),
     mForceReconsiderInCallRoute(false),
-    mCurrentTtyDevice(VPC_TTY_OFF)
+    mCurrentTtyDevice(VPC_TTY_OFF),
+    mCurrentHACSetting(VPC_HAC_OFF)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -851,26 +852,67 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         param.remove(key);
     }
 
-    //
     // Search BT NREC parameter
-    //
-    if ((strstr(keyValuePairs.string(), "bt_headset_nrec=on")) != NULL) {
-        LOGV("bt with acoustic\n");
-        getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
-    }
-    else if ((strstr(keyValuePairs.string(), "bt_headset_nrec=off")) != NULL) {
-        LOGV("bt without acoustic\n");
-        getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
+    String8 strBTnRecSetting;
+    key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
+
+    // Get BT NREC setting value
+    status = param.get(key, strBTnRecSetting);
+
+    if (status == NO_ERROR) {
+        if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_ON) {
+            LOGV("BT NREC on, headset is without noise reduction and echo cancellation algorithms");
+            getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
+        }
+        else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
+            LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
+            getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
+        }
+
+        // Remove parameter
+        param.remove(key);
     }
 
-    // Reconsider the routing now in case of voice call
-    if (mForceReconsiderInCallRoute && audioMode() == AudioSystem::MODE_IN_CALL) {
+    // Search HAC setting
+    String8 strHACSetting;
+    vpc_hac_set_t iHACSetting = VPC_HAC_OFF;
+
+    key = String8(AUDIO_PARAMETER_KEY_HAC_SETTING);
+
+    // Get HAC setting value
+    status = param.get(key, strHACSetting);
+
+    if (status == NO_ERROR) {
+        if(strHACSetting == AUDIO_PARAMETER_VALUE_HAC_ON) {
+            LOGV("HAC setting is turned on, enable output on HAC device");
+            iHACSetting = VPC_HAC_ON;
+        }
+        else if(strHACSetting == AUDIO_PARAMETER_VALUE_HAC_OFF) {
+            LOGV("HAC setting is turned off");
+            iHACSetting = VPC_HAC_OFF;
+        }
+
+        if (mCurrentHACSetting != iHACSetting) {
+
+            mCurrentHACSetting = iHACSetting;
+            getVpcHwDevice()->set_hac(mCurrentHACSetting);
+            mForceReconsiderInCallRoute = true;
+        }
+
+        // Remove parameter
+        param.remove(key);
+    }
+
+    // Reconsider the routing now in case of voice call or voice over IP call
+    if (mForceReconsiderInCallRoute && (audioMode() == AudioSystem::MODE_IN_CALL || audioMode() == AudioSystem::MODE_IN_COMMUNICATION)) {
 
         reconsiderRouting();
     }
 
     mForceReconsiderInCallRoute = false;
 
+    // Not a problem if a key does not exist, its value will
+    // simply not be read and used, thus return NO_ERROR
     return NO_ERROR;
 }
 
