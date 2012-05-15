@@ -398,7 +398,11 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
     }
 
     bool restore_needed = false;
-    if((mode == AudioSystem::MODE_IN_CALL) && (mHandle->curMode != mode) &&(isOut())) {
+    if((mParent->getFmRxMode() != mParent->getPrevFmRxMode() ||
+		(mHandle->curMode != mode &&
+		 (mode == AudioSystem::MODE_IN_CALL ||
+          mHandle->curMode == AudioSystem::MODE_IN_CALL))) &&
+	   isOut()) {
         storeAndResetPmDownDelay();
         restore_needed = true;
     }
