@@ -104,6 +104,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         mStandby = false;
     }
 
+    assert(mHandle->handle);
+
     // if we deal with a NULL sink -> do not let alsa do the job
     if (snd_pcm_type(mHandle->handle) == SND_PCM_TYPE_NULL)
     {

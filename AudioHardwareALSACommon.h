@@ -18,7 +18,6 @@
 #ifndef ANDROID_AUDIO_HARDWARE_ALSA_COMMON_H
 #define ANDROID_AUDIO_HARDWARE_ALSA_COMMON_H
 
-#include <utils/List.h>
 #include <hardware_legacy/AudioHardwareBase.h>
 
 #include <alsa/asoundlib.h>
@@ -61,13 +60,11 @@ struct alsa_handle_t {
     bool                openFlag;        //if handle has opened openFlag = 1 esle openFlag = 0
 };
 
- typedef List<alsa_handle_t> ALSAHandleList;
-
 struct alsa_device_t {
     hw_device_t common;
 
     // Methods
-    status_t (*init)(alsa_device_t *, ALSAHandleList &, uint32_t defaultInputSampleRate, uint32_t defaultOutputSampleRate);
+    status_t (*init)(alsa_device_t *, uint32_t defaultInputSampleRate, uint32_t defaultOutputSampleRate);
     status_t (*open)(alsa_handle_t *, uint32_t, int, int);
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);

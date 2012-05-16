@@ -312,6 +312,11 @@ class AudioHardwareALSA : public AudioHardwareBase, public IATNotifier
     typedef list<AudioStreamOutALSA*>::iterator CAudioStreamOutALSAListIterator;
     typedef list<AudioStreamOutALSA*>::const_iterator CAudioStreamOutALSAListConstIterator;
 
+    typedef list<AudioStreamInALSA*>::iterator CAudioStreamInALSAListIterator;
+    typedef list<AudioStreamInALSA*>::const_iterator CAudioStreamInALSAListConstIterator;
+
+    typedef list<alsa_handle_t*> ALSAHandleList;
+
 public:
     AudioHardwareALSA();
     virtual            ~AudioHardwareALSA();
@@ -528,6 +533,9 @@ private:
 
     // Output Streams list
     list<AudioStreamOutALSA*> mStreamOutList;
+
+    // Input Streams list
+    list<AudioStreamInALSA*> mStreamInList;
 
     // HW device array
     vector<hw_device_t*> mHwDeviceArray;

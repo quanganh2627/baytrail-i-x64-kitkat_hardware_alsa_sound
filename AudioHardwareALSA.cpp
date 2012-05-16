@@ -192,6 +192,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mModemAvailable(false),
     mMSICVoiceRouteForcedOnMMRoute(false),
     mStreamOutList(NULL),
+    mStreamInList(NULL),
     mForceReconsiderInCallRoute(false),
     mCurrentTtyDevice(VPC_TTY_OFF)
 {
@@ -269,7 +270,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     }
     if (getAlsaHwDevice()) {
 
-        getAlsaHwDevice()->init(getAlsaHwDevice(), mDeviceList, getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
+        getAlsaHwDevice()->init(getAlsaHwDevice(), getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
             getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_OUT], false, DEFAULT_SAMPLE_RATE));
     }
 
@@ -343,6 +344,28 @@ AudioHardwareALSA::~AudioHardwareALSA()
     delete mParameterMgrPlatformConnectorLogger;
     // Remove connector
     delete mParameterMgrPlatformConnector;
+
+    // Delete all ALSA handles
+    for (ALSAHandleList::iterator it = mDeviceList.begin(); it != mDeviceList.end(); ++it) {
+
+        delete *it;
+    }
+
+    // Delete All Output Stream
+    CAudioStreamOutALSAListIterator outIt;
+
+    for (outIt = mStreamOutList.begin(); outIt != mStreamOutList.end(); ++outIt) {
+
+        delete *outIt;
+    }
+
+    // Delete All Input Stream
+    CAudioStreamOutALSAListIterator inIt;
+
+    for (inIt = mStreamOutList.begin(); inIt != mStreamOutList.end(); ++inIt) {
+
+        delete *inIt;
+    }
 
     if (mMixer) delete mMixer;
 
@@ -506,64 +529,84 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 {
     AutoW lock(mLock);
 
-    LOGD("openOutputStream called for devices: 0x%08x", devices);
+    LOGD("%s: called for devices: 0x%08x", __FUNCTION__, devices);
 
     status_t err = BAD_VALUE;
-    AudioStreamOutALSA *out = 0;
+    AudioStreamOutALSA* out = 0;
+    alsa_handle_t* pHandle = NULL;
 
-    if (devices & (devices - 1)) {
-        if (status) *status = err;
-        LOGD("openOutputStream called with bad devices");
-        return out;
+    if ((devices & (devices - 1)) || (!devices & AudioSystem::DEVICE_OUT_ALL)) {
+
+        LOGD("%s: called with bad devices", __FUNCTION__);
+        goto finish;
     }
 
-    // Find the appropriate alsa device
-    for(ALSAHandleList::iterator it = mDeviceList.begin();
-            it != mDeviceList.end(); ++it)
-        if (it->devices & devices) {
+    if (!getAlsaHwDevice()) {
 
-            if (!getAlsaHwDevice()) {
+        LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
+        err = DEAD_OBJECT;
+        goto finish;
+    }
 
-                LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
-                err = DEAD_OBJECT;
-                break;
-            }
+    // Instantiante and initialize a new ALSA handle
+    pHandle = new alsa_handle_t;
 
-            err = getAlsaHwDevice()->initStream(&(*it), devices, mode());
-            if (err) {
-                LOGE("Open error.");
-                break;
-            }
-            out = new AudioStreamOutALSA(this, &(*it));
+    err = getAlsaHwDevice()->initStream(pHandle, devices, mode());
+    if (err) {
 
-            err = out->set(format, channels, sampleRate);
-            if (err) {
-                delete out;
-                out = NULL;
-                LOGE("set error.");
-                break;
-            }
+        LOGE("%s: init Stream error.", __FUNCTION__);
+        goto finish;
+    }
 
-            // Add Stream Out to the list
-            mStreamOutList.push_back(out);
-        }
-    LOGD("openOutputStream OUT");
+    out = new AudioStreamOutALSA(this, pHandle);
+
+    err = out->set(format, channels, sampleRate);
+    if (err) {
+
+        LOGE("%s: set error.", __FUNCTION__);
+        goto finish;
+    }
+
+    // Add ALSA handle to the list
+    mDeviceList.push_back(pHandle);
+
+    // Add Stream Out to the list
+    mStreamOutList.push_back(out);
+
+finish:
+    if (err) {
+
+        delete pHandle;
+        pHandle = NULL;
+
+        delete out;
+        out = NULL;
+    }
     if (status) *status = err;
+
+    LOGD("%s: OUT", __FUNCTION__);
     return out;
 }
 
 void
 AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
-    // Remove Out stream from the list
+   // Remove Out stream from the list
 
     CAudioStreamOutALSAListIterator it;
 
     for (it = mStreamOutList.begin(); it != mStreamOutList.end(); ++it) {
 
-        const AudioStreamOutALSA* pOut = *it;
+        AudioStreamOutALSA* pOut = *it;
 
         if (pOut == out) {
+
+            // Remove ALSA handle from list
+            mDeviceList.remove(pOut->mHandle);
+
+            // Delete the ALSA handle
+            delete pOut->mHandle;
+            pOut->mHandle = NULL;
 
             // Remove element
             mStreamOutList.erase(it);
@@ -586,60 +629,77 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 {
     AutoW lock(mLock);
 
+    LOGD("%s: IN", __FUNCTION__);
+
     status_t err = BAD_VALUE;
-    AudioStreamInALSA *in = 0;
+    AudioStreamInALSA* in = 0;
+    alsa_handle_t* pHandle = NULL;
     char str[PROPERTY_VALUE_MAX];
     float defaultGain = 0.0;
 
     mMicMuteState = false;
 
-    if (devices & (devices - 1)) {
-        if (status) *status = err;
-        return in;
+    if ((devices & (devices - 1)) || (!devices & AudioSystem::DEVICE_IN_ALL)) {
+
+        goto finish;
     }
-    LOGD("openInputStream IN channels:0x%x", *channels);
 
     property_get ("alsa.mixer.defaultGain",
             str,
             DEFAULTGAIN);
     defaultGain = strtof(str, NULL);
 
-    // Find the appropriate alsa device
-    for(ALSAHandleList::iterator it = mDeviceList.begin();
-            it != mDeviceList.end(); ++it)
-        if (it->devices & devices) {
+    if (!getAlsaHwDevice()) {
 
-            if (!getAlsaHwDevice()) {
+        LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
+        err = DEAD_OBJECT;
+        goto finish;
+    }
 
-                LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
-                err = DEAD_OBJECT;
-                break;
-            }
+    // Instantiante and initialize a new ALSA handle
+    pHandle = new alsa_handle_t;
 
-            err = getAlsaHwDevice()->initStream(&(*it), devices, mode());
-            if (err) {
-                LOGE("Open error.");
-                break;
-            }
-            in = new AudioStreamInALSA(this, &(*it), acoustics);
-            err = in->setGain(defaultGain);
-            if (err != NO_ERROR) {
-                LOGE("SetGain error.");
-                delete in;
-                in = NULL;
-                break;
-            }
-            err = in->set(format, channels, sampleRate);
-            if (err != NO_ERROR) {
-                LOGE("openInputStream Set err");
-                delete in;
-                in = NULL;
-                break;
-            }
-            break;
-        }
+    err = getAlsaHwDevice()->initStream(pHandle, devices, mode());
+    if (err) {
+
+        LOGE("%s: init Stream error.", __FUNCTION__);
+        goto finish;
+    }
+
+    in = new AudioStreamInALSA(this, pHandle, acoustics);
+
+    err = in->setGain(defaultGain);
+    if (err != NO_ERROR) {
+
+        LOGE("%s: setGain", __FUNCTION__);
+        goto finish;
+    }
+
+    err = in->set(format, channels, sampleRate);
+    if (err != NO_ERROR) {
+
+        LOGE("%s: Set err", __FUNCTION__);
+        goto finish;
+    }
+
+    // Add ALSA handle to the list
+    mDeviceList.push_back(pHandle);
+
+    // Add Stream Out to the list
+    mStreamInList.push_back(in);
+
+finish:
+    if (err) {
+
+        delete pHandle;
+        pHandle = NULL;
+
+        delete in;
+        in = NULL;
+    }
     if (status) *status = err;
-    LOGD("openInputStream OUT: status:%d",*status);
+
+    LOGD("%s: OUT", __FUNCTION__);
     return in;
 }
 
@@ -647,6 +707,32 @@ void
 AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
     mMicMuteState = false;
+
+    // Remove Out stream from the list
+
+    CAudioStreamInALSAListIterator it;
+
+    for (it = mStreamInList.begin(); it != mStreamInList.end(); ++it) {
+
+        AudioStreamInALSA* pIn = *it;
+
+        if (pIn == in) {
+
+            // Remove ALSA handle from list
+            mDeviceList.remove(pIn->mHandle);
+
+            // Delete the ALSA handle
+            delete pIn->mHandle;
+            pIn->mHandle = NULL;
+
+            // Remove element
+            mStreamInList.erase(it);
+
+            // Done
+            break;
+        }
+    }
+
     LOGD("closeInputStream");
     delete in;
 }

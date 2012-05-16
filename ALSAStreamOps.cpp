@@ -321,10 +321,6 @@ status_t ALSAStreamOps::standby()
     AutoW lock(mParent->mLock);
     LOGD("%s",__FUNCTION__);
 
-    if(!mHandle->handle) {
-        LOGD("handle not previously opened");
-    }
-
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
 
