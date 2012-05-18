@@ -39,6 +39,7 @@
 
 #define MAX_AGAIN_RETRY     2
 #define WAIT_TIME_MS        20
+#define WAIT_BEFORE_RETRY 10000 //10ms
 
 namespace android_audio_legacy
 {
@@ -171,7 +172,22 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         }
         else if (n < 0) {
             LOGE("write err: %s", snd_strerror(n));
-            err = snd_pcm_recover(mHandle->handle, n, 1);
+            for (unsigned int totalSleepTime = 0; totalSleepTime < mHandle->latency; totalSleepTime += WAIT_BEFORE_RETRY) {
+                err = snd_pcm_recover(mHandle->handle, n, 1);
+                if ((err == -EAGAIN) &&
+                    (mHandle->curDev & AudioSystem::DEVICE_OUT_AUX_DIGITAL)) {
+                    //When EPIPE occurs and snd_pcm_recover() function is invoked, in case of HDMI,
+                    //processing of this request is done at the interrupt boundary in driver code,
+                    //which would be responded by -EAGAIN till the interrupt boundary.
+                    //An error handling mechanism is provided here, which sends repeated requests for
+                    //recovery after a delay of 10ms each time till the "totalSleepTime" is less than
+                    //"Latency" (i.e. "PERIOD_TIME * 2" for Playback in normal mode).
+
+                    usleep(WAIT_BEFORE_RETRY);
+                }
+                else
+                    break;
+            }
             if(err != NO_ERROR) {
                 LOGE("pcm write recover error: %s", snd_strerror(n));
                 return err;
