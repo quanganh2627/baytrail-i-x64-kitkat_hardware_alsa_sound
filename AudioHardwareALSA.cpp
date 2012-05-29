@@ -604,19 +604,21 @@ AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
             // Remove ALSA handle from list
             mDeviceList.remove(pOut->mHandle);
 
-            // Delete the ALSA handle
-            delete pOut->mHandle;
-            pOut->mHandle = NULL;
+            // keep track of ALSA handle pointer
+            alsa_handle_t * pHandle = pOut->mHandle;
 
             // Remove element
             mStreamOutList.erase(it);
+
+            // Delete the stream and the ALSA handle
+            delete out;
+            out = NULL;
+            delete pHandle;
 
             // Done
             break;
         }
     }
-
-    delete out;
 }
 
 AudioStreamIn *
@@ -721,20 +723,22 @@ AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
             // Remove ALSA handle from list
             mDeviceList.remove(pIn->mHandle);
 
-            // Delete the ALSA handle
-            delete pIn->mHandle;
-            pIn->mHandle = NULL;
+            // keep track of ALSA handle pointer
+            alsa_handle_t * pHandle = pIn->mHandle;
 
             // Remove element
             mStreamInList.erase(it);
+
+            // Delete the stream and the ALSA handle
+            delete in;
+            in = NULL;
+            delete pHandle;
 
             // Done
             break;
         }
     }
-
     LOGD("closeInputStream");
-    delete in;
 }
 
 status_t AudioHardwareALSA::setMicMute(bool state)
