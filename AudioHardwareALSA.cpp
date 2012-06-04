@@ -1,4 +1,4 @@
-/* AudioHardwareALSA.cpp
+ /* AudioHArdwareALSA.cpp
  **
  ** Copyright 2008-2009 Wind River Systems
  **
@@ -867,6 +867,12 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
             LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
             getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
+            
+            // We reconsider routing as VPC_BT_NREC_ON intent is sent first, then setStreamParameters and finally
+	    // VPC_BT_NREC_OFF when the SCO link is enabled. But only VPC_BT_NREC_ON setting is applied in that
+            // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
+            // becomes necessary, to be aligned with VPC_BT_NREC_OFF to process the correct Audience profile.
+            mForceReconsiderInCallRoute = true;
         }
 
         // Remove parameter
@@ -903,8 +909,8 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         param.remove(key);
     }
 
-    // Reconsider the routing now in case of voice call or voice over IP call
-    if (mForceReconsiderInCallRoute && (audioMode() == AudioSystem::MODE_IN_CALL || audioMode() == AudioSystem::MODE_IN_COMMUNICATION)) {
+    // Reconsider the routing now in case of voice call or communication
+    if (mForceReconsiderInCallRoute && isInCallOrComm(audioMode())) {
 
         reconsiderRouting();
     }
@@ -1020,7 +1026,7 @@ void AudioHardwareALSA::reconsiderRouting() {
     {
         AudioStreamOutALSA* pOut = *it;
 
-        if (pOut->mHandle && pOut->mHandle->openFlag && !(pOut->mHandle->curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL))
+        if (pOut->mHandle && pOut->mHandle->openFlag)
         {
 
             // Ask the route manager to reconsider the routing
@@ -1216,6 +1222,13 @@ inline int AudioHardwareALSA::audioMode()
 void AudioHardwareALSA::forceMediaRoute(bool isForced)
 {
     mMSICVoiceRouteForcedOnMMRoute = isForced;
+}
+
+
+inline bool AudioHardwareALSA::isInCallOrComm(int audMode)
+{
+    return ((audMode == AudioSystem::MODE_IN_CALL) ||
+            (audMode == AudioSystem::MODE_IN_COMMUNICATION));
 }
 
 }       // namespace android

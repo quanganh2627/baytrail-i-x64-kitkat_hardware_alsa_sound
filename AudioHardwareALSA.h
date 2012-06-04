@@ -442,6 +442,9 @@ private:
     // set the force MM route flag
     void forceMediaRoute(bool isForced);
 
+    // Returns true if audio mode is in call or communication
+    bool isInCallOrComm(int audMode);
+
     RWLock                mLock;
     bool mMicMuteState;
 
@@ -467,8 +470,10 @@ private:
                 ALSA_CONF_DIRECTION_OUT,
 
                 ALSA_CONF_NB_DIRECTIONS
+
         };
     static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
+
     static const uint32_t DEFAULT_SAMPLE_RATE;
 
         // MODEM I2S PORTS
