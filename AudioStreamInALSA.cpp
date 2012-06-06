@@ -197,13 +197,14 @@ status_t AudioStreamInALSA::standby()
 
 void AudioStreamInALSA::resetFramesLost()
 {
-    AutoW lock(mParent->mLock);
-    mFramesLost = 0;
+	// setVoiceVolume and mixing during voice call cannot happen together
+	// need a lock; but deadlock may appear during simultaneous R or W
+	// so remove lock and the reset of mFramesLost which is never updated btw
 }
 
 unsigned int AudioStreamInALSA::getInputFramesLost() const
 {
-    unsigned int count = mFramesLost;
+    unsigned int count = mFramesLost;	//set to 0 during construction
     // Stupid interface wants us to have a side effect of clearing the count
     // but is defined as a const to prevent such a thing.
     ((AudioStreamInALSA *)this)->resetFramesLost();
