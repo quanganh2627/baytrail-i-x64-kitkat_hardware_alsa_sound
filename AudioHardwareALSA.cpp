@@ -512,10 +512,13 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
     LOGD("%s: in", __FUNCTION__);
 
     if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS) {
-
-        reconsiderRouting();
-
-        getFmHwDevice()->set_state(fm_mode);
+        if (fm_mode == AudioSystem::MODE_FM_ON) {
+            reconsiderRouting();
+            getFmHwDevice()->set_state(fm_mode);
+        } else {
+            getFmHwDevice()->set_state(fm_mode);
+            reconsiderRouting();
+        }
     }
 
     return NO_ERROR;
