@@ -46,12 +46,17 @@ namespace android_audio_legacy
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent, alsa_handle_t *handle) :
     ALSAStreamOps(parent, handle, "AudioOutLock"),
-    mFrameCount(0)
+    mFrameCount(0),
+    mEchoReference(NULL)
 {
 }
 
 AudioStreamOutALSA::~AudioStreamOutALSA()
 {
+    if(mEchoReference != NULL)
+    {
+        mEchoReference->write(mEchoReference, NULL);
+    }
     close();
 }
 
@@ -108,7 +113,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     }
 
     if(mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->mix_enable &&
-       mHandle->curMode == AudioSystem::MODE_IN_CALL) {
+            mHandle->curMode == AudioSystem::MODE_IN_CALL) {
         mParent->getVpcHwDevice()->mix_enable(true, mHandle->curDev);
     }
 
@@ -126,6 +131,9 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     char *dstBuf = NULL;
     status_t status;
 
+    // If needed, push echo reference
+    pushEchoReference(srcBuf, srcFrames);
+
     status = applyAudioConversion(srcBuf, (void**)&dstBuf, srcFrames, &dstFrames);
 
     if (status != NO_ERROR) {
@@ -141,6 +149,18 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     }
 
     return CAudioUtils::convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec);
+}
+
+void AudioStreamOutALSA::pushEchoReference(void *buffer, ssize_t frames)
+{
+    if (mEchoReference != NULL)
+    {
+        struct echo_reference_buffer b;
+        b.raw = (void *)buffer;
+        b.frame_count = frames;
+        getPlaybackDelay(b.frame_count, &b);
+        mEchoReference->write(mEchoReference, &b);
+    }
 }
 
 ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
@@ -180,7 +200,7 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
             for (unsigned int totalSleepTime = 0; totalSleepTime < mHandle->latency; totalSleepTime += WAIT_BEFORE_RETRY) {
                 err = snd_pcm_recover(mHandle->handle, n, 1);
                 if ((err == -EAGAIN) &&
-                    (mHandle->curDev & AudioSystem::DEVICE_OUT_AUX_DIGITAL)) {
+                        (mHandle->curDev & AudioSystem::DEVICE_OUT_AUX_DIGITAL)) {
                     //When EPIPE occurs and snd_pcm_recover() function is invoked, in case of HDMI,
                     //processing of this request is done at the interrupt boundary in driver code,
                     //which would be responded by -EAGAIN till the interrupt boundary.
@@ -281,6 +301,60 @@ status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
 bool AudioStreamOutALSA::isOut()
 {
     return true;
+}
+
+void AudioStreamOutALSA::addEchoReference(struct echo_reference_itfe * reference)
+{
+    ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
+    assert(reference != NULL);
+    AutoR lock(mParent->mLock);
+    mEchoReference = reference;
+}
+
+void AudioStreamOutALSA::removeEchoReference(struct echo_reference_itfe * reference)
+{
+    ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
+    AutoR lock(mParent->mLock);
+
+    if(mEchoReference == reference)
+    {
+        mEchoReference->write(mEchoReference, NULL);
+        mEchoReference = NULL;
+    }
+}
+
+int AudioStreamOutALSA::getPlaybackDelay(ssize_t frames, struct echo_reference_buffer * buffer)
+{
+    snd_pcm_sframes_t available_pcm_frames = 0;
+    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t period_size;
+    long kernel_delay = 0;
+    int status;
+
+    clock_gettime(CLOCK_REALTIME, &buffer->time_stamp);
+
+    available_pcm_frames = snd_pcm_avail(mHandle->handle);
+    if (available_pcm_frames < 0) {
+
+        ALOGE("%s: could not get delay", __FUNCTION__);
+        available_pcm_frames = 0;
+    }
+
+    status = snd_pcm_get_params(mHandle->handle, &buffer_size, &period_size);
+    if(status == 0) {
+
+        // available_pcm_frames is the number of frame ready to be written in the alsa buffer
+        // kernel delay is equal to the time spent to read the remaining frames
+        // within the alsa buffer.
+        kernel_delay = (buffer_size - available_pcm_frames) * CAudioUtils::CONVERT_USEC_TO_SEC / mHandle->sampleRate;
+    }
+
+    // adjust render time stamp with delay added by current driver buffer.
+    // Add the duration of current frame as we want the render time of the last
+    // sample being written.
+    buffer->delay_ns = kernel_delay + (long)(((int64_t)(frames) * CAudioUtils::CONVERT_USEC_TO_SEC) / sampleRate());
+
+    return 0;
 }
 
 }       // namespace android

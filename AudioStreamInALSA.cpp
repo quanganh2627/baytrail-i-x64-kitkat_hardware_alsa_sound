@@ -46,6 +46,14 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
     ALSAStreamOps(parent, handle, "AudioInLock"),
     mFramesLost(0),
     mAcoustics(audio_acoustics),
+    mFramesIn(0),
+    mProcessingFramesIn(0),
+    mProcessingBuffer(NULL),
+    mProcessingBufferSizeInFrames(0),
+    mReferenceFramesIn(0),
+    mReferenceBuffer(NULL),
+    mReferenceBufferSizeInFrames(0),
+    mPreprocessorsHandlerList(),
     mHwBuffer(NULL)
 {
     acoustic_device_t *aDev = acoustics();
@@ -57,18 +65,54 @@ AudioStreamInALSA::~AudioStreamInALSA()
 {
     freeAllocatedBuffers();
 
+    AutoW lock(mParent->mLock);
+    for (Vector<AudioEffectHandle>::iterator i = mPreprocessorsHandlerList.begin(); i != mPreprocessorsHandlerList.end(); i++)
+    {
+        if (i->mEchoReference != NULL)
+        {
+            /* stop reading from echo reference */
+            i->mEchoReference->read(i->mEchoReference, NULL);
+            mParent->resetEchoReference(i->mEchoReference);
+            i->mEchoReference = NULL;
+        }
+    }
+    mPreprocessorsHandlerList.clear();
     close();
+
+    free(mReferenceBuffer);
+
+    free(mProcessingBuffer);
 }
 
 void AudioStreamInALSA::freeAllocatedBuffers()
 {
-     delete []mHwBuffer;
-     mHwBuffer = NULL;
+    delete []mHwBuffer;
+    mHwBuffer = NULL;
 }
 
 status_t AudioStreamInALSA::setGain(float gain)
 {
     return mixer() ? mixer()->setMasterGain(gain) : (status_t)NO_INIT;
+}
+
+status_t AudioStreamInALSA::allocateProcessingMemory(ssize_t frames)
+{
+    mProcessingBufferSizeInFrames = frames;
+    mProcessingBuffer = (int16_t *)realloc(mProcessingBuffer,
+                                           CAudioUtils::convertFramesToBytes(mProcessingBufferSizeInFrames, mSampleSpec));
+    ALOGD("%s(frames=%ld): mProcessingBuffer=%p size extended to %ld frames (i.e. %ld bytes)",
+          __FUNCTION__,
+          frames,
+          mProcessingBuffer,
+          mProcessingBufferSizeInFrames,
+          CAudioUtils::convertFramesToBytes(mProcessingBufferSizeInFrames, mSampleSpec));
+
+    if(mProcessingBuffer == NULL) {
+
+        ALOGE(" %s(frames=%ld): realloc failed errno = %s!", __FUNCTION__, frames, strerror(errno));
+        return NO_MEMORY;
+    }
+    return NO_ERROR;
 }
 
 size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
@@ -163,6 +207,97 @@ ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
     return received_out_frames;
 }
 
+ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
+{
+    // first reload enough frames at the end of process input buffer
+    if (mProcessingFramesIn < frames)
+    {
+        if (mProcessingBufferSizeInFrames < frames)
+        {
+            status_t ret = allocateProcessingMemory(frames);
+            if (ret != NO_ERROR)
+            {
+                return ret;
+            }
+        }
+
+        ssize_t read_frames = readFrames((char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(mProcessingFramesIn, mSampleSpec),
+                                         frames - mProcessingFramesIn);
+        if (read_frames < 0)
+        {
+            return read_frames;
+        }
+        /* OK, we have to process all read frames */
+        mProcessingFramesIn += read_frames;
+        assert(mProcessingFramesIn >=  frames);
+    }
+
+    audio_buffer_t in_buf;
+    audio_buffer_t out_buf;
+    ssize_t processed_frames = 0;
+    ssize_t processing_frames_in = mProcessingFramesIn;
+    Vector<AudioEffectHandle>::const_iterator i;
+    int processingReturn = 0;
+
+    // Then process the frames
+    while ((processed_frames < frames) && (processingReturn == 0))
+    {
+        for (i = mPreprocessorsHandlerList.begin(); i != mPreprocessorsHandlerList.end(); i++)
+        {
+            if (i->mEchoReference != NULL)
+            {
+                pushEchoReference(processing_frames_in, i->mPreprocessor, i->mEchoReference);
+            }
+            // in_buf.frameCount and out_buf.frameCount indicate respectively
+            // the maximum number of frames to be consumed and produced by process()
+            in_buf.frameCount = processing_frames_in;
+            in_buf.s16 = (int16_t *)((char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(processed_frames, mSampleSpec));
+            out_buf.frameCount = frames - processed_frames;
+            out_buf.s16 = (int16_t *)((char* )buffer + CAudioUtils::convertFramesToBytes(processed_frames, mSampleSpec));
+
+            processingReturn = (*(i->mPreprocessor))->process(i->mPreprocessor, &in_buf, &out_buf);
+            if(processingReturn == 0)
+            {
+                //Note: it is useless to recopy the output of effect processing as input for the next effect processing
+                //because it is done in webrtc::audio_processing
+
+                // process() has updated the number of frames consumed and produced in
+                // in_buf.frameCount and out_buf.frameCount respectively
+                processing_frames_in -= in_buf.frameCount;
+                processed_frames += out_buf.frameCount;
+            }
+        }
+    }
+    // if effects processing failed, at least, it is necessary to return the read HW frames
+    if(processingReturn != 0)
+    {
+        ALOGD("%s: unable to apply any effect; returned value is %d", __FUNCTION__, processingReturn);
+        memcpy(buffer,
+               mProcessingBuffer,
+               CAudioUtils::convertFramesToBytes(mProcessingFramesIn, mSampleSpec));
+        processed_frames = mProcessingFramesIn;
+    }
+    else
+    {
+        // move remaining frames to the beginning of mProccesingBuffer because currently,
+        // the configuration imposes working with 160 frames and effects library works
+        // with 80 frames per cycle (10 ms), i.e. the processing of 160 read HW frames
+        // requests two calls to effects library (which are done by while loop. In future or
+        // if configuration changed, effects library processing could be not more multiple of
+        // HW read frames, so it is necessary to realign the buffer
+        if (processing_frames_in != 0)
+        {
+            memmove(mProcessingBuffer,
+                    (char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(processed_frames, mSampleSpec),
+                    CAudioUtils::convertFramesToBytes(processing_frames_in, mSampleSpec));
+        }
+    }
+    // at the end, we processed some processed_frames frames, so decrease the number of stored frames
+    mProcessingFramesIn -= processed_frames;
+
+    return processed_frames;
+}
+
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     AutoR lock(mParent->mLock);
@@ -219,7 +354,14 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     ssize_t received_frames = -1;
     ssize_t frames = CAudioUtils::convertBytesToFrames(bytes, mSampleSpec);
 
-    received_frames = readFrames(buffer, frames);
+    if (!mPreprocessorsHandlerList.empty())
+    {
+        received_frames = processFrames(buffer, frames);
+    }
+    else
+    {
+        received_frames = readFrames(buffer, frames);
+    }
 
     if (received_frames < 0) {
 
@@ -286,9 +428,9 @@ status_t AudioStreamInALSA::standby()
 
 void AudioStreamInALSA::resetFramesLost()
 {
-        // setVoiceVolume and mixing during voice call cannot happen together
-        // need a lock; but deadlock may appear during simultaneous R or W
-        // so remove lock and the reset of mFramesLost which is never updated btw
+    // setVoiceVolume and mixing during voice call cannot happen together
+    // need a lock; but deadlock may appear during simultaneous R or W
+    // so remove lock and the reset of mFramesLost which is never updated btw
 }
 
 unsigned int AudioStreamInALSA::getInputFramesLost() const
@@ -348,6 +490,254 @@ status_t AudioStreamInALSA::allocateHwBuffer()
     }
 
     return NO_ERROR;
+}
+
+status_t AudioStreamInALSA::addAudioEffect(effect_handle_t effect)
+{
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+
+    status_t ret = -EINVAL;
+    effect_descriptor_t desc;
+    echo_reference_itfe * reference = NULL;
+    bool isAlreadyPresent = false;
+
+    assert(effect != NULL);
+
+    AutoW lock(mParent->mLock);
+    int status = (*effect)->get_descriptor(effect, &desc);
+    if (status == 0)
+    {
+        if (memcmp(&desc.type, FX_IID_AEC, sizeof(effect_uuid_t)) == 0)
+        {
+            ALOGD("%s (effect=%p): fine: effect is AEC", __FUNCTION__, effect);
+            reference = mParent->getEchoReference(format(), channelCount(), sampleRate());
+        }
+        //audio effects processing is very costy in term of CPU, so useless to add the same effect more than one time
+        for (Vector<AudioEffectHandle>::const_iterator i = mPreprocessorsHandlerList.begin(); i != mPreprocessorsHandlerList.end(); i++)
+        {
+            if(i->mPreprocessor == effect)
+            {
+                isAlreadyPresent = true;
+                break;
+            }
+        }
+
+        if (!isAlreadyPresent)
+        {
+            if(mPreprocessorsHandlerList.add(AudioEffectHandle(effect, reference)) < 0)
+            {
+                ALOGE("%s (effect=%p): unable to add effect!", __FUNCTION__, effect);
+                ret = -ENOMEM;
+            }
+            else
+            {
+                ALOGD("%s (effect=%p): effect added. number of stored effects is %d", __FUNCTION__, effect, mPreprocessorsHandlerList.size());
+                ret = NO_ERROR;
+            }
+        }
+        else
+        {
+            ALOGW("%s (effect=%p): it is useless to add again the same effect", __FUNCTION__, effect);
+            ret = NO_ERROR;
+        }
+
+    }
+    else
+    {
+        ret = -EINVAL;
+    }
+
+    return ret;
+}
+
+status_t AudioStreamInALSA::removeAudioEffect(effect_handle_t effect)
+{
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    status_t ret = -EINVAL;
+
+    assert(effect != NULL);
+
+    AutoW lock(mParent->mLock);
+    for (Vector<AudioEffectHandle>::iterator i = mPreprocessorsHandlerList.begin(); i != mPreprocessorsHandlerList.end(); i++)
+    {
+        if(i->mPreprocessor == effect)
+        {
+            ALOGD("%s (effect=%p): effect has been found. number of effects before erase %d", __FUNCTION__, effect, mPreprocessorsHandlerList.size());
+            if (i->mEchoReference != NULL)
+            {
+                /* stop reading from echo reference */
+                i->mEchoReference->read(i->mEchoReference, NULL);
+                mParent->resetEchoReference(i->mEchoReference);
+                i->mEchoReference = NULL;
+            }
+
+            mPreprocessorsHandlerList.erase(i);
+            ALOGD("%s (effect=%p): number of effects after erase %d", __FUNCTION__, effect, mPreprocessorsHandlerList.size());
+
+            ret = NO_ERROR;
+            break; // it is possible to break here because it is not possible to add twice or more times the same effect to handler list.
+        }
+    }
+    return ret;
+}
+
+void AudioStreamInALSA::getCaptureDelay(struct echo_reference_buffer * buffer)
+{
+    snd_pcm_sframes_t available_pcm_frames;
+    long buf_delay;
+    long rsmp_delay;
+    long kernel_delay;
+    long delay_ns;
+
+    assert(buffer != NULL);
+
+    clock_gettime(CLOCK_REALTIME, &buffer->time_stamp);
+
+    available_pcm_frames = snd_pcm_avail(mHandle->handle);
+    if (available_pcm_frames < 0) {
+
+        ALOGE("%s: could not get delay", __FUNCTION__);
+        available_pcm_frames = 0;
+    }
+
+    // read frames available in audio HAL input buffer
+    // add number of frames being read as we want the capture time of first sample
+    // in current buffer.
+    buf_delay = (long)(((int64_t)(mFramesIn + mProcessingFramesIn) * CAudioUtils::CONVERT_USEC_TO_SEC) / sampleRate());
+
+    // add delay introduced by kernel
+    kernel_delay = (long)(((int64_t)available_pcm_frames * CAudioUtils::CONVERT_USEC_TO_SEC) / mHandle->sampleRate);
+
+    /* add delay introduced by resampler */
+    rsmp_delay = 0;
+
+    delay_ns = kernel_delay + buf_delay + rsmp_delay;
+
+    buffer->delay_ns = delay_ns;
+}
+
+int32_t AudioStreamInALSA::updateEchoReference(ssize_t frames, struct echo_reference_itfe * reference)
+{
+    struct echo_reference_buffer b;
+
+    assert(reference != NULL);
+
+    b.delay_ns = 0;
+
+    if (mReferenceFramesIn < frames)
+    {
+        if (mReferenceBufferSizeInFrames < frames)
+        {
+            mReferenceBufferSizeInFrames = frames;
+            mReferenceBuffer = (int16_t *)realloc(mReferenceBuffer,
+                                                  CAudioUtils::convertFramesToBytes(mReferenceBufferSizeInFrames, mSampleSpec));
+            if(mReferenceBuffer == NULL)
+            {
+                ALOGE(" %s(frames=%ld): realloc failed errno = %s!", __FUNCTION__, frames, strerror(errno));
+                return errno;
+            }
+        }
+
+        b.frame_count = frames - mReferenceFramesIn;
+        b.raw = (void *)((char* )mReferenceBuffer +
+                         CAudioUtils::convertFramesToBytes(mReferenceFramesIn, mSampleSpec));
+
+        getCaptureDelay(&b);
+
+        if (reference->read(reference, &b) == 0)
+        {
+            mReferenceFramesIn += b.frame_count;
+        }
+        else
+        {
+            ALOGW("%s: NOT enough frames to read ref buffer", __FUNCTION__);
+        }
+    }
+    return b.delay_ns;
+}
+
+status_t AudioStreamInALSA::pushEchoReference(ssize_t frames, effect_handle_t preprocessor, struct echo_reference_itfe * reference)
+{
+    /* read frames from echo reference buffer and update echo delay
+     * mReferenceFramesIn is updated with frames available in mReferenceBuffer */
+    int32_t delay_us = updateEchoReference(frames, reference) / 1000;
+
+    assert(preprocessor != NULL);
+    assert(reference != NULL);
+
+    if (mReferenceFramesIn < frames)
+        frames = mReferenceFramesIn;
+
+    status_t processingReturn = -EINVAL;
+
+    if ((*preprocessor)->process_reverse == NULL)
+    {
+        ALOGW(" %s(frames %ld): process_reverse is NULL", __FUNCTION__, frames);
+    }
+    else
+    {
+        audio_buffer_t buf;
+
+        buf.frameCount = mReferenceFramesIn;
+        buf.s16 = mReferenceBuffer;
+
+        processingReturn = (*preprocessor)->process_reverse(preprocessor,
+                                                            &buf,
+                                                            NULL);
+        setPreprocessorEchoDelay(preprocessor, delay_us);
+        mReferenceFramesIn -= buf.frameCount;
+
+        if (mReferenceFramesIn > 0)
+        {
+            memcpy(mReferenceBuffer,
+                   (char* )mReferenceBuffer + CAudioUtils::convertFramesToBytes(buf.frameCount, mSampleSpec),
+                   CAudioUtils::convertFramesToBytes(mReferenceFramesIn, mSampleSpec));
+        }
+    }
+    return(processingReturn);
+}
+
+status_t AudioStreamInALSA::setPreprocessorParam(effect_handle_t handle, effect_param_t *param)
+{
+    assert (handle != NULL);
+    assert (param != NULL);
+
+    status_t ret = -EINVAL;
+    uint32_t size = sizeof(int);
+    uint32_t psize = ((param->psize - 1) / sizeof(int) + 1) * sizeof(int) + param->vsize;
+
+    ret = (*handle)->command(handle,
+                             EFFECT_CMD_SET_PARAM,
+                             sizeof (effect_param_t) + psize,
+                             param,
+                             &size,
+                             &param->status);
+    if (ret == 0)
+    {
+        ret = param->status;
+    }
+    return ret;
+}
+
+status_t AudioStreamInALSA::setPreprocessorEchoDelay(effect_handle_t handle,
+                                                     int32_t delay_us)
+{
+    assert(handle != NULL);
+    /** effect_param_t contains extensible field "data"
+     * in our case, it is necessary to "allocate" memory to store
+     * AEC_PARAM_ECHO_DELAY and delay_us as uint32_t
+     * so, computation of "allocated" memory is size of
+     * effect_param_t in uint32_t + 2
+     */
+    uint32_t buf[sizeof(effect_param_t) / sizeof(uint32_t) + 2];
+    effect_param_t *param = (effect_param_t *)buf;
+
+    param->psize = sizeof(uint32_t);
+    param->vsize = sizeof(uint32_t);
+    *(uint32_t *)param->data = AEC_PARAM_ECHO_DELAY;
+    *((int32_t *)param->data + 1) = delay_us;
+
+    return setPreprocessorParam(handle, param);
 }
 
 }       // namespace android

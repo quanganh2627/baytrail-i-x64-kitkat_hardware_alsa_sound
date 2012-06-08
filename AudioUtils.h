@@ -45,6 +45,11 @@ public:
     // to AudioSystem enum
     static int convertSndToHalFormat(snd_pcm_format_t format);
 
+    /**
+      * Constante used during convert of frames to delays in micro-seconds (us).
+      * It is used for delays computation of AEC effect
+      */
+    static const uint32_t CONVERT_USEC_TO_SEC = 1000000000;
 };
 
 // ----------------------------------------------------------------------------

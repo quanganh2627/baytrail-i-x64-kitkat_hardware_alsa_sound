@@ -12,7 +12,9 @@ LOCAL_C_INCLUDES += \
     external/alsa-lib/include \
     external/stlport/stlport/ \
     bionic/libstdc++ \
-    bionic/
+    bionic/ \
+    system/media/audio_utils/include \
+    system/media/audio_effects/include
 
 LOCAL_C_INCLUDES += \
     hardware/intel/IFX-modem \
@@ -92,6 +94,7 @@ LOCAL_SHARED_LIBRARIES := \
     libicuuc \
     libat-manager \
     libaudioresample \
+    libaudioutils \
     libmodem-audio-manager
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)

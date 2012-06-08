@@ -32,6 +32,10 @@
 
 #include <utils/threads.h>
 
+#include <hardware/audio_effect.h>
+#include <audio_utils/echo_reference.h>
+#include <audio_effects/effect_aec.h>
+
 #include "AudioHardwareALSACommon.h"
 #include "AudioUtils.h"
 #include "SampleSpec.h"
@@ -239,15 +243,24 @@ public:
     status_t            open(int mode);
     status_t            close();
 
+    void addEchoReference(struct echo_reference_itfe * reference);
+    void removeEchoReference(struct echo_reference_itfe * reference);
+
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA &);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
 
     size_t              generateSilence(size_t bytes);
 
+    int                 getPlaybackDelay (ssize_t frames, struct echo_reference_buffer * buffer);
+
     ssize_t             writeFrames(void* buffer, ssize_t frames);
 
+    void                pushEchoReference(void* buffer, ssize_t frames);
+
     uint32_t            mFrameCount;
+
+    struct echo_reference_itfe *mEchoReference;
 };
 
 class AudioStreamInALSA : public AudioStreamIn, public ALSAStreamOps
@@ -305,8 +318,20 @@ public:
 
     status_t            open(int mode);
     status_t            close();
-    virtual status_t addAudioEffect(effect_handle_t effect) { return NO_ERROR; };
-    virtual status_t removeAudioEffect(effect_handle_t effect) { return NO_ERROR; };
+    virtual status_t    addAudioEffect(effect_handle_t effect);
+    virtual status_t    removeAudioEffect(effect_handle_t effect);
+
+    class AudioEffectHandle
+    {
+    public:
+        effect_handle_t mPreprocessor;
+        struct echo_reference_itfe *mEchoReference;
+        AudioEffectHandle():
+            mPreprocessor(NULL), mEchoReference(NULL) {}
+        AudioEffectHandle(effect_handle_t effect, struct echo_reference_itfe * reference):
+            mPreprocessor(effect), mEchoReference(reference) {}
+        ~AudioEffectHandle() {}
+    };
 
 private:
     AudioStreamInALSA(const AudioStreamInALSA &);
@@ -324,10 +349,54 @@ private:
 
     status_t            allocateProcessingMemory(ssize_t frames);
 
+    ssize_t             processFrames(void* buffer, ssize_t frames);
+
+    void                getCaptureDelay (struct echo_reference_buffer * buffer);
+
+    int32_t             updateEchoReference(ssize_t frames, struct echo_reference_itfe * reference);
+
+    status_t            pushEchoReference(ssize_t frames, effect_handle_t preprocessor, struct echo_reference_itfe * reference);
+
+    status_t            setPreprocessorParam (effect_handle_t handle, effect_param_t *param);
+
+    status_t            setPreprocessorEchoDelay(effect_handle_t handle, int32_t delay_us);
+
     inline status_t     allocateHwBuffer();
 
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;
+
+    ssize_t mFramesIn;
+    /**
+      * This variable represents the number of frames of in mProcessingBuffer
+      */
+    ssize_t mProcessingFramesIn;
+    /**
+      * This variable is a dynamic buffer and contains raw data read from input device.
+      * It is used as input buffer before application of SW accoustics effects.
+      */
+    int16_t* mProcessingBuffer;
+    /**
+      * This variable represents the size in frames of in mProcessingBuffer
+      */
+    ssize_t mProcessingBufferSizeInFrames;
+    /**
+      * This variable represents the number of frames of in mReferenceBuffer
+      */
+    ssize_t mReferenceFramesIn;
+    /**
+      * This variable is a dynamic buffer and contains the data used as reference for AEC and
+      * which are read from AudioEffectHandle::mEchoReference
+      */
+    int16_t* mReferenceBuffer;
+    /**
+      * This variable represents the size in frames of in mReferenceBuffer
+      */
+    ssize_t mReferenceBufferSizeInFrames;
+    /**
+      * It is vector which contains the handlers to accoustics effects.
+      */
+    Vector <AudioEffectHandle> mPreprocessorsHandlerList;
 
     char* mHwBuffer;
     ssize_t mHwBufferSize;
@@ -390,21 +459,21 @@ public:
 
     /** This method creates and opens the audio hardware output stream */
     virtual AudioStreamOut* openOutputStream(
-        uint32_t devices,
-        int *format=0,
-        uint32_t *channels=0,
-        uint32_t *sampleRate=0,
-        status_t *status=0);
+            uint32_t devices,
+            int *format=0,
+            uint32_t *channels=0,
+            uint32_t *sampleRate=0,
+            status_t *status=0);
     virtual    void        closeOutputStream(AudioStreamOut* out);
 
     /** This method creates and opens the audio hardware input stream */
     virtual AudioStreamIn* openInputStream(
-        uint32_t devices,
-        int *format,
-        uint32_t *channels,
-        uint32_t *sampleRate,
-        status_t *status,
-        AudioSystem::audio_in_acoustics acoustics);
+            uint32_t devices,
+            int *format,
+            uint32_t *channels,
+            uint32_t *sampleRate,
+            status_t *status,
+            AudioSystem::audio_in_acoustics acoustics);
     virtual    void        closeInputStream(AudioStreamIn* in);
 
     /**This method dumps the state of the audio hardware */
@@ -434,6 +503,10 @@ protected:
     acoustic_device_t* getAcousticHwDevice() const;
 
     bool isReconsiderRoutingForced() { return mForceReconsiderInCallRoute; }
+
+    void resetEchoReference(struct echo_reference_itfe * reference);
+
+    struct echo_reference_itfe * getEchoReference(int format, uint32_t channel_count, uint32_t sampling_rate);
 
     friend class CAudioConverter;
     friend class AudioStreamOutALSA;
@@ -497,28 +570,28 @@ private:
 
     static const hw_module hw_module_list[NB_HW_DEV];
 
-        // Defines tuning parameters in PFW XML config files and default values
-        // ALSA PLATFORM CONFIGURATION
-        enum ALSA_CONF_DIRECTION {
-                ALSA_CONF_DIRECTION_IN,
-                ALSA_CONF_DIRECTION_OUT,
+    // Defines tuning parameters in PFW XML config files and default values
+    // ALSA PLATFORM CONFIGURATION
+    enum ALSA_CONF_DIRECTION {
+        ALSA_CONF_DIRECTION_IN,
+        ALSA_CONF_DIRECTION_OUT,
 
-                ALSA_CONF_NB_DIRECTIONS
+        ALSA_CONF_NB_DIRECTIONS
 
-        };
+    };
     static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
 
     static const uint32_t DEFAULT_SAMPLE_RATE;
     static const uint32_t DEFAULT_CHANNEL_COUNT;
     static const uint32_t DEFAULT_FORMAT;
 
-        // MODEM I2S PORTS
-        enum IFX_IS2S_PORT {
-                IFX_I2S1_PORT,
-                IFX_I2S2_PORT,
+    // MODEM I2S PORTS
+    enum IFX_IS2S_PORT {
+        IFX_I2S1_PORT,
+        IFX_I2S2_PORT,
 
-                IFX_NB_I2S_PORT
-        };
+        IFX_NB_I2S_PORT
+    };
     static const char* const gapcModemPortClockSelection[IFX_NB_I2S_PORT];
     static const uint32_t DEFAULT_IFX_CLK_SELECT;
 
@@ -606,6 +679,8 @@ private:
 
     // Indicate if platform embeds an Audience chip. required for acoustics effects
     bool mHaveAudience;
+
+    struct echo_reference_itfe *mEchoReference;
 };
 
 // ----------------------------------------------------------------------------

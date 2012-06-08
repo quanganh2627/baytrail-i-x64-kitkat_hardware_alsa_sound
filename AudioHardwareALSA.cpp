@@ -54,12 +54,12 @@ namespace android_audio_legacy
 {
 extern "C"
 {
-    //
-    // Function for dlsym() to look up for creating a new AudioHardwareInterface.
-    //
-    AudioHardwareInterface *createAudioHardware(void) {
-        return AudioHardwareALSA::create();
-    }
+//
+// Function for dlsym() to look up for creating a new AudioHardwareInterface.
+//
+AudioHardwareInterface *createAudioHardware(void) {
+    return AudioHardwareALSA::create();
+}
 }         // extern "C"
 
 #define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
@@ -198,7 +198,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mIsBluetoothEnabled(false),
     mOutputDevices(0),
     mHwMode(AudioSystem::MODE_NORMAL),
-    mLatchedAndroidMode(AudioSystem::MODE_NORMAL)
+    mLatchedAndroidMode(AudioSystem::MODE_NORMAL),
+    mEchoReference(NULL)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -265,7 +266,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     if (getAlsaHwDevice()) {
 
         getAlsaHwDevice()->init(getAlsaHwDevice(), getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
-            getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_OUT], false, DEFAULT_SAMPLE_RATE));
+                                getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_OUT], false, DEFAULT_SAMPLE_RATE));
     }
 
     if (getVpcHwDevice()) {
@@ -573,7 +574,7 @@ finish:
 void
 AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
-   // Remove output stream from the list
+    // Remove output stream from the list
 
     CAudioStreamOutALSAListIterator it;
 
@@ -629,8 +630,8 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     }
 
     property_get ("alsa.mixer.defaultGain",
-            str,
-            DEFAULTGAIN);
+                  str,
+                  DEFAULTGAIN);
     defaultGain = strtof(str, NULL);
 
     if (!getAlsaHwDevice()) {
@@ -1027,10 +1028,10 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
         } else {
 
-           // Input devices changed
+            // Input devices changed
 
-           // Warn PFW
-           mSelectedInputDevice->setCriterionState(devices);
+            // Warn PFW
+            mSelectedInputDevice->setCriterionState(devices);
         }
 
         std::string strError;
@@ -1266,6 +1267,91 @@ void AudioHardwareALSA::latchAndroidMode()
 
     // Apply accessibility rules that depends on AndroidMode
     applyRouteAccessibilityRules(EAndroidModeChange);
+}
+/**
+  * the purpose of this function is
+  * - to stop the processing (i.e. writing of playback frames as echo reference for
+  * for AEC effect) in AudioSteamOutALSA
+  * - reset locally stored echo reference
+  * @par reference: pointer to echo reference to reset
+  * @return none
+  */
+void AudioHardwareALSA::resetEchoReference(struct echo_reference_itfe * reference)
+{
+    ALOGD(" %s(reference=%p)", __FUNCTION__, reference);
+    if (mEchoReference != NULL && reference == mEchoReference)
+    {
+        if(mStreamOutList.empty())
+        {
+            ALOGE("%s: list of output streams is empty, i.e. AEC effect did not have necessary provide data reference!", __FUNCTION__);
+        }
+        else
+        {
+            if (mStreamOutList.size() > 1)
+            {
+                ALOGW("%s: list of output streams contains more than 1 stream, take 1st one as data reference", __FUNCTION__);
+            }
+            //by default, we use the first stream in list
+            AudioStreamOutALSA* pOut = *(mStreamOutList.begin());
+            pOut->removeEchoReference(reference);
+        }
+        release_echo_reference(reference);
+        mEchoReference = NULL;
+    }
+}
+
+/**
+  * the purpose of this function is
+  * - create echo_reference_itfe using input stream and output stream parameters
+  * - add echo_reference_itfs to AudioSteamOutALSA which will use it for providing playback frames as echo reference for AEC effect
+  * - store locally the created reference
+  * - return created echo_reference_itfe to caller (i.e. AudioSteamInALSA)
+  * Note: created echo_reference_itfe is used as backlink between playback which provides reference of output data and record which applies AEC effect
+  * @par format: input stream format
+  * @par channel_count: input stream channels count
+  * @par sampling_rate: input stream sampling rate
+  * @return NULL is creation of echo_reference_itfe failed overwise, pointer to created echo_reference_itfe
+  */
+struct echo_reference_itfe * AudioHardwareALSA::getEchoReference(int format, uint32_t channel_count, uint32_t sampling_rate)
+{
+    ALOGD("%s ()", __FUNCTION__);
+    resetEchoReference(mEchoReference);
+
+    if(mStreamOutList.empty())
+    {
+        ALOGE("%s: list of output streams is empty, so problem to provide data reference for AEC effect!", __FUNCTION__);
+    }
+    else
+    {
+        if (mStreamOutList.size() > 1)
+        {
+            ALOGW("%s: list of output streams is empty, i.e. AEC effect did not have necessary provide data reference!", __FUNCTION__);
+        }
+        //by default, we use the first stream in list
+        AudioStreamOutALSA* pOut = *(mStreamOutList.begin());
+
+        int wr_format = pOut->format();
+        uint32_t wrChannelCount = pOut->channelCount();
+        uint32_t wrSampleRate = AudioHardwareALSA::DEFAULT_SAMPLE_RATE;
+
+        if (create_echo_reference((audio_format_t)format,
+                                  channel_count,
+                                  sampling_rate,
+                                  (audio_format_t)wr_format,
+                                  wrChannelCount,
+                                  wrSampleRate,
+                                  &mEchoReference) < 0)
+        {
+            ALOGE("%s: Could not create echo reference", __FUNCTION__);
+            mEchoReference = NULL;
+        }
+        else
+        {
+            pOut->addEchoReference(mEchoReference);
+        }
+    }
+    ALOGD(" %s() will return that mEchoReference=%p", __FUNCTION__, mEchoReference);
+    return mEchoReference;
 }
 
 }       // namespace android
