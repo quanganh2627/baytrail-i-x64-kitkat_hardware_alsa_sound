@@ -136,6 +136,48 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                         break;
                 }
             }
+
+            break;
+
+        case STRATEGY_ENFORCED_AUDIBLE:
+            {
+                AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mHardwareOutput);
+                uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
+
+                LOGD("Enforced audible stream will be output on current device + speaker");
+
+                // If the earpiece is used for the ongoing call, then add it to the output devices
+                if(isInCall() && currentDevice == AudioSystem::DEVICE_OUT_EARPIECE) {
+                    device |= AudioSystem::DEVICE_OUT_EARPIECE;
+                }
+
+                // Strip the earpiece from the output devices when we output on HDMI or WIDI
+                if (isInCall() && hasEarpiece() &&
+                    (mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_AUX_DIGITAL |
+                                                AudioSystem::DEVICE_OUT_WIDI_LOOPBACK))) {
+                    device &= ~(AudioSystem::DEVICE_OUT_EARPIECE);
+                }
+            }
+        // FALL THROUGH
+        case STRATEGY_SONIFICATION:
+        case STRATEGY_SONIFICATION_LOCAL:
+                if (getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
+                    //in this case play only on local - limitation of our HW cannot play on both sco+ihf
+                    device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
+                }
+                break;
+
+        case STRATEGY_MEDIA:
+            if (getForceUse(AudioSystem::FOR_MEDIA) == AudioSystem::FORCE_BT_SCO) {
+                device = mAvailableOutputDevices & (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT |
+                                                                AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET |
+                                                                AudioSystem::DEVICE_OUT_BLUETOOTH_SCO);
+                if (device != 0) {
+                    LOGD("Request to play on BT SCO device");
+                } else {
+                    LOGE("%s- BT SCO device not found", __FUNCTION__);
+                }
+            }
             break;
          default:
             // do nothing

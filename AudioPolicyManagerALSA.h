@@ -36,6 +36,8 @@ public:
     AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface);
     virtual ~AudioPolicyManagerALSA();
 
+    //Derived audio policy methods
+
     // Gets audio input handle from current input source and parameters
     virtual audio_io_handle_t getInput(int inputSource,
                                        uint32_t samplingRate,

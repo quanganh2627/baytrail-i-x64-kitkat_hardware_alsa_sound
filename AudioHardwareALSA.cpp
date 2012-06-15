@@ -192,13 +192,13 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mXCallstatCmd(NULL),
     mModemCallActive(false),
     mModemAvailable(false),
-    mMSICVoiceRouteForcedOnMMRoute(false),
     mStreamOutList(NULL),
     mStreamInList(NULL),
     mForceReconsiderInCallRoute(false),
     mCurrentTtyDevice(VPC_TTY_OFF),
     mCurrentHACSetting(VPC_HAC_OFF),
-    mIsBluetoothEnabled(false)
+    mIsBluetoothEnabled(false),
+    mOutputDevices(0)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -484,7 +484,6 @@ status_t AudioHardwareALSA::setMode(int mode)
 
         // Refresh VPC mode
         if (getVpcHwDevice() && getVpcHwDevice()->set_mode) {
-
             getVpcHwDevice()->set_mode(mode);
         }
 
@@ -930,7 +929,7 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     }
 
     // Reconsider the routing now in case of voice call or communication
-    if (mForceReconsiderInCallRoute && isInCallOrComm(audioMode())) {
+    if (mForceReconsiderInCallRoute && isInCallOrComm()) {
 
         reconsiderRouting();
     }
@@ -967,11 +966,16 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
     LOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
 
+    if (bForOutput) {
+        mOutputDevices = devices;
+    }
+
     // VPC params
     // Refreshed only on out stream changes
     if (devices && getVpcHwDevice() && getVpcHwDevice()->params && bForOutput) {
 
-        status = getVpcHwDevice()->params(mode(), (uint32_t)devices);
+        // Pass audio mode translated to VPC, in case a multimedia path is needed during call
+        status = getVpcHwDevice()->params(audioMode(), (uint32_t)devices);
 
         if (status != NO_ERROR) {
 
@@ -1072,11 +1076,6 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
 
     switch(mode()) {
     case AudioSystem::MODE_IN_CALL:
-
-        // Mode in call but ModemCallActive is false => route on Media path
-        // Mode in call, ModemCallActive is true => route on Voice path
-        forceMediaRoute(!mModemCallActive);
-
         if (!mModemAvailable) {
             /* NOTE:
              * Side effect of delaying setMode(NORMAL) once call is finished in case of modem reset
@@ -1193,6 +1192,11 @@ void AudioHardwareALSA::onModemXCmdReceived()
             getVpcHwDevice()->set_call_status(mModemCallActive);
         }
 
+        // Refresh VPC mode to reflect HAL audio mode
+        if (getVpcHwDevice() && getVpcHwDevice()->set_mode) {
+            getVpcHwDevice()->set_mode(audioMode());
+        }
+
         // Re-evaluate accessibility of the audio routes
         applyRouteAccessibilityRules(ECallStatusChange);
 
@@ -1236,26 +1240,23 @@ void  AudioHardwareALSA::onModemStateChanged() {
     ALOGD("%s: out", __FUNCTION__);
 }
 
-inline int AudioHardwareALSA::audioMode()
+inline int AudioHardwareALSA::audioMode() const
 {
-    //
-    // The mode to be set is matching the mode of AudioHAL
-    // EXCEPT when we are in call and the audio route is forced on MM
-    //
-    return (mMSICVoiceRouteForcedOnMMRoute && mode() == AudioSystem::MODE_IN_CALL)?
-                        AudioSystem::MODE_NORMAL : mode();
+    LOGD("%s() use of media path depends on : mode = %d ,nb of output devices = %d ,mModemCallActive = %d",
+         __FUNCTION__, mode(), popcount(mOutputDevices), mModemCallActive);
+
+    // When we are in mode "in call", but the modem audio path is still not available,
+    // or if a multimedia stream is output on several devices (e.g. speaker + headset)
+    // during a call or a communication (like the camera shutter sound), the media
+    // route (normal mode) is forced so that the audio dual route is correctly chosen.
+    return ((mode() == AudioSystem::MODE_IN_CALL && !mModemCallActive) ||
+            (popcount(mOutputDevices) > 1 && isInCallOrComm())) ? AudioSystem::MODE_NORMAL : mode();
 }
 
-void AudioHardwareALSA::forceMediaRoute(bool isForced)
+inline bool AudioHardwareALSA::isInCallOrComm() const
 {
-    mMSICVoiceRouteForcedOnMMRoute = isForced;
-}
-
-
-inline bool AudioHardwareALSA::isInCallOrComm(int audMode)
-{
-    return ((audMode == AudioSystem::MODE_IN_CALL) ||
-            (audMode == AudioSystem::MODE_IN_COMMUNICATION));
+  return ((mode() == AudioSystem::MODE_IN_CALL) ||
+          (mode() == AudioSystem::MODE_IN_COMMUNICATION));
 }
 
 }       // namespace android
