@@ -63,7 +63,6 @@ extern "C"
 }         // extern "C"
 
 #define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
-#define MAX_WAIT_ACK_SECONDS    2
 
 // Defines path to parameters in PFW XML config files
 const char* const AudioHardwareALSA::gapcDefaultSampleRates [AudioHardwareALSA::ALSA_CONF_NB_DIRECTIONS] = {
@@ -300,7 +299,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
 #endif
 
     // Starts the modem state listener
-    if(mATManager->start(AUDIO_AT_CHANNEL_NAME, MAX_WAIT_ACK_SECONDS)) {
+    if(mATManager->start(AUDIO_AT_CHANNEL_NAME)) {
         LOGE("AudioHardwareALSA: could not start modem state listener");
     }
 }
