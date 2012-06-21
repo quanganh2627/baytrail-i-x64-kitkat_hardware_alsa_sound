@@ -304,6 +304,16 @@ void ALSAStreamOps::close()
 void ALSAStreamOps::doClose()
 {
     LOGD("ALSAStreamOps::doClose");
+
+    if(mHandle->handle)
+    {
+        //if BT SCO path is used in normal mode: disable bt sco path
+        if(isBluetoothScoNormalInUse())
+        {
+            mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_CLOSE);
+        }
+    }
+
     mParent->getAlsaHwDevice()->close(mHandle);
 
     releasePowerLock();
@@ -322,10 +332,19 @@ status_t ALSAStreamOps::standby()
     LOGD("%s",__FUNCTION__);
 
     if(mHandle->handle)
+    {
         snd_pcm_drain (mHandle->handle);
 
+        //if BT SCO path is used in normal mode: disable bt sco path
+        if(isBluetoothScoNormalInUse())
+        {
+            mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_CLOSE);
+        }
+    }
     if(mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->mix_disable)
         mParent->getVpcHwDevice()->mix_disable(isOut());
+
+
 
     if(mParent->getAlsaHwDevice() && mParent->getAlsaHwDevice()->standby)
         mParent->getAlsaHwDevice()->standby(mHandle);
@@ -355,6 +374,14 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
     status_t err = BAD_VALUE;
     err = mParent->getAlsaHwDevice()->open(mHandle, devices, mode, mParent->getFmRxMode());
 
+    if(err == NO_ERROR)
+    {
+        //if BT SCO path is used in normal mode: enable bt sco path
+        if(isBluetoothScoNormalInUse())
+        {
+            mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_OPEN);
+        }
+    }
 
     LOGD("ALSAStreamOps::open");
     return err;
@@ -553,6 +580,24 @@ void ALSAStreamOps::restorePmDownDelay()
     }
     else
         LOGD("restorePmDownDelay -> nothing to do");
+}
+
+bool ALSAStreamOps::isDeviceBluetoothSCO(uint32_t devices)
+{
+    if(isOut())
+    {
+        return (bool)(devices & DEVICE_OUT_BLUETOOTH_SCO_ALL);
+    }
+    else
+    {
+        return (devices == AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET);
+    }
+}
+
+bool ALSAStreamOps::isBluetoothScoNormalInUse()
+{
+    return (mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->set_bt_sco_path &&
+            isDeviceBluetoothSCO(mHandle->curDev) && (mHandle->curMode == AudioSystem::MODE_NORMAL));
 }
 
 void ALSAStreamOps::acquirePowerLock()

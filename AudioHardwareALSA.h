@@ -165,6 +165,8 @@ private:
 
     void        writeSysEntry(const char* filePath, int value);
     int         readSysEntry(const char* filePath);
+    bool        isDeviceBluetoothSCO(uint32_t devices);
+    bool        isBluetoothScoNormalInUse();
 
     int         headsetPmDownDelay;
     int         speakerPmDownDelay;
@@ -553,6 +555,9 @@ private:
 
     // Current HAC Setting
     vpc_hac_set_t mCurrentHACSetting;
+
+    //Current BT state
+    bool mIsBluetoothEnabled;
 };
 
 // ----------------------------------------------------------------------------

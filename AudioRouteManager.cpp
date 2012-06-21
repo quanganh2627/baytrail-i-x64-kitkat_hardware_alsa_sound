@@ -145,18 +145,4 @@ status_t AudioRouteManager::setRouteAccessible(const String8& name, bool isAcces
     return NO_ERROR;
 }
 
-status_t AudioRouteManager::setSharedRouteAccessible(bool isAccessible, int mode, AudioRoute::Direction dir)
-{
-    LOGD("%s", __FUNCTION__);
-    AudioRoute* aRoute =  NULL;
-    AudioRouteListIterator it;
-
-    // Set all the routes that belong to the shared route
-    setRouteAccessible(String8("VoiceRec"), isAccessible, mode, dir);
-    setRouteAccessible(String8("BT"), isAccessible, mode, dir);
-    setRouteAccessible(String8("MSIC_Voice"), isAccessible, mode, dir);
-
-    return NO_ERROR;
-}
-
 }       // namespace android

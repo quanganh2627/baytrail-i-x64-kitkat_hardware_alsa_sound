@@ -195,7 +195,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mStreamInList(NULL),
     mForceReconsiderInCallRoute(false),
     mCurrentTtyDevice(VPC_TTY_OFF),
-    mCurrentHACSetting(VPC_HAC_OFF)
+    mCurrentHACSetting(VPC_HAC_OFF),
+    mIsBluetoothEnabled(false)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -817,11 +818,36 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     status_t status;
 
     //
+    // Search BT STATE parameter
+    //
+    String8 strBtState;
+    String8 key = String8(AUDIO_PARAMETER_KEY_BLUETOOTH_STATE);
+
+    // Get concerned devices
+    status = param.get(key, strBtState);
+    if(status == NO_ERROR)
+    {
+        if (strBtState == AUDIO_PARAMETER_VALUE_BLUETOOTH_STATE_ON) {
+            LOGV("bt enabled\n");
+            mIsBluetoothEnabled = true;
+        }
+        else {
+            //BT off or undefined: set flag to false and force BT path to off
+            LOGV("bt disabled\n");
+            mIsBluetoothEnabled = false;
+        }
+        //BT mode change: apply new route accessibility rules
+        applyRouteAccessibilityRules(EModeChange);
+        // Remove parameter
+        param.remove(key);
+    }
+
+    //
     // Search TTY mode
     //
     String8 strTtyDevice;
     vpc_tty_t iTtyDevice = VPC_TTY_OFF;
-    String8 key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
+    key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
 
     // Get concerned devices
     status = param.get(key, strTtyDevice);
@@ -1081,7 +1107,7 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
 
         // Accessibility depends on 2 conditions: "Modem is available" AND "Modem Call is Active"
         mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemCallActive && mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mModemCallActive && mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled && mModemCallActive && mModemAvailable, mode());
 
         mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemCallActive && mModemAvailable, mode(), AudioRoute::Playback);
 
@@ -1102,18 +1128,26 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
          *      Set the route accessibility to true
          */
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
-        mAudioRouteMgr->setSharedRouteAccessible(true, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, mode());
 #else
-        mAudioRouteMgr->setSharedRouteAccessible(mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled && mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, mode());
 #endif
         break;
 
     default:
         // ie NORMAL, RINGTONE ...
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
-        mAudioRouteMgr->setSharedRouteAccessible(true, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, mode());
 #else
-        mAudioRouteMgr->setSharedRouteAccessible(mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled && mModemAvailable, mode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, mode());
 #endif
         break;
     }
