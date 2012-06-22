@@ -83,6 +83,20 @@ status_t AudioPolicyManagerALSA::startOutput(audio_io_handle_t output,
     return baseClass::startOutput(output, stream, session);
 }
 
+audio_devices_t AudioPolicyManagerALSA::getDeviceForInputSource(int inputSource)
+{
+    audio_devices_t device;
+    //  We should be able to use Skype during a CSV call
+    if ((inputSource == AUDIO_SOURCE_MIC) && (mPhoneState == AudioSystem::MODE_IN_CALL)) {
+        LOGV("getDeviceForInputSource() change device from mic to uplink voice in CSV call");
+        device = AUDIO_DEVICE_IN_VOICE_CALL;
+    } else {
+        device = baseClass::getDeviceForInputSource(inputSource);
+    }
+    LOGV("getDeviceForInputSource()input source %d, device %08x", inputSource, device);
+    return device;
+}
+
 audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                                                    uint32_t samplingRate,
                                                    uint32_t format,
