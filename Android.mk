@@ -13,9 +13,9 @@ LOCAL_C_INCLUDES += \
     bionic/
 
 LOCAL_C_INCLUDES += \
-    hardware/intel/IFX-modem \
-    $(LOCAL_PATH)/../intel/mfld_cdk/amc/at-manager \
-    $(LOCAL_PATH)/../intel/mfld_cdk/amc/event-listener
+    $(TARGET_OUT_HEADERS)/IFX-modem \
+    $(TARGET_OUT_HEADERS)/at-manager \
+    $(TARGET_OUT_HEADERS)/event-listener
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -106,7 +106,7 @@ LOCAL_C_INCLUDES += \
     bionic/
 
 LOCAL_C_INCLUDES += \
-    $(LOCAL_PATH)/../intel/mfld_cdk/utility/property
+    $(TARGET_OUT_HEADERS)/property
 
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
