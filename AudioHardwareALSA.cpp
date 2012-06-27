@@ -983,6 +983,15 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     // Alsa routing
     if (getAlsaHwDevice()) {
 
+        // WorkAround:
+        // Reset the VoiceRec route in the modem to prevent from getting
+        // glitches (DMA issue)
+        if (bForOutput && audioMode() == AudioSystem::MODE_IN_CALL) {
+
+            mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, AudioSystem::MODE_IN_CALL);
+        }
+        // End of WorkAround
+
         // Ask the route manager to route the new stream
         status = mAudioRouteMgr->route(pStream, devices, audioMode(), bForOutput);
         if (status != NO_ERROR) {
@@ -990,6 +999,15 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
             // Just log!
             LOGE("alsa route error: %d", status);
         }
+
+        // WorkAround
+        // Reset the VoiceRec route in the modem to prevent from getting
+        // glitches (DMA issue)
+        if (bForOutput && audioMode() == AudioSystem::MODE_IN_CALL) {
+
+            mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, AudioSystem::MODE_IN_CALL);
+        }
+        // End of WorkAround
     }
 
     // Mix disable
