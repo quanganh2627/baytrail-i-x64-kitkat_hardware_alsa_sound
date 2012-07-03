@@ -52,7 +52,7 @@ bool AudioRouteMM::isApplicable(uint32_t devices, int mode, bool bForOutput)
         }
     }
 #ifndef CUSTOM_BOARD_WITH_AUDIENCE
-    else if ((devices & DEVICE_IN_MM_ALL) && (mode == AudioSystem::MODE_NORMAL || mode == AudioSystem::MODE_IN_COMMUNICATION)) {
+    else if (devices & DEVICE_IN_MM_ALL) {
 #else
     else if ((devices & DEVICE_IN_MM_ALL) && (mode == AudioSystem::MODE_NORMAL)) {
 #endif

@@ -48,12 +48,10 @@ bool AudioRouteMSICVoice::isApplicable(uint32_t devices, int mode, bool bForOutp
 
             return true;
         }
-#ifndef CUSTOM_BOARD_WITH_AUDIENCE
-    } else if ((devices & DEVICE_IN_MSIC_VOICE_ALL) && (mode == AudioSystem::MODE_IN_CALL || mode == AudioSystem::MODE_RINGTONE)) {
-#else
+#ifdef CUSTOM_BOARD_WITH_AUDIENCE
     } else if ((devices & DEVICE_IN_MSIC_VOICE_ALL) && (mode != AudioSystem::MODE_NORMAL)) {
+        return true;
 #endif
-            return true;
     }
     return false;
 }
