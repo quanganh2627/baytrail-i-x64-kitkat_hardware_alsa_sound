@@ -34,11 +34,21 @@
 
 #include "AudioHardwareALSA.h"
 #include "AudioRoute.h"
+#include "AudioConverter.h"
+#include "AudioResampler.h"
+#include "AudioReformatter.h"
+#include "AudioRemapper.h"
+#include "AudioConversion.h"
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
-#define DEFAULT_SAMPLE_RATE     44100
-#define DEFAULT_BUFFER_SIZE     (DEFAULT_SAMPLE_RATE/ 5)
+// This define is a LPE constraints. LPE works with
+// 46440 us buffer to optimize the power consumption
+// HAL needs to transfer 2 periods to avoid underrun
+#define BUFFER_TIME_US          (23220 * 2 * 2)  //microseconds
+#define INCALL_BUFFER_TIME_US   (20000)     //microseconds
+#define USEC_PER_SEC            (1000000)
+
 
 namespace android_audio_legacy
 {
@@ -57,8 +67,12 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle, c
     isResetted(false),
     mAudioRoute(NULL),
     mPowerLock(false),
-    mPowerLockTag(pcLockTag)
+    mPowerLockTag(pcLockTag),
+    mAudioConversion(new CAudioConversion)
 {
+    mSampleSpec.setChannelCount(AudioHardwareALSA::DEFAULT_CHANNEL_COUNT);
+    mSampleSpec.setSampleRate(AudioHardwareALSA::DEFAULT_SAMPLE_RATE);
+    mSampleSpec.setFormat(AudioHardwareALSA::DEFAULT_FORMAT);
 }
 
 ALSAStreamOps::~ALSAStreamOps()
@@ -66,18 +80,8 @@ ALSAStreamOps::~ALSAStreamOps()
     AutoW lock(mParent->mLock);
 
     close();
-}
 
-// use emulated popcount optimization
-// http://www.df.lth.se/~john_e/gems/gem002d.html
-static inline uint32_t popCount(uint32_t u)
-{
-    u = ((u&0x55555555) + ((u>>1)&0x55555555));
-    u = ((u&0x33333333) + ((u>>2)&0x33333333));
-    u = ((u&0x0f0f0f0f) + ((u>>4)&0x0f0f0f0f));
-    u = ((u&0x00ff00ff) + ((u>>8)&0x00ff00ff));
-    u = ( u&0x0000ffff) + (u>>16);
-    return u;
+    delete mAudioConversion;
 }
 
 acoustic_device_t *ALSAStreamOps::acoustics()
@@ -102,84 +106,85 @@ status_t ALSAStreamOps::set(int      *format,
     bool bad_rate = false;
     bool bad_format = false;
 
-    ALOGD("set IN : format:%d channels:0x%x rate:%d", *format, *channels, *rate);
+    LOGD("%s(format:%d channels:0x%x (popCount returns %d) rate:%d) and mHandle->sampleRate=%d, mHandle->channels=%d",
+         __FUNCTION__, *format, *channels, CAudioUtils::popCount(*channels), *rate, mHandle->sampleRate, mHandle->channels);
 
     if (channels) {
-        if ( (*channels != 0) && ( mHandle->channels != popCount(*channels) ) ) {
-            bad_channels = true;
-        }
 
-        // change channel value in those cases :
-        //  - the channel is not set on entry or
-        //  - the channel is not correctly set according to ALSA
-        if ( (bad_channels) || (*channels == 0) )
-        {
-            *channels = 0;
-            if (mHandle->devices & AudioSystem::DEVICE_OUT_ALL) {
-                switch(mHandle->channels) {
-                case 4:
-                    *channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
-                    *channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
-                    // Fall through...
-                default:
-                case 2:
-                    *channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
-                    // Fall through...
-                case 1:
-                    *channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
-                    break;
-                }
-            } else {
-                switch(mHandle->channels) {
-                default:
-                case 2:
-                    *channels |= AudioSystem::CHANNEL_IN_RIGHT;
-                    // Fall through...
-                case 1:
-                    *channels |= AudioSystem::CHANNEL_IN_LEFT;
-                    break;
-                }
+        if (*channels != 0) {
+
+            // Always accept the channels requested by the client
+            // as far as the channel count is supported
+            mSampleSpec.setChannelMask(*channels);
+
+            if (CAudioUtils::popCount(*channels) > 2) {
+
+                LOGD("%s: channels=(0x%x, %d) not supported", __FUNCTION__, *channels, CAudioUtils::popCount(*channels));
+                bad_channels = true;
             }
-            ALOGD("set : change channels to 0x%x",  *channels);
         }
+        if ( (bad_channels) || (*channels == 0) ) {
+
+            // No channels information was provided by the client
+            // or not supported channels
+            // Use default: stereo
+            if (isOut()) {
+
+                *channels = AudioSystem::CHANNEL_OUT_FRONT_LEFT | AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
+            }
+            else {
+
+                *channels = AudioSystem::CHANNEL_IN_LEFT | AudioSystem::CHANNEL_IN_RIGHT;
+            }
+
+            mSampleSpec.setChannelMask(*channels);
+        }
+        LOGD("%s: set channels to 0x%x", __FUNCTION__, *channels);
+
+        // Resampler is always working @ the channel count of the HAL
+        mSampleSpec.setChannelCount(CAudioUtils::popCount(mSampleSpec.getChannelMask()));
     }
 
     if (rate) {
-        if ( (*rate != 0) && (mHandle->sampleRate != *rate) ) {
-            bad_rate = false;
-        }
 
+        if (*rate != 0) {
+
+            // Always accept the rate provided by the client
+            mSampleSpec.setSampleRate(*rate);
+        }
         if ( (bad_rate) || (*rate == 0) ) {
-            *rate = mHandle->sampleRate;
-            ALOGD("set : change rate to %d",  *rate);
+
+            // No rate information was provided by the client
+            // or set rate error
+            // Use default HAL rate
+            *rate = AudioHardwareALSA::DEFAULT_SAMPLE_RATE;
+            mSampleSpec.setSampleRate(*rate);
         }
-    }
-
-    snd_pcm_format_t iformat = mHandle->format;
-
-    int iActualFormat = AudioSystem::FORMAT_DEFAULT;
-
-    switch(mHandle->format) {
-    case SND_PCM_FORMAT_S16_LE:
-        iActualFormat = AudioSystem::PCM_16_BIT;
-        break;
-    case SND_PCM_FORMAT_S8:
-        iActualFormat = AudioSystem::PCM_8_BIT;
-        break;
-    default:
-        LOGE("Unexpected Sample Format: %d", mHandle->format);
-        return UNKNOWN_ERROR;
+        LOGD("%s: set rate to %d", __FUNCTION__, *rate);
     }
 
     if (format) {
-        if ( (*format != 0) && (iActualFormat != *format) ) {
-            bad_format = true;
-        }
 
-        if ( (bad_format) || (*format == 0) ) {
-            *format = iActualFormat;
-            ALOGD("set : change format to %d",  *format);
+        if (*format != 0) {
+
+            // Always accept the rate provided by the client
+            // as far as this rate is supported
+            if (*format != AUDIO_FORMAT_PCM_16_BIT && *format != AUDIO_FORMAT_PCM_8_24_BIT) {
+
+                LOGD("%s: format=(0x%x) not supported", __FUNCTION__, *format);
+                bad_format = true;
+            }
+
+            mSampleSpec.setFormat(*format);
         }
+        if ( (bad_format) || (*format == 0) ) {
+
+            // No format provided or set format error
+            // Use default HAL format
+            *format = AudioHardwareALSA::DEFAULT_FORMAT;
+            mSampleSpec.setFormat(*format);
+        }
+        LOGD("%s : set format to %d", __FUNCTION__, *format);
     }
 
     return (bad_channels || bad_rate || bad_format) ? BAD_VALUE : NO_ERROR;
@@ -204,97 +209,38 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
     return param.toString();
 }
 
-uint32_t ALSAStreamOps::sampleRate() const
-{
-    return mHandle->sampleRate;
-}
-
 //
 // Return the number of bytes (not frames)
 //
 size_t ALSAStreamOps::bufferSize() const
 {
-    snd_pcm_uframes_t bufferSize = mHandle->bufferSize;
-    snd_pcm_uframes_t periodSize;
-
     size_t bytes;
 
-    if(mHandle->handle) {
-        snd_pcm_get_params(mHandle->handle, &bufferSize, &periodSize);
+    int32_t interval;
+    if (mParent->mode() == AudioSystem::MODE_IN_COMMUNICATION ||
+            mParent->mode() ==  AudioSystem::MODE_IN_CALL) {
 
-        bytes = static_cast<size_t>(snd_pcm_frames_to_bytes(mHandle->handle, bufferSize));
-    } else
-        bytes = DEFAULT_BUFFER_SIZE;
-    // Not sure when this happened, but unfortunately it now
-    // appears that the bufferSize must be reported as a
-    // power of 2. This might be for OSS compatibility.
-    for (size_t i = 1; (bytes & ~i) != 0; i<<=1)
-        bytes &= ~i;
+        interval = INCALL_BUFFER_TIME_US;
+
+    } else {
+
+        interval = BUFFER_TIME_US;
+    }
+    size_t size = interval * sampleRate() / USEC_PER_SEC;
+    // take resampling into account and return the closest majoring
+    // multiple of 16 frames, as audioflinger expects audio buffers to
+    // be a multiple of 16 frames.
+    size = CAudioUtils::alignOn16(size);
+
+    bytes = CAudioUtils::convertFramesToBytes(size, mSampleSpec);
+    LOGD("%s: (in bytes)%d", __FUNCTION__, bytes);
 
     return bytes;
 }
 
-int ALSAStreamOps::format() const
-{
-    int pcmFormatBitWidth;
-    int audioSystemFormat;
-
-    snd_pcm_format_t ALSAFormat = mHandle->format;
-
-    pcmFormatBitWidth = snd_pcm_format_physical_width(ALSAFormat);
-    switch(pcmFormatBitWidth) {
-    case 8:
-        audioSystemFormat = AudioSystem::PCM_8_BIT;
-        break;
-
-    default:
-        LOG_FATAL("Unknown AudioSystem bit width %i!", pcmFormatBitWidth);
-
-    case 16:
-        audioSystemFormat = AudioSystem::PCM_16_BIT;
-        break;
-    }
-
-    return audioSystemFormat;
-}
-
-uint32_t ALSAStreamOps::channels() const
-{
-    unsigned int count = mHandle->channels;
-    uint32_t channels = 0;
-
-    if (mHandle->curDev & AudioSystem::DEVICE_OUT_ALL)
-        switch(count) {
-        case 4:
-            channels |= AudioSystem::CHANNEL_OUT_BACK_LEFT;
-            channels |= AudioSystem::CHANNEL_OUT_BACK_RIGHT;
-            // Fall through...
-        default:
-        case 2:
-            channels |= AudioSystem::CHANNEL_OUT_FRONT_RIGHT;
-            // Fall through...
-        case 1:
-            channels |= AudioSystem::CHANNEL_OUT_FRONT_LEFT;
-            break;
-        }
-    else
-        switch(count) {
-        default:
-        case 2:
-            channels |= AudioSystem::CHANNEL_IN_RIGHT;
-            // Fall through...
-        case 1:
-            channels |= AudioSystem::CHANNEL_IN_LEFT;
-            break;
-        }
-
-    return channels;
-}
-
 void ALSAStreamOps::close()
 {
- //   mParent->mALSADevice->close(mHandle);
-    // Call unset stream from route instead
+    // Call unset stream from route (if still routed)
     if(mAudioRoute) {
         mAudioRoute->unsetStream(this, mHandle->curMode);
         mAudioRoute = NULL;
@@ -381,9 +327,16 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
         {
             mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_OPEN);
         }
-    }
 
-    ALOGD("ALSAStreamOps::open");
+        mHwSampleSpec.setFormat(CAudioUtils::convertSndToHalFormat(mHandle->format));
+        mHwSampleSpec.setSampleRate(mHandle->sampleRate);
+        mHwSampleSpec.setChannelCount(mHandle->channels);
+
+        CSampleSpec ssSrc = isOut() ? mSampleSpec : mHwSampleSpec;
+        CSampleSpec ssDst = isOut() ? mHwSampleSpec : mSampleSpec;
+        configureAudioConversion(ssSrc, ssDst);
+    }
+    LOGD("ALSAStreamOps::open status=%d", err);
     return err;
 }
 
@@ -614,6 +567,18 @@ void ALSAStreamOps::releasePowerLock()
         release_wake_lock (mPowerLockTag);
         mPowerLock = false;
     }
+}
+
+void ALSAStreamOps::configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+{
+    LOGD("%s", __FUNCTION__);
+
+    mAudioConversion->configure(ssSrc, ssDst);
+}
+
+status_t ALSAStreamOps::applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames)
+{
+    return mAudioConversion->convert(src, dst, inFrames, outFrames);
 }
 
 }       // namespace android

@@ -23,8 +23,12 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-#define LOG_TAG "AudioHardwareALSA"
 #include <utils/Log.h>
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "AudioStreamInAlsa"
+
 #include <utils/String8.h>
 
 #include <cutils/properties.h>
@@ -41,7 +45,8 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
                                      AudioSystem::audio_in_acoustics audio_acoustics) :
     ALSAStreamOps(parent, handle, "AudioInLock"),
     mFramesLost(0),
-    mAcoustics(audio_acoustics)
+    mAcoustics(audio_acoustics),
+    mHwBuffer(NULL)
 {
     acoustic_device_t *aDev = acoustics();
 
@@ -50,7 +55,15 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
 
 AudioStreamInALSA::~AudioStreamInALSA()
 {
+    freeAllocatedBuffers();
+
     close();
+}
+
+void AudioStreamInALSA::freeAllocatedBuffers()
+{
+     delete []mHwBuffer;
+     mHwBuffer = NULL;
 }
 
 status_t AudioStreamInALSA::setGain(float gain)
@@ -65,6 +78,89 @@ size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
     memset(buffer, 0, bytes);
     mStandby = false;
     return bytes;
+}
+
+ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
+{
+    snd_pcm_sframes_t n;
+    ssize_t received_frames = 0;
+    status_t err;
+
+    while( received_frames < frames) {
+
+        n = snd_pcm_readi(mHandle->handle,
+                          (char *)buffer + snd_pcm_frames_to_bytes(mHandle->handle, received_frames),
+                          frames - received_frames);
+        if( (n == -EAGAIN) || ((n >= 0) && (n + received_frames) < frames)) {
+
+            snd_pcm_wait(mHandle->handle, 1000);
+        }
+        else if (n == -EBADFD) {
+
+            LOGE("read err: %s, TRY REOPEN...", snd_strerror(n));
+            err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
+            if(err != NO_ERROR) {
+
+                LOGE("Open device error");
+                return err;
+            }
+        }
+        else if (n < 0) {
+
+            LOGE("read err: %s", snd_strerror(n));
+            err = snd_pcm_recover(mHandle->handle, n, 1);
+            if(err != NO_ERROR) {
+
+                LOGE("pcm read recover error: %s", snd_strerror(n));
+                return err;
+            }
+        }
+        if(n > 0) {
+
+            received_frames += n;
+        }
+    }
+    return received_frames;
+}
+
+ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
+{
+    if (mSampleSpec == mHwSampleSpec) {
+
+        return readHwFrames(buffer, frames);
+    }
+
+    ssize_t n;
+    ssize_t received_frames = 0;
+    ssize_t received_out_frames = 0;
+    ssize_t buffer_index = 0;
+
+    ssize_t framesDst = CAudioUtils::convertSrcToDstInFrames(frames, mSampleSpec, mHwSampleSpec);
+    ssize_t maxDstFrames =  static_cast<size_t>(snd_pcm_bytes_to_frames(mHandle->handle, mHwBufferSize));
+    status_t status;
+
+    while(received_frames < framesDst) {
+
+        ssize_t hwFramesToRead = (maxDstFrames < (framesDst - received_frames)? maxDstFrames : (framesDst - received_frames));
+        n = readHwFrames(mHwBuffer, hwFramesToRead);
+
+        if (n < 0) {
+
+            LOGE("pcm read recover error: %s", snd_strerror(n));
+            return n;
+        }
+
+        char *outBuf = (char*)buffer + buffer_index;
+        size_t dstFrames = 0;
+
+        applyAudioConversion(mHwBuffer, (void**)&outBuf, n, &dstFrames);
+
+        buffer_index += CAudioUtils::convertFramesToBytes(dstFrames, mSampleSpec);
+
+        received_frames += n;
+        received_out_frames += dstFrames;
+    }
+    return received_out_frames;
 }
 
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
@@ -82,9 +178,18 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     }
 
     if(mStandby) {
+
         err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
         if (err < 0) {
-            LOGE("Read: Cannot open alsa device(0x%x) in mode (%d)", mHandle->curDev, mHandle->curMode);
+
+            LOGE("%s: Cannot open alsa device(0x%x) in mode (%d)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
+            return err;
+        }
+
+        err = allocateHwBuffer();
+        if (err < 0) {
+
+            LOGE("%s: Cannot allocate HwBuffer", __FUNCTION__);
             return err;
         }
         mStandby = false;
@@ -111,44 +216,24 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         return aDev->read(aDev, buffer, bytes);
     }
 
-    snd_pcm_sframes_t n;
-    ssize_t            received = 0;
+    ssize_t received_frames = -1;
+    ssize_t frames = CAudioUtils::convertBytesToFrames(bytes, mSampleSpec);
 
-    do {
-        n = snd_pcm_readi(mHandle->handle,
-                           (char *)buffer + received,
-                           snd_pcm_bytes_to_frames(mHandle->handle, bytes - received));
+    received_frames = readFrames(buffer, frames);
 
-        if(n == -EAGAIN || (n >= 0 && static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n)) + received < bytes)) {
-            snd_pcm_wait(mHandle->handle, 1000);
-        }
-        else if (n == -EBADFD) {
-            LOGE("read err: %s, TRY REOPEN...", snd_strerror(n));
-            err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
-            if(err != NO_ERROR) {
-                LOGE("Open device error");
-                return err;
-            }
-        }
-        else if (n < 0) {
-            LOGE("read err: %s", snd_strerror(n));
-            err = snd_pcm_recover(mHandle->handle, n, 1);
-            if(err != NO_ERROR) {
-                LOGE("pcm read recover error: %s", snd_strerror(n));
-                return err;
-            }
-        }
+    if (received_frames < 0) {
 
-        if(n > 0) {
-            received += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
-        }
-    } while(received < bytes);
-
-    if(mParent->mMicMuteState ) {
-        memset(buffer, 0, received);
+        LOGE("%s(buffer=%p, bytes=%ld) will return %ld (strerror \"%s\")", __FUNCTION__, buffer, bytes, received_frames, snd_strerror(received_frames));
+        return received_frames;
     }
 
-    return received;
+    ssize_t readBytes = CAudioUtils::convertFramesToBytes(received_frames, mSampleSpec);
+
+    if(mParent->mMicMuteState ) {
+
+        memset(buffer, 0, readBytes);
+    }
+    return readBytes;
 }
 
 status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
@@ -181,6 +266,8 @@ status_t AudioStreamInALSA::close()
 
     ALSAStreamOps::close();
 
+    freeAllocatedBuffers();
+
     releasePowerLock();
 
     return NO_ERROR;
@@ -191,6 +278,8 @@ status_t AudioStreamInALSA::standby()
     ALOGD("StreamInAlsa standby.\n");
 
     status_t status = ALSAStreamOps::standby();
+
+    freeAllocatedBuffers();
 
     return status;
 }
@@ -236,6 +325,29 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
 bool AudioStreamInALSA::isOut()
 {
     return false;
+}
+
+status_t AudioStreamInALSA::allocateHwBuffer()
+{
+    delete []mHwBuffer;
+    mHwBuffer = NULL;
+
+    snd_pcm_uframes_t periodSize;
+    snd_pcm_uframes_t bufferSize;
+    int err = snd_pcm_get_params(mHandle->handle, &bufferSize, &periodSize);
+    if (err < 0) {
+
+        return NO_INIT;
+    }
+    mHwBufferSize = static_cast<size_t>(snd_pcm_frames_to_bytes(mHandle->handle, bufferSize));
+    mHwBuffer = new char[mHwBufferSize];
+    if (!mHwBuffer) {
+
+        LOGE("%s: cannot allocate resampler mHwbuffer", __FUNCTION__);
+        return NO_MEMORY;
+    }
+
+    return NO_ERROR;
 }
 
 }       // namespace android

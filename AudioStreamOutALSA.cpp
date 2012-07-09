@@ -23,8 +23,12 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-#define LOG_TAG "AudioHardwareALSA"
 #include <utils/Log.h>
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "AudioStreamOutAlsa"
+
 #include <utils/String8.h>
 
 #include <cutils/properties.h>
@@ -33,22 +37,12 @@
 
 #include "AudioHardwareALSA.h"
 
-#ifndef ALSA_DEFAULT_SAMPLE_RATE
-#define ALSA_DEFAULT_SAMPLE_RATE 44100 // in Hz
-#endif
-
 #define MAX_AGAIN_RETRY     2
 #define WAIT_TIME_MS        20
 #define WAIT_BEFORE_RETRY 10000 //10ms
 
 namespace android_audio_legacy
 {
-
-// ----------------------------------------------------------------------------
-
-static const int DEFAULT_SAMPLE_RATE = ALSA_DEFAULT_SAMPLE_RATE;
-
-// ----------------------------------------------------------------------------
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent, alsa_handle_t *handle) :
     ALSAStreamOps(parent, handle, "AudioOutLock"),
@@ -125,32 +119,43 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     if (aDev && aDev->write)
         aDev->write(aDev, buffer, bytes);
 
-    snd_pcm_sframes_t n;
-    size_t            sent = 0;
-    int it = 0;
 
-#ifdef USE_INTEL_SRC
-    int32_t outBytes;
-    char *buf;
+    ssize_t srcFrames = CAudioUtils::convertBytesToFrames(bytes, mSampleSpec);
+    size_t dstFrames = 0;
+    char *srcBuf = (char* )buffer;
+    char *dstBuf = NULL;
+    status_t status;
 
-    if (mHandle->expectedSampleRate != mHandle->sampleRate) {
-        if (mParent->mResampler->setSampleRate(mHandle->sampleRate,
-                                 mHandle->expectedSampleRate)) {
-            mParent->mResampler->resample((void**)&buf, &outBytes, buffer, bytes);
-            buffer = buf;
-            bytes = outBytes;
-        }
-        else
-            LOGE("write: resampler error, could not set sample rate");
+    status = applyAudioConversion(srcBuf, (void**)&dstBuf, srcFrames, &dstFrames);
+
+    if (status != NO_ERROR) {
+
+        return status;
     }
-#endif
+
+    ssize_t ret = writeFrames(dstBuf, dstFrames);
+
+    if (ret < 0) {
+
+        return ret;
+    }
+
+    return CAudioUtils::convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec);
+}
+
+ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
+{
+    ssize_t sentFrames = 0;
+    snd_pcm_sframes_t n;
+    int it = 0;
+    status_t err = NO_ERROR;
 
     do {
         n = snd_pcm_writei(mHandle->handle,
-                           (char *)buffer + sent,
-                           snd_pcm_bytes_to_frames(mHandle->handle, bytes - sent));
+                           (char *)buffer + CAudioUtils::convertFramesToBytes(sentFrames, mHwSampleSpec),
+                           frames - sentFrames);
 
-        if(n == -EAGAIN || (n >= 0 && static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n)) + sent < bytes)) {
+        if(n == -EAGAIN || (n >= 0 && n + sentFrames < frames)) {
             it++;
             if (it > MAX_AGAIN_RETRY){
                 LOGE("write err: EAGAIN breaking...");
@@ -195,22 +200,17 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         }
 
         if(n > 0) {
-#ifdef USE_INTEL_SRC
-            mFrameCount += n / mParent->mResampler->mOutSampleRate *
-                               mParent->mResampler->mInSampleRate;
-#else
-            mFrameCount += n;
-#endif
 
-            sent += static_cast<ssize_t>(snd_pcm_frames_to_bytes(mHandle->handle, n));
+            mFrameCount += CAudioUtils::convertSrcToDstInFrames(n, mHwSampleSpec, mSampleSpec);
+            sentFrames += n;
         }
 
-    } while (sent < bytes);
+    } while (sentFrames < frames);
 
-    return sent;
+    return sentFrames;
 }
 
-status_t AudioStreamOutALSA::dump(int fd, const Vector<String16>& args)
+status_t AudioStreamOutALSA::dump(int , const Vector<String16>& )
 {
     return NO_ERROR;
 }

@@ -1,4 +1,4 @@
- /* AudioHArdwareALSA.cpp
+/* AudioHardwareALSA.cpp
  **
  ** Copyright 2008-2009 Wind River Systems
  **
@@ -44,6 +44,7 @@
 #include "ATManager.h"
 #include "CallStatUnsollicitedATCommand.h"
 #include "ProgressUnsollicitedATCommand.h"
+#include "AudioConversion.h"
 
 #include "stmd.h"
 
@@ -71,6 +72,8 @@ const char* const AudioHardwareALSA::gapcDefaultSampleRates [AudioHardwareALSA::
 };
 // Default sampling rate in case the value is not found in xml file
 const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 44100;
+const uint32_t AudioHardwareALSA::DEFAULT_CHANNEL_COUNT = 2;
+const uint32_t AudioHardwareALSA::DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT;
 
 // Defines path to parameters in PFW XML config files
 const char* const AudioHardwareALSA::gapcModemPortClockSelection[AudioHardwareALSA::IFX_NB_I2S_PORT] = {
@@ -244,15 +247,11 @@ AudioHardwareALSA::AudioHardwareALSA() :
     // Reset
     snd_lib_error_set_handler(&ALSAErrorHandler);
     mMixer = new ALSAMixer(this);
-#ifdef USE_INTEL_SRC
-    mResampler = new AudioResamplerALSA();
-#endif
 
     // HW Modules initialisation
     hw_module_t* module;
     hw_device_t* device;
 
-    int ret = 0;
     for (int i = 0; i < NB_HW_DEV; i++)
     {
         if (hw_get_module(hw_module_list[i].module_id, (hw_module_t const**)&module))
@@ -369,11 +368,7 @@ AudioHardwareALSA::~AudioHardwareALSA()
         delete *inIt;
     }
 
-    if (mMixer) delete mMixer;
-
-#ifdef USE_INTEL_SRC
-    if (mResampler) delete mResampler;
-#endif
+    delete mMixer;
 
     for (int i = 0; i < NB_HW_DEV; i++) {
 
@@ -388,11 +383,8 @@ AudioHardwareALSA::~AudioHardwareALSA()
 status_t AudioHardwareALSA::initCheck()
 {
 
-#ifdef USE_INTEL_SRC
-    if (getAlsaHwDevice() && mMixer && mMixer->isValid() && mResampler)
-#else
     if (getAlsaHwDevice() && mMixer && mMixer->isValid())
-#endif
+
         return NO_ERROR;
     else
         return NO_INIT;
@@ -596,7 +588,7 @@ finish:
 void
 AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
-   // Remove Out stream from the list
+   // Remove output stream from the list
 
     CAudioStreamOutALSAListIterator it;
 
@@ -715,7 +707,7 @@ AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
     mMicMuteState = false;
 
-    // Remove Out stream from the list
+    // Remove input stream from the list
 
     CAudioStreamInALSAListIterator it;
 
@@ -896,9 +888,9 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
             LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
             getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
-            
+
             // We reconsider routing as VPC_BT_NREC_ON intent is sent first, then setStreamParameters and finally
-	    // VPC_BT_NREC_OFF when the SCO link is enabled. But only VPC_BT_NREC_ON setting is applied in that
+            // VPC_BT_NREC_OFF when the SCO link is enabled. But only VPC_BT_NREC_ON setting is applied in that
             // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
             // becomes necessary, to be aligned with VPC_BT_NREC_OFF to process the correct Audience profile.
             mForceReconsiderInCallRoute = true;
@@ -959,7 +951,6 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     String8 key = String8(AudioParameter::keyRouting);
     status_t status;
     int devices;
-    alsa_handle_t* pAlsaHandle = pStream->mHandle;
 
     AutoW lock(mLock);
 

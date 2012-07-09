@@ -15,9 +15,10 @@ LOCAL_C_INCLUDES += \
     bionic/
 
 LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/IFX-modem \
-    $(TARGET_OUT_HEADERS)/at-manager \
-    $(TARGET_OUT_HEADERS)/event-listener
+    hardware/intel/IFX-modem \
+    $(LOCAL_PATH)/../intel/mfld_cdk/amc/at-manager \
+    $(LOCAL_PATH)/../intel/mfld_cdk/amc/event-listener \
+    $(TARGET_OUT_HEADERS)/libaudioresample
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -28,10 +29,17 @@ LOCAL_C_INCLUDES += \
   LOCAL_SRC_FILES := \
     AudioHardwareInterface.cpp \
     audio_hw_hal.cpp \
+    SampleSpec.cpp \
+    AudioUtils.cpp \
     AudioHardwareALSA.cpp \
     AudioStreamOutALSA.cpp \
     AudioStreamInALSA.cpp \
     ALSAStreamOps.cpp \
+    AudioConversion.cpp \
+    AudioConverter.cpp \
+    AudioRemapper.cpp \
+    AudioReformatter.cpp \
+    AudioResampler.cpp \
     ALSAMixer.cpp \
     ALSAControl.cpp \
     AudioRouteManager.cpp \
@@ -80,15 +88,8 @@ LOCAL_SHARED_LIBRARIES := \
     libparameter \
     libstlport \
     libicuuc \
-    libat-manager
-
-
-ifeq ($(USE_INTEL_SRC),true)
-  LOCAL_CFLAGS += -DUSE_INTEL_SRC
-  LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libaudioresample
-  LOCAL_SRC_FILES += AudioResamplerALSA.cpp
-  LOCAL_SHARED_LIBRARIES += libaudioresample
-endif
+    libat-manager \
+    libaudioresample
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  LOCAL_SHARED_LIBRARIES += liba2dp

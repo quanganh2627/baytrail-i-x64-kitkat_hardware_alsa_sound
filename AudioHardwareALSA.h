@@ -32,11 +32,9 @@
 
 #include <utils/threads.h>
 
-#ifdef USE_INTEL_SRC
-#include "AudioResamplerALSA.h"
-#endif
-
 #include "AudioHardwareALSACommon.h"
+#include "AudioUtils.h"
+#include "SampleSpec.h"
 #include "ATNotifier.h"
 
 class CParameterMgrPlatformConnector;
@@ -59,6 +57,9 @@ typedef RWLock::AutoWLock AutoW;
 class AudioHardwareALSA;
 class AudioRouteManager;
 class AudioRoute;
+class CAudioResampler;
+class CAudioConverter;
+class CAudioConversion;
 
 const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
 
@@ -118,10 +119,11 @@ public:
     status_t            setParameters(const String8& keyValuePairs);
     String8             getParameters(const String8& keys);
 
-    uint32_t            sampleRate() const;
+    inline uint32_t     sampleRate() const { return mSampleSpec.getSampleRate();}
     size_t              bufferSize() const;
-    int                 format() const;
-    uint32_t            channels() const;
+    inline int          format() const {return mSampleSpec.getFormat();}
+    inline uint32_t     channelCount() const {return mSampleSpec.getChannelCount();}
+    inline uint32_t     channels() const {return mSampleSpec.getChannelMask();}
 
     status_t            open(uint32_t devices, int mode);
     void                close();
@@ -146,9 +148,11 @@ protected:
     void                acquirePowerLock();
     void                releasePowerLock();
 
-    vpc_device_t *vpc();
-    acoustic_device_t *acoustics();
-    ALSAMixer *mixer();
+    vpc_device_t*       vpc();
+    acoustic_device_t*  acoustics();
+    ALSAMixer*          mixer();
+
+    status_t            applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
 
     AudioHardwareALSA *     mParent;
     alsa_handle_t *         mHandle;
@@ -156,6 +160,9 @@ protected:
     Mutex                   mLock;
     bool                    mStandby;
     uint32_t                mDevices;
+
+    CSampleSpec           mSampleSpec;
+    CSampleSpec           mHwSampleSpec;
 
 private:
     void        vpcRoute(uint32_t devices, int mode);
@@ -168,6 +175,9 @@ private:
     bool        isDeviceBluetoothSCO(uint32_t devices);
     bool        isBluetoothScoNormalInUse();
 
+    // Configure the audio convertion chain
+    void        configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+
     int         headsetPmDownDelay;
     int         speakerPmDownDelay;
     int         voicePmDownDelay;
@@ -177,6 +187,10 @@ private:
 
     bool                    mPowerLock;
     const char*             mPowerLockTag;
+
+
+    // Audio Convertion utility class
+    CAudioConversion* mAudioConversion;
 };
 
 // ----------------------------------------------------------------------------
@@ -231,7 +245,10 @@ public:
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA &);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
+
     size_t              generateSilence(size_t bytes);
+
+    ssize_t             writeFrames(void* buffer, ssize_t frames);
 
     uint32_t            mFrameCount;
 };
@@ -265,6 +282,7 @@ public:
     }
 
     virtual ssize_t     read(void* buffer, ssize_t bytes);
+
     virtual status_t    dump(int fd, const Vector<String16>& args);
 
     virtual status_t    setGain(float gain);
@@ -296,11 +314,26 @@ public:
 private:
     AudioStreamInALSA(const AudioStreamInALSA &);
     AudioStreamInALSA& operator = (const AudioStreamInALSA &);
+
     void                resetFramesLost();
+
     size_t              generateSilence(void *buffer, size_t bytes);
+
+    ssize_t             readHwFrames(void* buffer, ssize_t frames);
+
+    ssize_t             readFrames(void* buffer, ssize_t frames);
+
+    void                freeAllocatedBuffers();
+
+    status_t            allocateProcessingMemory(ssize_t frames);
+
+    inline status_t     allocateHwBuffer();
 
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;
+
+    char* mHwBuffer;
+    ssize_t mHwBufferSize;
 };
 
 class AudioHardwareALSA : public AudioHardwareBase, public IATNotifier
@@ -410,6 +443,7 @@ protected:
 
     bool isReconsiderRoutingForced() { return mForceReconsiderInCallRoute; }
 
+    friend class CAudioConverter;
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
     friend class ALSAStreamOps;
@@ -420,10 +454,6 @@ protected:
     ALSAHandleList      mDeviceList;
     int getFmRxMode() { return mFmRxMode; }
     int getPrevFmRxMode() { return mPrevFmRxMode; }
-
-#ifdef USE_INTEL_SRC
-    AudioResamplerALSA *mResampler;
-#endif
 
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);
@@ -477,6 +507,8 @@ private:
     static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
 
     static const uint32_t DEFAULT_SAMPLE_RATE;
+    static const uint32_t DEFAULT_CHANNEL_COUNT;
+    static const uint32_t DEFAULT_FORMAT;
 
         // MODEM I2S PORTS
         enum IFX_IS2S_PORT {
