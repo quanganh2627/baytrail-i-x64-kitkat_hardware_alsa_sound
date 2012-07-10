@@ -188,13 +188,15 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mModemAudioManager(CModemAudioManagerInstance::create(this)),
     mModemCallActive(false),
     mModemAvailable(false),
-    mMSICVoiceRouteForcedOnMMRoute(false),
     mStreamOutList(),
     mStreamInList(),
     mForceReconsiderInCallRoute(false),
     mCurrentTtyDevice(VPC_TTY_OFF),
     mCurrentHACSetting(VPC_HAC_OFF),
-    mIsBluetoothEnabled(false)
+    mIsBluetoothEnabled(false),
+    mOutputDevices(0),
+    mHwMode(AudioSystem::MODE_NORMAL),
+    mLatchedAndroidMode(AudioSystem::MODE_NORMAL)
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -460,33 +462,6 @@ status_t AudioHardwareALSA::setMasterVolume(float volume)
         return INVALID_OPERATION;
 }
 
-status_t AudioHardwareALSA::setMode(int mode)
-{
-    AutoW lock(mLock);
-
-    ALOGD("%s: in", __FUNCTION__);
-
-    status_t status = NO_ERROR;
-
-    if (mode != mMode) {
-
-        status = AudioHardwareBase::setMode(mode);
-
-        // Refresh VPC mode
-        if (getVpcHwDevice() && getVpcHwDevice()->set_mode) {
-
-            getVpcHwDevice()->set_mode(mode);
-        }
-
-        mSelectedMode->setCriterionState(mode);
-
-        // According to the new mode, re-evaluate accessibility of the audio routes
-        applyRouteAccessibilityRules(EModeChange);
-    }
-
-    return status;
-}
-
 status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
 {
     AutoW lock(mLock);
@@ -537,7 +512,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     // Instantiante and initialize a new ALSA handle
     pHandle = new alsa_handle_t;
 
-    err = getAlsaHwDevice()->initStream(pHandle, devices, mode());
+    err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode());
     if (err) {
 
         LOGE("%s: init Stream error.", __FUNCTION__);
@@ -647,7 +622,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     // Instantiante and initialize a new ALSA handle
     pHandle = new alsa_handle_t;
 
-    err = getAlsaHwDevice()->initStream(pHandle, devices, mode());
+    err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode());
     if (err) {
 
         LOGE("%s: init Stream error.", __FUNCTION__);
@@ -818,7 +793,7 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
             mIsBluetoothEnabled = false;
         }
         //BT mode change: apply new route accessibility rules
-        applyRouteAccessibilityRules(EModeChange);
+        applyRouteAccessibilityRules(EParamChange);
         // Remove parameter
         param.remove(key);
     }
@@ -920,7 +895,7 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     }
 
     // Reconsider the routing now in case of voice call or communication
-    if (mForceReconsiderInCallRoute && isInCallOrComm(audioMode())) {
+    if (mForceReconsiderInCallRoute && isInCallOrComm()) {
 
         reconsiderRouting();
     }
@@ -957,11 +932,25 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
     LOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
 
+    if (bForOutput) {
+
+        mOutputDevices = devices;
+
+        // Latch the android mode
+        latchAndroidMode();
+
+        // Update the HW mode (if needed)
+        updateHwMode();
+    }
+
     // VPC params
     // Refreshed only on out stream changes
     if (devices && getVpcHwDevice() && getVpcHwDevice()->params && bForOutput) {
 
-        status = getVpcHwDevice()->params(mode(), (uint32_t)devices);
+        // Pass hw mode translated to VPC, in case a multimedia path is needed during call
+        // or any "transmode" is required.
+        status = getVpcHwDevice()->params(hwMode(), (uint32_t)devices);
+
 
         if (status != NO_ERROR) {
 
@@ -976,14 +965,14 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         // WorkAround:
         // Reset the VoiceRec route in the modem to prevent from getting
         // glitches (DMA issue)
-        if (bForOutput && audioMode() == AudioSystem::MODE_IN_CALL) {
+        if (bForOutput && hwMode() == AudioSystem::MODE_IN_CALL) {
 
             mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, AudioSystem::MODE_IN_CALL);
         }
         // End of WorkAround
 
         // Ask the route manager to route the new stream
-        status = mAudioRouteMgr->route(pStream, devices, audioMode(), bForOutput);
+        status = mAudioRouteMgr->route(pStream, devices, hwMode(), bForOutput);
         if (status != NO_ERROR) {
 
             // Just log!
@@ -993,7 +982,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         // WorkAround
         // Reset the VoiceRec route in the modem to prevent from getting
         // glitches (DMA issue)
-        if (bForOutput && audioMode() == AudioSystem::MODE_IN_CALL) {
+        if (bForOutput && hwMode() == AudioSystem::MODE_IN_CALL) {
 
             mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, AudioSystem::MODE_IN_CALL);
         }
@@ -1003,7 +992,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     // Mix disable
     if (devices && getVpcHwDevice() && getVpcHwDevice()->mix_disable) {
 
-        getVpcHwDevice()->mix_disable(mode());
+        getVpcHwDevice()->mix_disable(hwMode());
     }
 
     if (mParameterMgrPlatformConnector->isStarted()) {
@@ -1057,7 +1046,7 @@ void AudioHardwareALSA::reconsiderRouting() {
         {
 
             // Ask the route manager to reconsider the routing
-            mAudioRouteMgr->route(pOut, pOut->mHandle->curDev, audioMode(), true);
+            mAudioRouteMgr->route(pOut, pOut->mHandle->curDev, hwMode(), true);
         }
     }
 }
@@ -1074,81 +1063,46 @@ void AudioHardwareALSA::reconsiderRouting() {
 //      - Modem is resetting, to avoid electrical issues, all I2S port of the platform
 //        must be closed
 //
-void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
+// Accessibility of route is independant of the mode
+//
+void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
 {
-    ALOGD("%s: in, mode %d, modemAvailable=%d, ModemCallActive=%d", __FUNCTION__, mode(), mModemAvailable, mModemCallActive);
+    LOGD("%s: in, mode %d, modemAvailable=%d, ModemCallActive=%d mIsBluetoothEnabled=%d", __FUNCTION__, hwMode(), mModemAvailable, mModemCallActive, mIsBluetoothEnabled);
 
-    switch(mode()) {
-    case AudioSystem::MODE_IN_CALL:
-
-        // Mode in call but ModemCallActive is false => route on Media path
-        // Mode in call, ModemCallActive is true => route on Voice path
-        forceMediaRoute(!mModemCallActive);
-
-        if (!mModemAvailable) {
-            /* NOTE:
-             * Side effect of delaying setMode(NORMAL) once call is finished in case of modem reset
-             * Lost Network tone cannot be played on IN_CALL path as modem is ... in reset!!!
-             * We will force a mode change to NORMAL in order to be able
-             * to listen the lost network tones. In other words, it will route the stream on
-             * MM route.
-             * If delayed mode change is reverted, this following code can be remove
-             * Remark: the device is kept the same, only the mode is changed in order not to disturb
-             * user experience.
-             */
-            reconsiderRouting();
-        }
-        else if (aRoutEvent == ECallStatusChange) {
-
-            reconsiderRouting();
-        }
-
-        // Accessibility depends on 2 conditions: "Modem is available" AND "Modem Call is Active"
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemCallActive && mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled && mModemCallActive && mModemAvailable, mode());
-
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemCallActive && mModemAvailable, mode(), AudioRoute::Playback);
-
-        // Capture on MSIC_Voice route is not accessible since controled by the modem
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), false, mode(), AudioRoute::Capture);
-        break;
-
-    case AudioSystem::MODE_IN_COMMUNICATION:
-        /*
-         * Accessibility depends on the modem availability
-         * Modem not Available (down or cold reset):
-         *      If any Input / output streams are opened on the shared I2S bus, make their routes
-         *      inaccessible (ie close the hw device but returning silence for capture
-         *      and trashing the playback datas) until the modem is back up.
-         * Modem Available (Up):
-         *      Set the route accessibility to true
-         * No Modem on the platform:
-         *      Set the route accessibility to true
-         */
+    //
+    // BT route Accessibility has to be evaluated BEFORE reconsidering the routing
+    // as it is prohibited to play on BT while modem in reset or during Android Call
+    // mode and modemAudioAvailable=0 (risk of glitch and electrical conficts)
+    //
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, mode());
+    mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, hwMode());
 #else
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled && mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, mode());
-#endif
-        break;
+    bool isBtAccessible = mIsBluetoothEnabled && mModemAvailable;
+    if (mode() == AudioSystem::MODE_IN_CALL && !mModemCallActive) {
 
-    default:
-        // ie NORMAL, RINGTONE ...
-#ifdef CUSTOM_BOARD_WITHOUT_MODEM
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, mode());
-#else
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled && mModemAvailable, mode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, mode());
-#endif
-        break;
+        isBtAccessible = false;
     }
+    mAudioRouteMgr->setRouteAccessible(String8("BT"), isBtAccessible, hwMode());
+#endif
+
+    //
+    // In case of ModemStateChange OR CallStatusChanged, might have not only to
+    // set the route accessible/unaccessible but also to force to reconsider
+    // the routing and providing a new route to listen end of call or lost
+    // coverage tones.
+    //
+    if (routeEvent == EModemStateChange || routeEvent == ECallStatusChange) {
+
+        reconsiderRouting();
+    }
+
+#ifdef CUSTOM_BOARD_WITHOUT_MODEM
+    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
+    mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
+#else
+    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive, hwMode());
+    mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, hwMode());
+#endif
 
     ALOGD("%s: out", __FUNCTION__);
 }
@@ -1176,6 +1130,9 @@ void AudioHardwareALSA::onModemAudioStatusChanged()
 
             getVpcHwDevice()->set_call_status(mModemCallActive);
         }
+
+        // Update the HW Mode
+        updateHwMode();
 
         // Re-evaluate accessibility of the audio routes
         applyRouteAccessibilityRules(ECallStatusChange);
@@ -1210,32 +1167,77 @@ void  AudioHardwareALSA::onModemStateChanged() {
     // Reset ModemCallStatus boolean
     mModemCallActive = false;
 
+    // Update the HW Mode
+    updateHwMode();
+
     // Re-evaluate accessibility of the audio routes
     applyRouteAccessibilityRules(EModemStateChange);
 
     ALOGD("%s: out", __FUNCTION__);
 }
 
-inline int AudioHardwareALSA::audioMode()
+inline bool AudioHardwareALSA::isInCallOrComm() const
 {
-    //
-    // The mode to be set is matching the mode of AudioHAL
-    // EXCEPT when we are in call and the audio route is forced on MM
-    //
-    return (mMSICVoiceRouteForcedOnMMRoute && mode() == AudioSystem::MODE_IN_CALL)?
-                        AudioSystem::MODE_NORMAL : mode();
+    return ((latchedAndroidMode() == AudioSystem::MODE_IN_CALL) ||
+          (latchedAndroidMode() == AudioSystem::MODE_IN_COMMUNICATION));
 }
 
-void AudioHardwareALSA::forceMediaRoute(bool isForced)
+//
+// This function updates the HwMode, informs the VPC and PFW as well
+//
+void AudioHardwareALSA::updateHwMode()
 {
-    mMSICVoiceRouteForcedOnMMRoute = isForced;
+    if (checkAndSetHwMode()) {
+
+        LOGD("%s: hwMode has changed to %d", __FUNCTION__, hwMode());
+        // Refresh VPC mode
+        if (getVpcHwDevice() && getVpcHwDevice()->set_mode) {
+
+            getVpcHwDevice()->set_mode(hwMode());
+        }
+
+        // Refresh PFW mode
+        mSelectedMode->setCriterionState(hwMode());
+    }
 }
 
-
-inline bool AudioHardwareALSA::isInCallOrComm(int audMode)
+//
+// HW Mode is used for routing purpose.
+// It may match the Android Mode or not.
+//
+// This function evaluates the hw mode and update it if needed.
+// Returns true if the hw mode has changed
+//
+bool AudioHardwareALSA::checkAndSetHwMode()
 {
-    return ((audMode == AudioSystem::MODE_IN_CALL) ||
-            (audMode == AudioSystem::MODE_IN_COMMUNICATION));
+    LOGD("%s: Android Mode=%d, Latched Mode=%d, HW Mode=%d, nb of output devices=%d ", __FUNCTION__, mode(), mLatchedAndroidMode, hwMode(), popcount(mOutputDevices));
+
+    //
+    // Add here all "transmode" required:
+    //
+    // 1st case:    Android Latched Mode set to In call BUT modem Call Active flag is false
+    //                          => NORMAL Mode
+    // 2nd case:
+    //              If a multimedia stream is output on several devices (e.g. speaker + headset)
+    // during a call or a communication (like the camera shutter sound), the media
+    // route (normal mode) is forced so that the audio dual route is correctly chosen
+    //                          => NORMAL Mode
+    //
+    int hwMode = ((latchedAndroidMode() == AudioSystem::MODE_IN_CALL && !mModemCallActive) ||
+            (popcount(mOutputDevices) > 1 && isInCallOrComm())) ? AudioSystem::MODE_NORMAL : latchedAndroidMode();
+
+    if (hwMode != mHwMode) {
+
+        mHwMode = hwMode;
+        return true;
+    }
+    return false;
+}
+
+void AudioHardwareALSA::latchAndroidMode()
+{
+    // Latch the android mode
+    mLatchedAndroidMode = mode();
 }
 
 }       // namespace android

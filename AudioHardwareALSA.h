@@ -336,7 +336,7 @@ private:
 class AudioHardwareALSA : public AudioHardwareBase, public IModemStatusNotifier
 {
     enum RoutingEvent {
-        EModeChange,
+        EParamChange,
         ECallStatusChange,
         EModemStateChange
     };
@@ -369,14 +369,7 @@ public:
      */
     virtual status_t    setMasterVolume(float volume);
 
-    /**
-     * setMode is called when the audio mode changes. NORMAL mode is for
-     * standard audio playback, RINGTONE when a ringtone is playing, and IN_CALL
-     * when a call is in progress.
-     */
-    virtual status_t    setMode(int mode);
-
-        virtual status_t    setFmRxMode(int mode);
+    virtual status_t    setFmRxMode(int mode);
 
     // mic mute
     virtual status_t    setMicMute(bool state);
@@ -459,19 +452,29 @@ private:
     void reconsiderRouting();
 
     // State machine of route accessibility
-    void applyRouteAccessibilityRules(RoutingEvent aRoutEvent);
+    void applyRouteAccessibilityRules(RoutingEvent routeEvent);
 
     // Check modem audio path upon XProgress/XCallStat reception
     void onModemXCmdReceived();
 
-    // Translate the mode and force route flag into a new mode
-    int audioMode();
-
-    // set the force MM route flag
-    void forceMediaRoute(bool isForced);
 
     // Returns true if audio mode is in call or communication
-    bool isInCallOrComm(int audMode);
+    bool isInCallOrComm() const;
+
+    // Get HW mode
+    int hwMode() const { return mHwMode; }
+
+    // Get Latched mode
+    int latchedAndroidMode() const { return mLatchedAndroidMode; }
+
+    // Latch the mode
+    void latchAndroidMode();
+
+    // Set the HW mode
+    void updateHwMode();
+
+    // Check if hw mode has changed
+    bool checkAndSetHwMode();
 
     RWLock                mLock;
     bool mMicMuteState;
@@ -584,6 +587,19 @@ private:
 
     //Current BT state
     bool mIsBluetoothEnabled;
+
+    // Current output device(s) used
+    uint32_t mOutputDevices;
+
+    // Hw Mode:
+    // It encodes the use case and indeed the audio route to use.
+    // Due to some platforms conditions (Modem State, Modem Call State, Multiple device incall, ...),
+    // we may not want to follow the android mode.
+    int mHwMode;
+
+    // Latch of the Android Telephony mode once the setParameter is called
+    // on the output stream, giving the output device to use.
+    int mLatchedAndroidMode;
 };
 
 // ----------------------------------------------------------------------------
