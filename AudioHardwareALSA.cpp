@@ -151,6 +151,12 @@ const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSe
 };
 const uint32_t AudioHardwareALSA::mNbSelectedOutputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs[0]);
 
+// FM Mode type
+const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mFmModeValuePairs[] = {
+    { AudioSystem::MODE_FM_OFF, "Off" },
+    { AudioSystem::MODE_FM_ON,  "On"  }
+};
+const uint32_t AudioHardwareALSA::mNbFmModeValuePairs = sizeof(AudioHardwareALSA::mFmModeValuePairs)/sizeof(AudioHardwareALSA::mFmModeValuePairs[0]);
 
 // ----------------------------------------------------------------------------
 
@@ -225,10 +231,15 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mOutputDeviceType = mParameterMgrPlatformConnector->createSelectionCriterionType(true);
     fillSelectionCriterionType(mOutputDeviceType, mSelectedOutputDeviceValuePairs, mNbSelectedOutputDeviceValuePairs);
 
+    // FM Mode
+    mFmModeType = mParameterMgrPlatformConnector->createSelectionCriterionType();
+    fillSelectionCriterionType(mFmModeType, mFmModeValuePairs, mNbFmModeValuePairs);
+
     /// Criteria
     mSelectedMode = mParameterMgrPlatformConnector->createSelectionCriterion("Mode", mModeType);
     mSelectedInputDevice = mParameterMgrPlatformConnector->createSelectionCriterion("SelectedInputDevice", mInputDeviceType);
     mSelectedOutputDevice = mParameterMgrPlatformConnector->createSelectionCriterion("SelectedOutputDevice", mOutputDeviceType);
+    mSelectedFmMode = mParameterMgrPlatformConnector->createSelectionCriterion("FmMode", mFmModeType);
 
     /// Creates the routes and adds them to the route mgr
     mAudioRouteMgr->addRoute(new AudioRouteMSICVoice(String8("MSIC_Voice")));
@@ -516,6 +527,14 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
             getFmHwDevice()->set_state(fm_mode);
 #endif
             reconsiderRouting();
+        }
+
+        mSelectedFmMode->setCriterionState(fm_mode);
+
+        std::string strError;
+        if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
+
+            LOGE("%s", strError.c_str());
         }
     }
     return NO_ERROR;

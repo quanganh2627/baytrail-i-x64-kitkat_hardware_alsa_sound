@@ -625,6 +625,9 @@ private:
     // Selected Output Device type
     static const SSelectionCriterionTypeValuePair mSelectedOutputDeviceValuePairs[];
     static const uint32_t mNbSelectedOutputDeviceValuePairs;
+    // FM Mode type
+    static const SSelectionCriterionTypeValuePair mFmModeValuePairs[];
+    static const uint32_t mNbFmModeValuePairs;
 
     // The connector
     CParameterMgrPlatformConnector* mParameterMgrPlatformConnector;
@@ -634,10 +637,12 @@ private:
     ISelectionCriterionTypeInterface* mModeType;
     ISelectionCriterionTypeInterface* mInputDeviceType;
     ISelectionCriterionTypeInterface* mOutputDeviceType;
+    ISelectionCriterionTypeInterface* mFmModeType;
     // Criteria
     ISelectionCriterionInterface* mSelectedMode;
     ISelectionCriterionInterface* mSelectedInputDevice;
     ISelectionCriterionInterface* mSelectedOutputDevice;
+    ISelectionCriterionInterface* mSelectedFmMode;
 
     AudioRouteManager* mAudioRouteMgr;
     CModemAudioManager* mModemAudioManager;
