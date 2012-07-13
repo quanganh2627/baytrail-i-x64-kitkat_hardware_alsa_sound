@@ -219,7 +219,7 @@ status_t AudioStreamOutALSA::open(int mode)
 {
     AutoW lock(mParent->mLock);
 
-    return ALSAStreamOps::open(NULL, mode);
+    return ALSAStreamOps::open(0, mode);
 }
 
 status_t AudioStreamOutALSA::close()
