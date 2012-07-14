@@ -1,3 +1,5 @@
+ifeq ($(BOARD_USES_ALSA_AUDIO),true)
+
 #AUDIO_POLICY_TEST := true
 #ENABLE_AUDIO_DUMP := true
 
@@ -130,3 +132,5 @@ ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 endif
 
 include $(BUILD_SHARED_LIBRARY)
+
+endif
