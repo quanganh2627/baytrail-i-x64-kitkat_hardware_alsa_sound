@@ -16,9 +16,11 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_C_INCLUDES += \
     hardware/intel/IFX-modem \
-    $(LOCAL_PATH)/../intel/mfld_cdk/amc/at-manager \
-    $(LOCAL_PATH)/../intel/mfld_cdk/amc/event-listener \
-    $(TARGET_OUT_HEADERS)/libaudioresample
+    $(TARGET_OUT_HEADERS)/at-manager \
+    $(TARGET_OUT_HEADERS)/libaudioresample \
+    $(TARGET_OUT_HEADERS)/event-listener \
+    $(TARGET_OUT_HEADERS)/modem-audio-manager \
+    $(TARGET_OUT_HEADERS)/audio-at-manager
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -89,7 +91,8 @@ LOCAL_SHARED_LIBRARIES := \
     libstlport \
     libicuuc \
     libat-manager \
-    libaudioresample
+    libaudioresample \
+    libmodem-audio-manager
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  LOCAL_SHARED_LIBRARIES += liba2dp

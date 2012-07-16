@@ -41,10 +41,8 @@
 #include "AudioRouteMM.h"
 #include "AudioRouteVoiceRec.h"
 #include "AudioRoute.h"
-#include "ATManager.h"
-#include "CallStatUnsollicitedATCommand.h"
-#include "ProgressUnsollicitedATCommand.h"
 #include "AudioConversion.h"
+#include "ModemAudioManagerInstance.h"
 
 #include "stmd.h"
 
@@ -187,9 +185,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("/etc/parameter-framework/ParameterFrameworkConfiguration.xml")),
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mAudioRouteMgr(new AudioRouteManager),
-    mATManager(new CATManager(this)),
-    mXProgressCmd(NULL),
-    mXCallstatCmd(NULL),
+    mModemAudioManager(CModemAudioManagerInstance::create(this)),
     mModemCallActive(false),
     mModemAvailable(false),
     mMSICVoiceRouteForcedOnMMRoute(false),
@@ -226,12 +222,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mAudioRouteMgr->addRoute(new AudioRouteMM(String8("MultiMedia")));
     mAudioRouteMgr->addRoute(new AudioRouteBT(String8("BT")));
     mAudioRouteMgr->addRoute(new AudioRouteVoiceRec(String8("VoiceRec")));
-
-
-    // Add XProgress and XCallStat commands to Unsollicited commands list of the ATManager
-    // (it will be automatically resent after reset of the modem)
-    mATManager->addUnsollicitedATCommand(mXProgressCmd = new CProgressUnsollicitedATCommand());
-    mATManager->addUnsollicitedATCommand(mXCallstatCmd = new CCallStatUnsollicitedATCommand());
 
     /// Start
     std::string strError;
@@ -286,7 +276,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
         }
         else
         {
-            getVpcHwDevice()->set_modem_state(mATManager->getModemStatus());
+            getVpcHwDevice()->set_modem_state(mModemAudioManager->getModemStatus());
         }
     }
 
@@ -299,7 +289,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
 #endif
 
     // Starts the modem state listener
-    if(mATManager->start(AUDIO_AT_CHANNEL_NAME)) {
+    if(mModemAudioManager->start()) {
         LOGE("AudioHardwareALSA: could not start modem state listener");
     }
 }
@@ -335,7 +325,7 @@ acoustic_device_t* AudioHardwareALSA::getAcousticHwDevice() const
 AudioHardwareALSA::~AudioHardwareALSA()
 {
     // Delete ATManager
-    delete mATManager;
+    delete mModemAudioManager;
     // Delete route manager, it will detroy all the registered routes
     delete mAudioRouteMgr;
     // Unset logger
@@ -1167,37 +1157,13 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
 // From IATNotifier
 // Called when an unsollicited command for which we registered arrived
 //
-bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollicitedCmd)
+void AudioHardwareALSA::onModemAudioStatusChanged()
 {
     AutoW lock(mLock);
     ALOGD("%s: in", __FUNCTION__);
 
-    if (mXProgressCmd == pUnsollicitedCmd || mXCallstatCmd == pUnsollicitedCmd)
-    {
-        // Process the answer
-        onModemXCmdReceived();
-    }
+    bool isAudioPathAvail = mModemAudioManager->isModemAudioAvailable();
 
-
-    return false;
-}
-
-// From IATNotifier
-bool AudioHardwareALSA::onAnsynchronousError(const CATcommand* pATCmd, int errorType)
-{
-    ALOGD("%s: in", __FUNCTION__);
-
-    return false;
-}
-
-void AudioHardwareALSA::onModemXCmdReceived()
-{
-    ALOGD("%s: in", __FUNCTION__);
-
-    // Check if Modem Audio Path is available
-    // According to network, some can receive XCALLSTAT, some can receive XPROGRESS
-    // so compute both information
-    bool isAudioPathAvail = mXCallstatCmd->isAudioPathAvailable() || mXProgressCmd->isAudioPathAvailable();
 
     // Modem Call State has changed?
     if (mModemCallActive != isAudioPathAvail){
@@ -1225,14 +1191,12 @@ void AudioHardwareALSA::onModemXCmdReceived()
 void  AudioHardwareALSA::onModemStateChanged() {
 
     AutoW lock(mLock);
-    ALOGD("%s: in: ModemStatus", __FUNCTION__);
-    char g_szDualSim[PROPERTY_VALUE_MAX];
-    int modemStatus = MODEM_DOWN;
 
-    property_get("persist.dual_sim", g_szDualSim, "none");
-    if (strncmp(g_szDualSim, "dsds_2230", 9) != 0) {
-        modemStatus = mATManager->getModemStatus();
-    }
+    LOGD("%s: in", __FUNCTION__);
+
+    mModemAvailable = mModemAudioManager->isModemAlive();
+
+
     /*
      * Informs VPC of modem status change
      * VPC might not be loaded at boot time, so
@@ -1240,10 +1204,8 @@ void  AudioHardwareALSA::onModemStateChanged() {
      * HW module
      */
     if (getVpcHwDevice() && getVpcHwDevice()->set_modem_state) {
-        getVpcHwDevice()->set_modem_state(modemStatus);
+        getVpcHwDevice()->set_modem_state(mModemAudioManager->getModemStatus());
     }
-
-    mModemAvailable = (modemStatus == MODEM_UP);
 
     // Reset ModemCallStatus boolean
     mModemCallActive = false;

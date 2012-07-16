@@ -35,14 +35,11 @@
 #include "AudioHardwareALSACommon.h"
 #include "AudioUtils.h"
 #include "SampleSpec.h"
-#include "ATNotifier.h"
+#include "ModemAudioManager.h"
 
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
-class CATManager;
-class CCallStatUnsollicitedATCommand;
-class CProgressUnsollicitedATCommand;
 
 using namespace std;
 
@@ -336,7 +333,7 @@ private:
     ssize_t mHwBufferSize;
 };
 
-class AudioHardwareALSA : public AudioHardwareBase, public IATNotifier
+class AudioHardwareALSA : public AudioHardwareBase, public IModemStatusNotifier
 {
     enum RoutingEvent {
         EModeChange,
@@ -426,9 +423,8 @@ public:
         return mMode;
     }
 
-    /* from AudioModemStateOberser: notified on modem status changes */
-    virtual bool onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollicitedCmd) ;
-    virtual bool onAnsynchronousError(const CATcommand* pATCmd, int errorType);
+    /* from ModemStatusNotifier: notified on modem status changes */
+    virtual void onModemAudioStatusChanged();
     virtual void onModemStateChanged();
 
 protected:
@@ -556,10 +552,8 @@ private:
     ISelectionCriterionInterface* mSelectedInputDevice;
     ISelectionCriterionInterface* mSelectedOutputDevice;
 
-    AudioRouteManager  *mAudioRouteMgr;
-    CATManager *mATManager;
-    CProgressUnsollicitedATCommand* mXProgressCmd;
-    CCallStatUnsollicitedATCommand* mXCallstatCmd;
+    AudioRouteManager* mAudioRouteMgr;
+    CModemAudioManager* mModemAudioManager;
 
     // Modem Call state
     bool mModemCallActive;
