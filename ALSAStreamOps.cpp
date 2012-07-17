@@ -215,8 +215,8 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
 size_t ALSAStreamOps::bufferSize() const
 {
     size_t bytes;
-
     int32_t interval;
+
     if (mParent->mode() == AudioSystem::MODE_IN_COMMUNICATION ||
             mParent->mode() ==  AudioSystem::MODE_IN_CALL) {
 
@@ -226,14 +226,14 @@ size_t ALSAStreamOps::bufferSize() const
 
         interval = BUFFER_TIME_US;
     }
-    size_t size = interval * sampleRate() / USEC_PER_SEC;
+    size_t size = (int64_t) interval * sampleRate() / USEC_PER_SEC;
     // take resampling into account and return the closest majoring
     // multiple of 16 frames, as audioflinger expects audio buffers to
     // be a multiple of 16 frames.
     size = CAudioUtils::alignOn16(size);
 
     bytes = CAudioUtils::convertFramesToBytes(size, mSampleSpec);
-    LOGD("%s: (in bytes)%d", __FUNCTION__, bytes);
+    LOGD("%s: %d (in bytes)", __FUNCTION__, bytes);
 
     return bytes;
 }
@@ -379,10 +379,10 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
 
     bool restore_needed = false;
     if((mParent->getFmRxMode() != mParent->getPrevFmRxMode() ||
-		(mHandle->curMode != mode &&
-		 (mode == AudioSystem::MODE_IN_CALL ||
+                (mHandle->curMode != mode &&
+                 (mode == AudioSystem::MODE_IN_CALL ||
           mHandle->curMode == AudioSystem::MODE_IN_CALL))) &&
-	   isOut()) {
+           isOut()) {
         storeAndResetPmDownDelay();
         restore_needed = true;
     }
