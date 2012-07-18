@@ -37,7 +37,7 @@ namespace android_audio_legacy
 
 bool AudioRouteBT::isApplicable(uint32_t devices, int mode, bool bForOutput)
 {
-    LOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
+    ALOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
     if(bForOutput) {
         if(devices & DEVICE_OUT_BLUETOOTH_SCO_ALL)
             return true;

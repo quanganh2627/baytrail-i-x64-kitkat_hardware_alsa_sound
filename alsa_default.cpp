@@ -494,12 +494,12 @@ static status_t s_init_stream(alsa_handle_t *handle, uint32_t devices, int mode)
     if(handle->openFlag)
         s_close(handle);
 
-    LOGD("s_init_stream called for devices %08x in mode %d...", devices, mode);
+    ALOGD("s_init_stream called for devices %08x in mode %d...", devices, mode);
 
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);
 
-    LOGD("s_init_stream called for devices %s", devName);
+    ALOGD("s_init_stream called for devices %s", devName);
     if (devices & AudioSystem::DEVICE_IN_ALL) {
         handle->bufferSize = _defaultsIn.bufferSize;
         handle->latency = _defaultsIn.latency;
@@ -530,7 +530,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
     //
     s_close(handle);
 
-    LOGD("open called for devices %08x in mode %d...", devices, mode);
+    ALOGD("open called for devices %08x in mode %d...", devices, mode);
 
     const char *stream = streamName(handle);
     const char *devName = deviceName(handle, devices, mode);

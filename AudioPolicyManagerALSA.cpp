@@ -80,7 +80,10 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     return baseClass::getInput(inputSource, samplingRate, format, channels, acoustics);
 }
 
-float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device)
+float AudioPolicyManagerALSA::computeVolume(int stream,
+                                            int index,
+                                            audio_io_handle_t output,
+                                            audio_devices_t device)
 {
     float volume = 1.0;
 
@@ -97,7 +100,7 @@ float AudioPolicyManagerALSA::computeVolume(int stream, int index, audio_io_hand
 }
 
 
-uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
+audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
 {
 
     uint32_t device = 0;
@@ -116,7 +119,7 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
                     case AudioSystem::FORCE_SPEAKER:
                         device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
                         if (device != 0) {
-                            LOGD("%s- Unsupported device in STRATEGY_PHONE: set Speaker as ouput", __FUNCTION__);
+                            ALOGD("%s- Unsupported device in STRATEGY_PHONE: set Speaker as ouput", __FUNCTION__);
                         } else {
                             LOGE("%s- Earpiece device not found", __FUNCTION__);
                         }
@@ -125,7 +128,7 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
                     default:
                         device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE;
                         if (device != 0) {
-                            LOGD("%s- Unsupported device in STRATEGY_PHONE: set Earpiece as ouput", __FUNCTION__);
+                            ALOGD("%s- Unsupported device in STRATEGY_PHONE: set Earpiece as ouput", __FUNCTION__);
                         } else {
                             LOGE("%s- Earpiece device not found: set speaker as output", __FUNCTION__);
                             device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
@@ -141,38 +144,24 @@ uint32_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy,
 
     LOGV("getDeviceForStrategy() strategy %d, device 0x%x", strategy, device);
 
-    return device;
+    return (audio_devices_t)device;
 }
 
-void AudioPolicyManagerALSA::setForceUse(AudioSystem::force_use usage, AudioSystem::forced_config config)
-{
-    // playback on BT SCO requested by application
-    if((usage == AudioSystem::FOR_MEDIA) && (config == AudioSystem::FORCE_BT_SCO)){
-            LOGV("setForceUse() config %d for FOR_MEDIA", config);
-            mForceUse[usage] = config;
-            baseClass::applyForceUse(true);
-    }
-    else {
-        baseClass::setForceUse(usage, config);
-    }
-
-}
-
-void AudioPolicyManagerALSA::updateDeviceSupport(const char * property, uint32_t device)
+void AudioPolicyManagerALSA::updateDeviceSupport(const char * property, audio_devices_t device)
 
 {
-    uint32_t * pAvailableDevice;
+    audio_devices_t * pAvailableDevice;
 
     // Input or Output device ?
     pAvailableDevice = device & AUDIO_DEVICE_OUT_ALL ? &mAvailableOutputDevices : &mAvailableInputDevices;
     // Check the device property, if the property is not specified then the device is supported by default
     CBooleanProperty deviceProp(property, true);
     if (deviceProp.isSet()) {
-        LOGD("%s: Device 0x%08X supported", __FUNCTION__, device);
-        *pAvailableDevice |= device;
+        ALOGD("%s: Device 0x%08X supported", __FUNCTION__, device);
+        *pAvailableDevice = (audio_devices_t)(*pAvailableDevice | device);
     } else {
-        LOGD("%s: Device 0x%08X not supported", __FUNCTION__, device);
-        *pAvailableDevice &= ~device;
+        ALOGD("%s: Device 0x%08X not supported", __FUNCTION__, device);
+        *pAvailableDevice = (audio_devices_t)(*pAvailableDevice & ~device);
     }
 }
 
@@ -180,9 +169,9 @@ AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clien
     : baseClass(clientInterface)
 {
     // check if earpiece device is supported
-    updateDeviceSupport("audiocomms.dev.earpiece.present", AudioSystem::DEVICE_OUT_EARPIECE);
-    // check if back mic device is supported
-    updateDeviceSupport("audiocomms.dev.backmic.present", AudioSystem::DEVICE_IN_BACK_MIC);
+//    updateDeviceSupport("audiocomms.dev.earpiece.present", AUDIO_DEVICE_OUT_EARPIECE);
+//    // check if back mic device is supported
+//    updateDeviceSupport("audiocomms.dev.backmic.present", AUDIO_DEVICE_IN_BACK_MIC);
 }
 
 AudioPolicyManagerALSA::~AudioPolicyManagerALSA()

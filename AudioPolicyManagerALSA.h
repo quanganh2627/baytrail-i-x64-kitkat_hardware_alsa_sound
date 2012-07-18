@@ -43,16 +43,18 @@ public:
                                        uint32_t channels,
                                        AudioSystem::audio_in_acoustics acoustics);
 
-    virtual float computeVolume(int stream, int index, audio_io_handle_t output, uint32_t device);
-    virtual void setForceUse(AudioSystem::force_use usage, AudioSystem::forced_config config);
-    virtual uint32_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
+    virtual float computeVolume(int stream,
+                                                        int index,
+                                                        audio_io_handle_t output,
+                                                        audio_devices_t device);
+    virtual audio_devices_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
 protected:
     // true if current platform implements a back microphone
     virtual bool hasBackMicrophone() const { return mAvailableInputDevices & AudioSystem::DEVICE_IN_BACK_MIC; }
     // true if current platform implements an earpiece
     virtual bool hasEarpiece() const { return mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE; }
 private:
-    void updateDeviceSupport(const char * property, uint32_t device);
+    void updateDeviceSupport(const char * property, audio_devices_t device);
 };
 
 };

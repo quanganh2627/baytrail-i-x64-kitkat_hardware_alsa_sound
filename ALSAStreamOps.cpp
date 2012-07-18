@@ -102,7 +102,7 @@ status_t ALSAStreamOps::set(int      *format,
     bool bad_rate = false;
     bool bad_format = false;
 
-    LOGD("set IN : format:%d channels:0x%x rate:%d", *format, *channels, *rate);
+    ALOGD("set IN : format:%d channels:0x%x rate:%d", *format, *channels, *rate);
 
     if (channels) {
         if ( (*channels != 0) && ( mHandle->channels != popCount(*channels) ) ) {
@@ -140,7 +140,7 @@ status_t ALSAStreamOps::set(int      *format,
                     break;
                 }
             }
-            LOGD("set : change channels to 0x%x",  *channels);
+            ALOGD("set : change channels to 0x%x",  *channels);
         }
     }
 
@@ -151,7 +151,7 @@ status_t ALSAStreamOps::set(int      *format,
 
         if ( (bad_rate) || (*rate == 0) ) {
             *rate = mHandle->sampleRate;
-            LOGD("set : change rate to %d",  *rate);
+            ALOGD("set : change rate to %d",  *rate);
         }
     }
 
@@ -178,7 +178,7 @@ status_t ALSAStreamOps::set(int      *format,
 
         if ( (bad_format) || (*format == 0) ) {
             *format = iActualFormat;
-            LOGD("set : change format to %d",  *format);
+            ALOGD("set : change format to %d",  *format);
         }
     }
 
@@ -303,7 +303,7 @@ void ALSAStreamOps::close()
 
 void ALSAStreamOps::doClose()
 {
-    LOGD("ALSAStreamOps::doClose");
+    ALOGD("ALSAStreamOps::doClose");
 
     if(mHandle->handle)
     {
@@ -321,7 +321,7 @@ void ALSAStreamOps::doClose()
 
 void ALSAStreamOps::doStandby()
 {
-    LOGD("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
 
     standby();
 }
@@ -329,7 +329,7 @@ void ALSAStreamOps::doStandby()
 status_t ALSAStreamOps::standby()
 {
     AutoW lock(mParent->mLock);
-    LOGD("%s",__FUNCTION__);
+    ALOGD("%s",__FUNCTION__);
 
     if(mHandle->handle)
     {
@@ -383,7 +383,7 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
         }
     }
 
-    LOGD("ALSAStreamOps::open");
+    ALOGD("ALSAStreamOps::open");
     return err;
 }
 
@@ -399,7 +399,7 @@ void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
 {
     if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
        mParent->getVpcHwDevice()) {
-        LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
+        ALOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
         mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
     }
 }
@@ -409,18 +409,18 @@ void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
     if((curMode == AudioSystem::MODE_IN_COMMUNICATION) && (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
        mParent->getVpcHwDevice())
     {
-        LOGD("%s", __FUNCTION__);
+        ALOGD("%s", __FUNCTION__);
         mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
     }
 }
 
 status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int mode)
 {
-    LOGD("setRoute mode=%d", mode);
+    ALOGD("setRoute mode=%d", mode);
     if((mAudioRoute == audioRoute) && (mHandle->curDev == devices) && (mHandle->curMode == mode) &&
             (mParent->getFmRxMode() == mParent->getPrevFmRxMode()) &&
             !mParent->isReconsiderRoutingForced()) {
-        LOGD("setRoute: stream already attached to the route, identical conditions");
+        ALOGD("setRoute: stream already attached to the route, identical conditions");
         return NO_ERROR;
     }
 
@@ -453,7 +453,7 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
 
     if (ret != NO_ERROR) {
 
-        LOGD("%s: error while routing the stream...", __FUNCTION__);
+        ALOGD("%s: error while routing the stream...", __FUNCTION__);
         // Error while routing the stream to its route, unset it!!!
         mAudioRoute->unsetStream(this, mode);
         mAudioRoute = NULL;
@@ -469,7 +469,7 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
 status_t ALSAStreamOps::doRoute(int mode)
 {
     status_t err = NO_ERROR;
-    LOGD("doRoute mode=%d", mode);
+    ALOGD("doRoute mode=%d", mode);
 
     vpcRoute(mDevices, mode);
 
@@ -480,7 +480,7 @@ status_t ALSAStreamOps::doRoute(int mode)
     }
 
     if(mStandby) {
-        LOGD("doRoute standby mode -> standby the device immediately after routing");
+        ALOGD("doRoute standby mode -> standby the device immediately after routing");
         doStandby();
     }
     return NO_ERROR;
@@ -488,7 +488,7 @@ status_t ALSAStreamOps::doRoute(int mode)
 
 status_t ALSAStreamOps::undoRoute()
 {
-    LOGD("doRoute undoRoute");
+    ALOGD("doRoute undoRoute");
 
     int curMode = mHandle->curMode;
     int curDev = mHandle->curDev;
@@ -518,7 +518,7 @@ int ALSAStreamOps::readSysEntry(const char* filePath)
     {
         // Zero terminate string
         buff[count] = '\0';
-        LOGD("read %d bytes = %s", count, buff);
+        ALOGD("read %d bytes = %s", count, buff);
         val = strtol(buff, NULL, 0);
     }
 
@@ -542,16 +542,16 @@ void ALSAStreamOps::writeSysEntry(const char* filePath, int value)
     if ((count = ::write(fd, buff, strlen(buff))) != strlen(buff))
         LOGE("could not write ret=%d", count);
     else
-        LOGD("written %d bytes = %s", count, buff);
+        ALOGD("written %d bytes = %s", count, buff);
     ::close(fd);
 }
 
 void ALSAStreamOps::storeAndResetPmDownDelay()
 {
-    LOGD("storeAndResetPmDownDelay");
+    ALOGD("storeAndResetPmDownDelay");
     if (!isResetted)
     {
-        LOGD("storeAndResetPmDownDelay not resetted");
+        ALOGD("storeAndResetPmDownDelay not resetted");
         headsetPmDownDelay = readSysEntry(heasetPmDownDelaySysFile);
         speakerPmDownDelay = readSysEntry(speakerPmDownDelaySysFile);
         voicePmDownDelay = readSysEntry(voicePmDownDelaySysFile);
@@ -563,15 +563,15 @@ void ALSAStreamOps::storeAndResetPmDownDelay()
         isResetted = true;
     }
     else
-        LOGD("storeAndResetPmDownDelay already resetted -> nothing to do");
+        ALOGD("storeAndResetPmDownDelay already resetted -> nothing to do");
 }
 
 void ALSAStreamOps::restorePmDownDelay()
 {
-    LOGD("restorePmDownDelay");
+    ALOGD("restorePmDownDelay");
     if(isResetted)
     {
-        LOGD("restorePmDownDelay restoring");
+        ALOGD("restorePmDownDelay restoring");
         writeSysEntry(heasetPmDownDelaySysFile, headsetPmDownDelay);
         writeSysEntry(speakerPmDownDelaySysFile, speakerPmDownDelay);
         writeSysEntry(voicePmDownDelaySysFile, voicePmDownDelay);
@@ -579,7 +579,7 @@ void ALSAStreamOps::restorePmDownDelay()
         isResetted = false;
     }
     else
-        LOGD("restorePmDownDelay -> nothing to do");
+        ALOGD("restorePmDownDelay -> nothing to do");
 }
 
 bool ALSAStreamOps::isDeviceBluetoothSCO(uint32_t devices)

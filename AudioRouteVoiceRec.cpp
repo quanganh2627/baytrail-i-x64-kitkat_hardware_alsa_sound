@@ -35,7 +35,7 @@ namespace android_audio_legacy
 
 bool AudioRouteVoiceRec::isApplicable(uint32_t devices, int mode, bool bForOutput)
 {
-    LOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
+    ALOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
     if(!bForOutput) {
         if((devices & AudioSystem::DEVICE_IN_VOICE_CALL) && (mode == AudioSystem::MODE_IN_CALL))
             return true;

@@ -44,7 +44,7 @@ AudioRoute::AudioRoute(const String8& mName) :
     mName(mName),
     mIsCaptureRouted(false)
 {
-    LOGD("AudioRoute %s", mName.string());
+    ALOGD("AudioRoute %s", mName.string());
     mStreams[INPUT_STREAM] = NULL;
     mStreams[OUTPUT_STREAM] = NULL;
     mIsRouteAccessible[INPUT_STREAM] = true;
@@ -58,7 +58,7 @@ AudioRoute::~AudioRoute()
 
 status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
 {
-    LOGD("execute mode=%d", mode);
+    ALOGD("execute mode=%d", mode);
 
     status_t ret = NO_ERROR;
 
@@ -76,7 +76,7 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
                 (void)unRoute(INPUT_STREAM);
             }
             // Route the playback inconditionnaly (routing depends on it)
-            LOGD("execute playback");
+            ALOGD("execute playback");
             ret = route(mode, OUTPUT_STREAM);
 
             if (ret != NO_ERROR) {
@@ -86,7 +86,7 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
             if(captureStream()) {
                 // Now that the playback is routed, the route is established
                 // We can now route the capture stream we unrouted previously
-                LOGD("execute Playback -> Capture previously requested");
+                ALOGD("execute Playback -> Capture previously requested");
                 ret = route(mode, INPUT_STREAM);
 
                 if (ret != NO_ERROR) {
@@ -100,7 +100,7 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
             //      -> OK if playback is already routed
             //      -> NOK if no playback
             if(playbackStream()) {
-                LOGD("execute capture (playback already routed)");
+                ALOGD("execute capture (playback already routed)");
                 ret = route(mode, INPUT_STREAM);
                 if (ret != NO_ERROR) {
 
@@ -115,7 +115,7 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
         }
     } else {
 
-        LOGD("execute route inconditionnaly");
+        ALOGD("execute route inconditionnaly");
         //
         // Streams are not tied, route inconditionnaly
         //
@@ -126,7 +126,7 @@ status_t AudioRoute::applyRoutingStrategy(int mode, bool bForOutput)
 
 status_t AudioRoute::route(int mode, bool bForOutput)
 {
-    LOGD("route mode=%d isAccessible=%d", mode, mIsRouteAccessible[bForOutput]);
+    ALOGD("route mode=%d isAccessible=%d", mode, mIsRouteAccessible[bForOutput]);
 
     status_t ret = NO_ERROR;
 
@@ -146,7 +146,7 @@ status_t AudioRoute::route(int mode, bool bForOutput)
 
 status_t AudioRoute::unRoute(bool bForOutput)
 {
-    LOGD("unRoute isAvailable=%d", mIsRouteAccessible[bForOutput]);
+    ALOGD("unRoute isAvailable=%d", mIsRouteAccessible[bForOutput]);
     if(mIsRouteAccessible[bForOutput]) {
         if(bForOutput) {
             playbackStream()->undoRoute();
@@ -160,7 +160,7 @@ status_t AudioRoute::unRoute(bool bForOutput)
 
 status_t AudioRoute::setStream(ALSAStreamOps* pStream, int mode)
 {
-    LOGD("setStream mode=%d", mode);
+    ALOGD("setStream mode=%d", mode);
     bool isOut = pStream->isOut();
 
     assert(!mStreams[isOut]);
@@ -172,7 +172,7 @@ status_t AudioRoute::setStream(ALSAStreamOps* pStream, int mode)
 
 status_t AudioRoute::unsetStream(ALSAStreamOps* pStream, int mode)
 {
-    LOGD("unsetStream mode=%d", mode);
+    ALOGD("unsetStream mode=%d", mode);
     bool isOut;
     isOut = pStream->isOut();
     assert(pStream && mStreams[isOut] && (pStream == mStreams[isOut]));
@@ -196,7 +196,7 @@ status_t AudioRoute::unsetStream(ALSAStreamOps* pStream, int mode)
 
 void AudioRoute::setRouteAccessible(bool isAccessible, int mode, Direction dir)
 {
-    LOGD("setRouteAccessible mIsRouteAccessible=%d", isAccessible);
+    ALOGD("setRouteAccessible mIsRouteAccessible=%d", isAccessible);
 
     bool action_requested = false;
     if (dir & Capture) {
@@ -212,7 +212,7 @@ void AudioRoute::setRouteAccessible(bool isAccessible, int mode, Direction dir)
 
     if (!action_requested)
     {
-        LOGD("setRouteAccessible Nothing to do");
+        ALOGD("setRouteAccessible Nothing to do");
         return ;
     }
 
@@ -225,14 +225,14 @@ void AudioRoute::setRouteAccessible(bool isAccessible, int mode, Direction dir)
          */
         if ( dir & Capture) {
             if(captureStream() && mIsCaptureRouted) {
-                LOGD("setRouteAccessible undoRoute capture stream");
+                ALOGD("setRouteAccessible undoRoute capture stream");
                 unRoute(INPUT_STREAM);
             }
             mIsRouteAccessible[INPUT_STREAM] = isAccessible;
         }
         if (dir & Playback) {
             if (playbackStream()) {
-                LOGD("setRouteAccessible undoRoute playback stream");
+                ALOGD("setRouteAccessible undoRoute playback stream");
                 unRoute(OUTPUT_STREAM);
             }
             mIsRouteAccessible[OUTPUT_STREAM] = isAccessible;
@@ -246,7 +246,7 @@ void AudioRoute::setRouteAccessible(bool isAccessible, int mode, Direction dir)
             mIsRouteAccessible[OUTPUT_STREAM] = isAccessible;
 
             if(playbackStream()) {
-                LOGD("setRouteAccessible route playback stream");
+                ALOGD("setRouteAccessible route playback stream");
                 applyRoutingStrategy(mode, OUTPUT_STREAM);
             }
         }
@@ -255,7 +255,7 @@ void AudioRoute::setRouteAccessible(bool isAccessible, int mode, Direction dir)
              mIsRouteAccessible[INPUT_STREAM] = isAccessible;
 
             if(captureStream()) {
-                LOGD("setRouteAccessible route capture stream");
+                ALOGD("setRouteAccessible route capture stream");
                 applyRoutingStrategy(mode, INPUT_STREAM);
             }
         }
@@ -278,7 +278,7 @@ bool AudioRoute::available(bool bForOutput)
 
 bool AudioRoute::tieStreams(int mode)
 {
-    LOGD("tieStreams mode=%d", mode);
+    ALOGD("tieStreams mode=%d", mode);
 
     if(mode == AudioSystem::MODE_IN_COMMUNICATION)
         return true;

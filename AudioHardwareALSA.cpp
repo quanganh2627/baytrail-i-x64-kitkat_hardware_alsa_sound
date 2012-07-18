@@ -98,7 +98,7 @@ public:
 
     virtual void log(const std::string& strLog)
     {
-        LOGD("%s",strLog.c_str());
+        ALOGD("%s",strLog.c_str());
     }
 };
 
@@ -171,7 +171,7 @@ static void ALSAErrorHandler(const char *file,
     }
     vsnprintf(buf + l, BUFSIZ - l, fmt, arg);
     buf[BUFSIZ-1] = '\0';
-    LOG(LOG_ERROR, "ALSALib", "%s", buf);
+    ALOGE("ALSALib", "%s", buf);
 
 error:
     va_end(arg);
@@ -414,7 +414,7 @@ void AudioHardwareALSA::fillSelectionCriterionType(ISelectionCriterionTypeInterf
 // Default Alsa sample rate discovery
 uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const
 {
-    LOGD("%s in", __FUNCTION__);
+    ALOGD("%s in", __FUNCTION__);
 
     if (!mParameterMgrPlatformConnector->isStarted()) {
 
@@ -432,7 +432,7 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
 
         LOGE("Unable to get parameter handle: %s", strError.c_str());
 
-        LOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
+        ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
         return uiDefaultValue;
     }
@@ -444,7 +444,7 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
 
         LOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
 
-        LOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
+        ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
         // Remove handle
         delete pParameterHandle;
@@ -455,7 +455,7 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
     // Remove handle
     delete pParameterHandle;
 
-    LOGD("%s returning %d", __FUNCTION__, uiValue);
+    ALOGD("%s returning %d", __FUNCTION__, uiValue);
 
     return uiValue;
 }
@@ -483,7 +483,7 @@ status_t AudioHardwareALSA::setMode(int mode)
 {
     AutoW lock(mLock);
 
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     status_t status = NO_ERROR;
 
@@ -510,7 +510,7 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
 {
     AutoW lock(mLock);
 
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS) {
         if (fm_mode == AudioSystem::MODE_FM_ON) {
@@ -534,7 +534,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 {
     AutoW lock(mLock);
 
-    LOGD("%s: called for devices: 0x%08x", __FUNCTION__, devices);
+    ALOGD("%s: called for devices: 0x%08x", __FUNCTION__, devices);
 
     status_t err = BAD_VALUE;
     AudioStreamOutALSA* out = 0;
@@ -542,7 +542,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 
     if ((devices & (devices - 1)) || (!devices & AudioSystem::DEVICE_OUT_ALL)) {
 
-        LOGD("%s: called with bad devices", __FUNCTION__);
+        ALOGD("%s: called with bad devices", __FUNCTION__);
         goto finish;
     }
 
@@ -589,7 +589,7 @@ finish:
     }
     if (status) *status = err;
 
-    LOGD("%s: OUT", __FUNCTION__);
+    ALOGD("%s: OUT", __FUNCTION__);
     return out;
 }
 
@@ -636,7 +636,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 {
     AutoW lock(mLock);
 
-    LOGD("%s: IN", __FUNCTION__);
+    ALOGD("%s: IN", __FUNCTION__);
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA* in = 0;
@@ -706,7 +706,7 @@ finish:
     }
     if (status) *status = err;
 
-    LOGD("%s: OUT", __FUNCTION__);
+    ALOGD("%s: OUT", __FUNCTION__);
     return in;
 }
 
@@ -743,16 +743,16 @@ AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
             break;
         }
     }
-    LOGD("closeInputStream");
+    ALOGD("closeInputStream");
 }
 
 status_t AudioHardwareALSA::setMicMute(bool state)
 {
     mMicMuteState = state;
     if(state)
-        LOGD("Set MUTE true");
+        ALOGD("Set MUTE true");
     else
-        LOGD("Set MUTE false");
+        ALOGD("Set MUTE false");
 
     return NO_ERROR;
 }
@@ -761,9 +761,9 @@ status_t AudioHardwareALSA::getMicMute(bool *state)
 {
     *state = mMicMuteState;
     if(*state)
-        LOGD("Get MUTE true");
+        ALOGD("Get MUTE true");
     else
-        LOGD("Get MUTE false");
+        ALOGD("Get MUTE false");
 
     return NO_ERROR;
 
@@ -1047,7 +1047,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 //
 void AudioHardwareALSA::reconsiderRouting() {
 
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     CAudioStreamOutALSAListConstIterator it;
 
@@ -1078,7 +1078,7 @@ void AudioHardwareALSA::reconsiderRouting() {
 //
 void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
 {
-    LOGD("%s: in, mode %d, modemAvailable=%d, ModemCallActive=%d", __FUNCTION__, mode(), mModemAvailable, mModemCallActive);
+    ALOGD("%s: in, mode %d, modemAvailable=%d, ModemCallActive=%d", __FUNCTION__, mode(), mModemAvailable, mModemCallActive);
 
     switch(mode()) {
     case AudioSystem::MODE_IN_CALL:
@@ -1152,7 +1152,7 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
         break;
     }
 
-    LOGD("%s: out", __FUNCTION__);
+    ALOGD("%s: out", __FUNCTION__);
 }
 
 //
@@ -1162,7 +1162,7 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent aRoutEvent)
 bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollicitedCmd)
 {
     AutoW lock(mLock);
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     if (mXProgressCmd == pUnsollicitedCmd || mXCallstatCmd == pUnsollicitedCmd)
     {
@@ -1177,14 +1177,14 @@ bool AudioHardwareALSA::onUnsollicitedReceived(CUnsollicitedATCommand* pUnsollic
 // From IATNotifier
 bool AudioHardwareALSA::onAnsynchronousError(const CATcommand* pATCmd, int errorType)
 {
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     return false;
 }
 
 void AudioHardwareALSA::onModemXCmdReceived()
 {
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     // Check if Modem Audio Path is available
     // According to network, some can receive XCALLSTAT, some can receive XPROGRESS
@@ -1207,7 +1207,7 @@ void AudioHardwareALSA::onModemXCmdReceived()
         applyRouteAccessibilityRules(ECallStatusChange);
 
     }
-    LOGD("%s: out", __FUNCTION__);
+    ALOGD("%s: out", __FUNCTION__);
 }
 
 //
@@ -1217,7 +1217,7 @@ void AudioHardwareALSA::onModemXCmdReceived()
 void  AudioHardwareALSA::onModemStateChanged() {
 
     AutoW lock(mLock);
-    LOGD("%s: in: ModemStatus", __FUNCTION__);
+    ALOGD("%s: in: ModemStatus", __FUNCTION__);
     char g_szDualSim[PROPERTY_VALUE_MAX];
     int modemStatus = MODEM_DOWN;
 
@@ -1243,7 +1243,7 @@ void  AudioHardwareALSA::onModemStateChanged() {
     // Re-evaluate accessibility of the audio routes
     applyRouteAccessibilityRules(EModemStateChange);
 
-    LOGD("%s: out", __FUNCTION__);
+    ALOGD("%s: out", __FUNCTION__);
 }
 
 inline int AudioHardwareALSA::audioMode()

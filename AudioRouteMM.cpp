@@ -40,7 +40,7 @@ namespace android_audio_legacy
 
 bool AudioRouteMM::isApplicable(uint32_t devices, int mode, bool bForOutput)
 {
-    LOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
+    ALOGD("isApplicable mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
     if(bForOutput) {
 #ifndef CUSTOM_BOARD_WITH_AUDIENCE
         if ((devices & DEVICE_OUT_MM_ALL) && (mode != AudioSystem::MODE_IN_CALL)) {

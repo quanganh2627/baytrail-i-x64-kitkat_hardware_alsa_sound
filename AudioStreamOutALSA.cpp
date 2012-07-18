@@ -74,7 +74,7 @@ status_t AudioStreamOutALSA::setVolume(float left, float right)
 
 size_t AudioStreamOutALSA::generateSilence(size_t bytes)
 {
-    LOGD("%s: on alsa device(0x%x) in mode(0x%x)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
+    ALOGD("%s: on alsa device(0x%x) in mode(0x%x)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
 
     usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
     mStandby = false;
@@ -227,7 +227,7 @@ status_t AudioStreamOutALSA::close()
     AutoW lock(mParent->mLock);
 
     if(!mHandle->handle) {
-        LOGD("null\n");
+        ALOGD("null\n");
     }
     if(mHandle->handle)
         snd_pcm_drain (mHandle->handle);
@@ -240,7 +240,7 @@ status_t AudioStreamOutALSA::close()
 
 status_t AudioStreamOutALSA::standby()
 {
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     status_t status = ALSAStreamOps::standby();
 

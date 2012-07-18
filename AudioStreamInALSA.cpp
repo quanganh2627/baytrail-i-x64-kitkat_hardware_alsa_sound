@@ -173,7 +173,7 @@ status_t AudioStreamInALSA::open(int mode)
 status_t AudioStreamInALSA::close()
 {
     AutoW lock(mParent->mLock);
-    LOGD("StreamInAlsa close.\n");
+    ALOGD("StreamInAlsa close.\n");
 
     acoustic_device_t *aDev = acoustics();
 
@@ -188,7 +188,7 @@ status_t AudioStreamInALSA::close()
 
 status_t AudioStreamInALSA::standby()
 {
-    LOGD("StreamInAlsa standby.\n");
+    ALOGD("StreamInAlsa standby.\n");
 
     status_t status = ALSAStreamOps::standby();
 

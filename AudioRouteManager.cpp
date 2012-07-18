@@ -54,13 +54,13 @@ status_t AudioRouteManager::route(ALSAStreamOps* pStream, uint32_t devices, int 
 {
 //    status_t status;
     AudioRoute *aRoute;
-    LOGD("route mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
+    ALOGD("route mode=%d devices=0x%x bForOutput=%d", mode, devices, bForOutput);
 
     if (!devices)
     {
         // Request with NULL device -> unroute request
         // Set the route to the NULL route
-        LOGD("%s: null device => unroute", __FUNCTION__);
+        ALOGD("%s: null device => unroute", __FUNCTION__);
         aRoute = NULL;
     }
     else
@@ -82,7 +82,7 @@ status_t AudioRouteManager::route(ALSAStreamOps* pStream, uint32_t devices, int 
 
 status_t AudioRouteManager::addRoute(AudioRoute *route)
 {
-    LOGD("addRoute");
+    ALOGD("addRoute");
     if(route)
         _audioRouteList.push_back(route);
     else
@@ -94,7 +94,7 @@ status_t AudioRouteManager::addRoute(AudioRoute *route)
 
 AudioRoute* AudioRouteManager::getRoute(uint32_t devices, int mode, bool bForOutput)
 {
-    LOGD("getRoute");
+    ALOGD("getRoute");
 
     AudioRoute *aRoute =  NULL;
     AudioRouteListIterator it;
@@ -104,7 +104,7 @@ AudioRoute* AudioRouteManager::getRoute(uint32_t devices, int mode, bool bForOut
 
         aRoute = *it;
         if(aRoute->isApplicable(devices, mode, bForOutput)) {
-            LOGD("route has been found");
+            ALOGD("route has been found");
             return aRoute;
         }
     }
@@ -114,7 +114,7 @@ AudioRoute* AudioRouteManager::getRoute(uint32_t devices, int mode, bool bForOut
 
 AudioRoute* AudioRouteManager::findRouteByName(const String8& name)
 {
-    LOGD("findRouteByName");
+    ALOGD("findRouteByName");
     AudioRoute* aRoute =  NULL;
     AudioRouteListIterator it;
 
@@ -130,7 +130,7 @@ AudioRoute* AudioRouteManager::findRouteByName(const String8& name)
 
 status_t AudioRouteManager::setRouteAccessible(const String8& name, bool isAccessible, int mode, AudioRoute::Direction dir)
 {
-    LOGD("setRouteAccessible");
+    ALOGD("setRouteAccessible");
     AudioRoute* aRoute =  NULL;
     AudioRouteListIterator it;
 
