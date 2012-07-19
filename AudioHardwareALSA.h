@@ -40,7 +40,6 @@
 #include "AudioUtils.h"
 #include "SampleSpec.h"
 #include "ModemAudioManager.h"
-#include "BooleanProperty.h"
 
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
@@ -596,7 +595,13 @@ private:
     };
     static const char* const gapcModemPortClockSelection[IFX_NB_I2S_PORT];
     static const uint32_t DEFAULT_IFX_CLK_SELECT;
-    static const char* propertyNameModemEmbedded;
+
+    static const char* const mDefaultGainPropName;
+    static const float mDefaultGainValue;
+    static const char* const mAudienceIsPresentPropName;
+    static const bool mAudienceIsPresentDefaultValue;
+    static const char* const mModemEmbeddedPropName;
+    static const bool mModemEmbeddedDefaultValue;
 
 private:
     // PFW type value pairs type
@@ -668,7 +673,7 @@ private:
     bool mIsBluetoothEnabled;
 
     // Indicate if platform embeds a Modem chip.
-    CBooleanProperty* mPropHaveModem;
+    bool mHaveModem;
 
     // Current output device(s) used
     uint32_t mOutputDevices;

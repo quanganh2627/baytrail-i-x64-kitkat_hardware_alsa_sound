@@ -31,7 +31,7 @@ LOCAL_C_INCLUDES += \
 #        hardware/alsa_sound/test-app/
 #
 
-  LOCAL_SRC_FILES := \
+LOCAL_SRC_FILES := \
     AudioHardwareInterface.cpp \
     audio_hw_hal.cpp \
     SampleSpec.cpp \
@@ -108,6 +108,13 @@ include $(BUILD_SHARED_LIBRARY)
 # This is the ALSA audio policy manager
 
 include $(CLEAR_VARS)
+
+LOCAL_C_INCLUDES += \
+    hardware/intel/IFX-modem \
+    $(TARGET_OUT_HEADERS)/at-manager \
+    $(TARGET_OUT_HEADERS)/event-listener \
+    $(TARGET_OUT_HEADERS)/libaudioresample \
+    $(TARGET_OUT_HEADERS)/property
 
 LOCAL_SRC_FILES := \
     AudioPolicyManagerALSA.cpp

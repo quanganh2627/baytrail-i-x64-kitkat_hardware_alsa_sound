@@ -28,9 +28,9 @@
 #include <utils/Log.h>
 #include <utils/String8.h>
 
-#include <cutils/properties.h>
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
+#include "Property.h"
 #include "ParameterMgrPlatformConnector.h"
 #include "SelectionCriterionInterface.h"
 #include "AudioHardwareALSA.h"
@@ -43,13 +43,8 @@
 #include "AudioRoute.h"
 #include "AudioConversion.h"
 #include "ModemAudioManagerInstance.h"
-#include "BooleanProperty.h"
 
 #include "stmd.h"
-
-#define DEFAULTGAIN "1.0"
-#define AUDIENCE_IS_PRESENT_PROPERTY_NAME "Audiocomms.Audience.IsPresent"
-#define AUDIENCE_IS_PRESENT_PROPERTY_DEFAULT_VALUE "false"
 
 namespace android_audio_legacy
 {
@@ -92,8 +87,17 @@ const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardw
     { FM_HARDWARE_MODULE_ID, FM_HARDWARE_MODULE_ID },
 };
 
+
+/// Android Properties
+const char* const AudioHardwareALSA::mDefaultGainPropName = "alsa.mixer.defaultGain";
+const float AudioHardwareALSA::mDefaultGainValue = 1.0;
+const char* const AudioHardwareALSA::mAudienceIsPresentPropName = "Audiocomms.Audience.IsPresent";
+const bool AudioHardwareALSA::mAudienceIsPresentDefaultValue = false;
+
 // Property name indicating if platform embeds a modem chip
-const char* AudioHardwareALSA::propertyNameModemEmbedded = "Audiocomms.Modem.IsPresent";
+const char* const AudioHardwareALSA::mModemEmbeddedPropName = "Audiocomms.Modem.IsPresent";
+const bool AudioHardwareALSA::mModemEmbeddedDefaultValue = true;
+
 
 /// PFW related definitions
 // Logger
@@ -303,28 +307,26 @@ AudioHardwareALSA::AudioHardwareALSA() :
     }
 
     //check if platform embeds a modem
-    mPropHaveModem = new CBooleanProperty(propertyNameModemEmbedded, true);
-    if (mPropHaveModem->isSet())
+    mHaveModem = TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue);
+    if (mHaveModem) {
         LOGD("%s(): platform embeds a Modem chip", __FUNCTION__);
-    else
+    } else {
         LOGD("%s(): platform does NOT embed a Modem chip", __FUNCTION__);
+    }
 
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
     mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
     mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
 #endif
 
-    char propHaveAudience[PROPERTY_VALUE_MAX];
-    property_get(AUDIENCE_IS_PRESENT_PROPERTY_NAME, propHaveAudience, AUDIENCE_IS_PRESENT_PROPERTY_DEFAULT_VALUE);
-    if(strcmp(propHaveAudience, "true") == 0)
+    mHaveAudience = TProperty<bool>(mAudienceIsPresentPropName, mAudienceIsPresentDefaultValue);
+    if(mHaveAudience)
     {
         ALOGD("%s(): platform embeds an Audience chip", __FUNCTION__);
-        mHaveAudience = true;
     }
     else
     {
         ALOGD("%s(): platform does NOT embed an Audience chip", __FUNCTION__);
-        mHaveAudience = false;
     }
 }
 
@@ -630,20 +632,15 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     status_t err = BAD_VALUE;
     AudioStreamInALSA* in = 0;
     alsa_handle_t* pHandle = NULL;
-    char str[PROPERTY_VALUE_MAX];
-    float defaultGain = 0.0;
+    float fDefaultGain = 0.0;
 
     mMicMuteState = false;
+    fDefaultGain = TProperty<float>(mDefaultGainPropName, mDefaultGainValue);
 
     if ((devices & (devices - 1)) || (!devices & AudioSystem::DEVICE_IN_ALL)) {
 
         goto finish;
     }
-
-    property_get ("alsa.mixer.defaultGain",
-                  str,
-                  DEFAULTGAIN);
-    defaultGain = strtof(str, NULL);
 
     if (!getAlsaHwDevice()) {
 
@@ -664,7 +661,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     in = new AudioStreamInALSA(this, pHandle, acoustics);
 
-    err = in->setGain(defaultGain);
+    err = in->setGain(fDefaultGain);
     if (err != NO_ERROR) {
 
         ALOGE("%s: setGain", __FUNCTION__);
@@ -871,8 +868,8 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     }
 
     // Tablet supports only HSP, these requests should be ignored on tablet to avoid "non acoustic" audience profile by default.
-    if(mPropHaveModem->isSet())
-    {
+    if(mHaveModem) {
+
         // Search BT NREC parameter
         String8 strBTnRecSetting;
         key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
