@@ -1198,6 +1198,12 @@ void AudioHardwareALSA::updateHwMode()
 
         // Refresh PFW mode
         mSelectedMode->setCriterionState(hwMode());
+
+        std::string strError;
+        if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
+
+            LOGE("%s", strError.c_str());
+        }
     }
 }
 
