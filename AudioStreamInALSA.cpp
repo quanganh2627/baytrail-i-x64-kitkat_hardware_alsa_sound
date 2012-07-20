@@ -37,6 +37,10 @@
 
 #include "AudioHardwareALSA.h"
 
+// Maximum sample rate for VOIP which will use NB audio processing.
+// A higher sample rate will use a WB audio processing.
+#define MAX_VOIP_SAMPLE_RATE_FOR_NARROW_BAND_PROCESSING 8000
+
 namespace android_audio_legacy
 {
 
@@ -472,14 +476,48 @@ status_t AudioStreamInALSA::setAcousticParams(void *params)
 
 status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
 {
+    AutoW lock(mParent->mLock);
+
+    AudioParameter param = AudioParameter(keyValuePairs);
+    String8 key = String8(AudioParameter::keyInputSource);
+    int inputSource;
+    uint32_t sampleRate;
+    status_t status;
+    vpc_band_t band;
+
+    LOGD("%s in.\n", __FUNCTION__);
+    status = param.getInt(key, inputSource);
+    if (status == NO_ERROR) {
+        if (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+            // Check the stream sample rate to select the correct VOIP band.
+            // Only the input stream holds the sample rate required by the client,
+            // which allow to detect the VOIP codec sample rate.
+            sampleRate = mSampleSpec.getSampleRate();
+            LOGD("%s: VOIP stream sample rate is %dHz\n", __FUNCTION__, sampleRate);
+            if (mParent->getVpcHwDevice()) {
+                if (sampleRate <= MAX_VOIP_SAMPLE_RATE_FOR_NARROW_BAND_PROCESSING)
+                    band = VPC_BAND_NARROW;
+                else
+                    band = VPC_BAND_WIDE;
+
+                mParent->getVpcHwDevice()->set_band(band, AudioSystem::MODE_IN_COMMUNICATION);
+            } else {
+                LOGE("%s: No VPC HW device\n", __FUNCTION__);
+            }
+        }
+        param.remove(key);
+    }
+
     // Give a chance to parent to handle the change
-    status_t status = mParent->setStreamParameters(this, false, keyValuePairs);
+    status = mParent->setStreamParameters(this, false, keyValuePairs);
 
     if (status != NO_ERROR) {
 
+        LOGW("%s Bad status (%d).\n", __FUNCTION__, status);
         return status;
     }
 
+    LOGD("%s out.\n", __FUNCTION__);
     return ALSAStreamOps::setParameters(keyValuePairs);
 }
 
