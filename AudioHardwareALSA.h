@@ -36,6 +36,7 @@
 #include <audio_utils/echo_reference.h>
 #include <audio_effects/effect_aec.h>
 
+#include "AudioBufferProvider.h"
 #include "AudioHardwareALSACommon.h"
 #include "AudioUtils.h"
 #include "SampleSpec.h"
@@ -46,6 +47,7 @@ class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 
 using namespace std;
+using namespace android;
 
 namespace android_audio_legacy
 {
@@ -154,6 +156,7 @@ protected:
     ALSAMixer*          mixer();
 
     status_t            applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
+    status_t            getConvertedBuffer(void *dst, const uint32_t outFrames, AudioBufferProvider* pBufferProvider);
 
     AudioHardwareALSA *     mParent;
     alsa_handle_t *         mHandle;
@@ -238,7 +241,7 @@ public:
     // the output has exited standby
     virtual status_t    getRenderPosition(uint32_t *dspFrames);
 
-    virtual bool        isOut() const;
+    virtual bool        isOut() const { return true; }
 
     status_t            open(int mode);
     status_t            close();
@@ -263,7 +266,7 @@ private:
     struct echo_reference_itfe *mEchoReference;
 };
 
-class AudioStreamInALSA : public AudioStreamIn, public ALSAStreamOps
+class AudioStreamInALSA : public AudioStreamIn, public ALSAStreamOps,  public AudioBufferProvider
 {
 public:
     AudioStreamInALSA(AudioHardwareALSA *parent,
@@ -312,7 +315,7 @@ public:
     // Unit: the number of input audio frames
     virtual unsigned int  getInputFramesLost() const;
 
-    virtual bool        isOut() const;
+    virtual bool        isOut() const { return false; }
 
     status_t            setAcousticParams(void* params);
 
@@ -320,6 +323,10 @@ public:
     status_t            close();
     virtual status_t    addAudioEffect(effect_handle_t effect);
     virtual status_t    removeAudioEffect(effect_handle_t effect);
+
+    // From AudioBufferProvider
+    virtual status_t getNextBuffer(AudioBufferProvider::Buffer* buffer, int64_t pts = kInvalidPTS);
+    virtual void releaseBuffer(AudioBufferProvider::Buffer* buffer);
 
     class AudioEffectHandle
     {

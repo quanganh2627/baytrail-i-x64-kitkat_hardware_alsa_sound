@@ -46,6 +46,12 @@ public:
 
     uint32_t getSampleSpecItem(SampleSpecItem eSampleSpecItem) const;
 
+    ssize_t getFrameSize() const;
+
+    ssize_t convertBytesToFrames(ssize_t bytes) const;
+
+    ssize_t convertFramesToBytes(ssize_t frames) const;
+
 private:
     // Attributes
 

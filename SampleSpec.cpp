@@ -1,4 +1,6 @@
 #include "SampleSpec.h"
+#include "AudioUtils.h"
+
 #include <system/audio.h>
 #include <utils/Log.h>
 
@@ -14,14 +16,34 @@ namespace android_audio_legacy {
 // ----------------------------------------------------------------------------
 
 // Generic Accessor
-void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue) {
+void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue)
+{
     assert(eSampleSpecItem < ENbSampleSpecItems);
     _auiSampleSpec[eSampleSpecItem] = uiValue;
 }
-uint32_t CSampleSpec::getSampleSpecItem(SampleSpecItem eSampleSpecItem) const {
+
+uint32_t CSampleSpec::getSampleSpecItem(SampleSpecItem eSampleSpecItem) const
+{
     assert(eSampleSpecItem < ENbSampleSpecItems);
     return _auiSampleSpec[eSampleSpecItem];
 }
+
+ssize_t CSampleSpec::getFrameSize() const
+{
+    return CAudioUtils::formatSize(getFormat()) * getChannelCount();
+}
+
+ssize_t CSampleSpec::convertBytesToFrames(ssize_t bytes) const
+{
+    assert(getFrameSize());
+    return bytes / getFrameSize();
+}
+
+ssize_t CSampleSpec::convertFramesToBytes(ssize_t frames) const
+{
+    return frames * getFrameSize();
+}
+
 // ----------------------------------------------------------------------------
 }; // namespace android
 

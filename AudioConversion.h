@@ -23,7 +23,6 @@
 #include "AudioHardwareALSA.h"
 #include "SampleSpec.h"
 
-
 using namespace android;
 
 namespace android_audio_legacy {
@@ -46,6 +45,9 @@ public:
 
     status_t convert(const void* src, void** dst, const uint32_t inFrames, uint32_t *outFrames);
 
+    // This API guarantee to retrieve exactly outFrames
+    status_t getConvertedBuffer(void* dst, const uint32_t outFrames, AudioBufferProvider *pBufferProvider);
+
 private:
     status_t doConfigureAndAddConverter(SampleSpecItem eConverterType, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst);
 
@@ -54,7 +56,7 @@ private:
     void emptyConversionChain();
 
     // List of audio converter enabled
-    list<CAudioConverter*>  _pActiveAudioConvList;
+    list<CAudioConverter*>  _activeAudioConvList;
 
     // List of Audio Converter objects available
     // (Each converter works on a dedicated sample spec item)
@@ -62,6 +64,19 @@ private:
 
     CSampleSpec   _ssSrc;
     CSampleSpec   _ssDst;
+
+    // Conversion is done into ConvOutBuffer
+    size_t _ulConvOutBufferIndex;
+    size_t _ulConvOutFrames;
+    size_t _ulConvOutBufferSizeInFrames;
+    int16_t* _pConvOutBuffer;
+
+    // Buffer is acquired from the provider into ConvInBuffer
+    AudioBufferProvider::Buffer _pConvInBuffer;
+
+    static const uint32_t MAX_RATE;
+
+    static const uint32_t MIN_RATE;
 };
 
 // ----------------------------------------------------------------------------

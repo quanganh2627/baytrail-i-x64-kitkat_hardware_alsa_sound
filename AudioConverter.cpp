@@ -48,7 +48,7 @@ CAudioConverter::~CAudioConverter()
 void* CAudioConverter::getOutputBuffer(ssize_t inFrames)
 {
     status_t ret = NO_ERROR;
-    size_t outBufSizeInBytes = CAudioUtils::convertFramesToBytes(convertSrcToDstInFrames(inFrames), _ssDst);
+    size_t outBufSizeInBytes = _ssDst.convertFramesToBytes(convertSrcToDstInFrames(inFrames));
 
     if (outBufSizeInBytes > _pConvertBufSize) {
 

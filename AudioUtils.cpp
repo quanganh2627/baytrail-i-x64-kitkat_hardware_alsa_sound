@@ -26,24 +26,15 @@ uint32_t CAudioUtils::alignOn16(uint32_t u)
     return (u + (FRAME_ALIGNEMENT_ON_16 - 1)) & ~(FRAME_ALIGNEMENT_ON_16 - 1);
 }
 
-ssize_t CAudioUtils::convertBytesToFrames(ssize_t bytes, const CSampleSpec& ss)
-{
-    return bytes / (ss.getChannelCount() * formatSize(ss.getFormat()));
-}
-
-ssize_t CAudioUtils::convertFramesToBytes(ssize_t frames, const CSampleSpec& ss)
-{
-    return frames * (ss.getChannelCount() * formatSize(ss.getFormat()));
-}
-
 ssize_t CAudioUtils::convertSrcToDstInBytes(ssize_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    return convertFramesToBytes(convertSrcToDstInFrames(convertBytesToFrames(bytes, ssSrc), ssSrc, ssDst), ssDst);
+    return ssDst.convertFramesToBytes(convertSrcToDstInFrames(ssSrc.convertBytesToFrames(bytes), ssSrc, ssDst));
 }
 
 ssize_t CAudioUtils::convertSrcToDstInFrames(ssize_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    return (frames * ssDst.getSampleRate()) / ssSrc.getSampleRate();
+    assert(ssSrc.getSampleRate());
+    return (frames * ssDst.getSampleRate() + ssSrc.getSampleRate() - 1) / ssSrc.getSampleRate();
 }
 
 // This function retrieves the number of bytes

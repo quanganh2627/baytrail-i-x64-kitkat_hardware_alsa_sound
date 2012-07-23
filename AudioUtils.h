@@ -29,10 +29,6 @@ public:
 
     static uint32_t alignOn16(uint32_t u);
 
-    static ssize_t convertBytesToFrames(ssize_t bytes, const CSampleSpec& ss);
-
-    static ssize_t convertFramesToBytes(ssize_t frames, const CSampleSpec& ss);
-
     static ssize_t convertSrcToDstInBytes(ssize_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
     static ssize_t convertSrcToDstInFrames(ssize_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst);

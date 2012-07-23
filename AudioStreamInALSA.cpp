@@ -103,13 +103,13 @@ status_t AudioStreamInALSA::allocateProcessingMemory(ssize_t frames)
 {
     mProcessingBufferSizeInFrames = frames;
     mProcessingBuffer = (int16_t *)realloc(mProcessingBuffer,
-                                           CAudioUtils::convertFramesToBytes(mProcessingBufferSizeInFrames, mSampleSpec));
+                                           mSampleSpec.convertFramesToBytes(mProcessingBufferSizeInFrames));
     ALOGD("%s(frames=%ld): mProcessingBuffer=%p size extended to %ld frames (i.e. %ld bytes)",
           __FUNCTION__,
           frames,
           mProcessingBuffer,
           mProcessingBufferSizeInFrames,
-          CAudioUtils::convertFramesToBytes(mProcessingBufferSizeInFrames, mSampleSpec));
+          mSampleSpec.convertFramesToBytes(mProcessingBufferSizeInFrames));
 
     if(mProcessingBuffer == NULL) {
 
@@ -126,6 +126,31 @@ size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
     memset(buffer, 0, bytes);
     mStandby = false;
     return bytes;
+}
+
+status_t AudioStreamInALSA::getNextBuffer(AudioBufferProvider::Buffer* pBuffer, int64_t pts)
+{
+    (void)pts;
+
+    size_t maxFrames =  static_cast<size_t>(snd_pcm_bytes_to_frames(mHandle->handle, mHwBufferSize));
+
+    ssize_t hwFramesToRead = (maxFrames < pBuffer->frameCount)? maxFrames : pBuffer->frameCount;
+    ssize_t framesRead;
+
+    framesRead = readHwFrames(mHwBuffer, hwFramesToRead);
+    if (framesRead < 0) {
+
+        return NOT_ENOUGH_DATA;
+    }
+    pBuffer->raw = mHwBuffer;
+    pBuffer->frameCount = framesRead;
+
+    return NO_ERROR;
+}
+
+void AudioStreamInALSA::releaseBuffer(AudioBufferProvider::Buffer* buffer)
+{
+    // Nothing special to do here...
 }
 
 ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
@@ -173,42 +198,23 @@ ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
 
 ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
 {
+    //
+    // No conversion required, read HW frames directly
+    //
     if (mSampleSpec == mHwSampleSpec) {
 
         return readHwFrames(buffer, frames);
     }
 
-    ssize_t n;
-    ssize_t received_frames = 0;
-    ssize_t received_out_frames = 0;
-    ssize_t buffer_index = 0;
+    //
+    // Otherwise, request for a converted buffer
+    //
+    status_t status = getConvertedBuffer(buffer, frames, this);
+    if (status != NO_ERROR) {
 
-    ssize_t framesDst = CAudioUtils::convertSrcToDstInFrames(frames, mSampleSpec, mHwSampleSpec);
-    ssize_t maxDstFrames =  static_cast<size_t>(snd_pcm_bytes_to_frames(mHandle->handle, mHwBufferSize));
-    status_t status;
-
-    while(received_frames < framesDst) {
-
-        ssize_t hwFramesToRead = (maxDstFrames < (framesDst - received_frames)? maxDstFrames : (framesDst - received_frames));
-        n = readHwFrames(mHwBuffer, hwFramesToRead);
-
-        if (n < 0) {
-
-            ALOGE("pcm read recover error: %s", snd_strerror(n));
-            return n;
-        }
-
-        char *outBuf = (char*)buffer + buffer_index;
-        size_t dstFrames = 0;
-
-        applyAudioConversion(mHwBuffer, (void**)&outBuf, n, &dstFrames);
-
-        buffer_index += CAudioUtils::convertFramesToBytes(dstFrames, mSampleSpec);
-
-        received_frames += n;
-        received_out_frames += dstFrames;
+        return status;
     }
-    return received_out_frames;
+    return frames;
 }
 
 ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
@@ -225,7 +231,7 @@ ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
             }
         }
 
-        ssize_t read_frames = readFrames((char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(mProcessingFramesIn, mSampleSpec),
+        ssize_t read_frames = readFrames((char* )mProcessingBuffer + mSampleSpec.convertFramesToBytes(mProcessingFramesIn),
                                          frames - mProcessingFramesIn);
         if (read_frames < 0)
         {
@@ -255,9 +261,9 @@ ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
             // in_buf.frameCount and out_buf.frameCount indicate respectively
             // the maximum number of frames to be consumed and produced by process()
             in_buf.frameCount = processing_frames_in;
-            in_buf.s16 = (int16_t *)((char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(processed_frames, mSampleSpec));
+            in_buf.s16 = (int16_t *)((char* )mProcessingBuffer + mSampleSpec.convertFramesToBytes(processed_frames));
             out_buf.frameCount = frames - processed_frames;
-            out_buf.s16 = (int16_t *)((char* )buffer + CAudioUtils::convertFramesToBytes(processed_frames, mSampleSpec));
+            out_buf.s16 = (int16_t *)((char* )buffer + mSampleSpec.convertFramesToBytes(processed_frames));
 
             processingReturn = (*(i->mPreprocessor))->process(i->mPreprocessor, &in_buf, &out_buf);
             if(processingReturn == 0)
@@ -278,7 +284,7 @@ ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
         ALOGD("%s: unable to apply any effect; returned value is %d", __FUNCTION__, processingReturn);
         memcpy(buffer,
                mProcessingBuffer,
-               CAudioUtils::convertFramesToBytes(mProcessingFramesIn, mSampleSpec));
+               mSampleSpec.convertFramesToBytes(mProcessingFramesIn));
         processed_frames = mProcessingFramesIn;
     }
     else
@@ -293,8 +299,8 @@ ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
         {
             assert(processing_frames_in > 0);
             memmove(mProcessingBuffer,
-                    (char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(mProcessingFramesIn - processing_frames_in, mSampleSpec),
-                    CAudioUtils::convertFramesToBytes(processing_frames_in, mSampleSpec));
+                    (char* )mProcessingBuffer + mSampleSpec.convertFramesToBytes(mProcessingFramesIn - processing_frames_in),
+                    mSampleSpec.convertFramesToBytes(processing_frames_in));
         }
     }
     // at the end, we keep remainder frames not cosumed by effect processor.
@@ -357,7 +363,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     }
 
     ssize_t received_frames = -1;
-    ssize_t frames = CAudioUtils::convertBytesToFrames(bytes, mSampleSpec);
+    ssize_t frames = mSampleSpec.convertBytesToFrames(bytes);
 
     //workaround, will be replaced by BZ#49961
     // if at least one effect has been added
@@ -393,7 +399,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         return received_frames;
     }
 
-    ssize_t readBytes = CAudioUtils::convertFramesToBytes(received_frames, mSampleSpec);
+    ssize_t readBytes = mSampleSpec.convertFramesToBytes(received_frames);
 
     if(mParent->mMicMuteState ) {
 
@@ -522,11 +528,6 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
     return ALSAStreamOps::setParameters(keyValuePairs);
 }
 
-bool AudioStreamInALSA::isOut() const
-{
-    return false;
-}
-
 status_t AudioStreamInALSA::allocateHwBuffer()
 {
     delete []mHwBuffer;
@@ -539,7 +540,7 @@ status_t AudioStreamInALSA::allocateHwBuffer()
 
         return NO_INIT;
     }
-    mHwBufferSize = static_cast<size_t>(snd_pcm_frames_to_bytes(mHandle->handle, bufferSize));
+    mHwBufferSize = static_cast<size_t>(snd_pcm_frames_to_bytes(mHandle->handle, periodSize));
     mHwBuffer = new char[mHwBufferSize];
     if (!mHwBuffer) {
 
@@ -688,7 +689,7 @@ int32_t AudioStreamInALSA::updateEchoReference(ssize_t frames, struct echo_refer
         {
             mReferenceBufferSizeInFrames = frames;
             mReferenceBuffer = (int16_t *)realloc(mReferenceBuffer,
-                                                  CAudioUtils::convertFramesToBytes(mReferenceBufferSizeInFrames, mSampleSpec));
+                                                  mSampleSpec.convertFramesToBytes(mReferenceBufferSizeInFrames));
             if(mReferenceBuffer == NULL)
             {
                 ALOGE(" %s(frames=%ld): realloc failed errno = %s!", __FUNCTION__, frames, strerror(errno));
@@ -698,7 +699,7 @@ int32_t AudioStreamInALSA::updateEchoReference(ssize_t frames, struct echo_refer
 
         b.frame_count = frames - mReferenceFramesIn;
         b.raw = (void *)((char* )mReferenceBuffer +
-                         CAudioUtils::convertFramesToBytes(mReferenceFramesIn, mSampleSpec));
+                         mSampleSpec.convertFramesToBytes(mReferenceFramesIn));
 
         getCaptureDelay(&b);
 
@@ -748,8 +749,8 @@ status_t AudioStreamInALSA::pushEchoReference(ssize_t frames, effect_handle_t pr
         if (mReferenceFramesIn > 0)
         {
             memcpy(mReferenceBuffer,
-                   (char* )mReferenceBuffer + CAudioUtils::convertFramesToBytes(buf.frameCount, mSampleSpec),
-                   CAudioUtils::convertFramesToBytes(mReferenceFramesIn, mSampleSpec));
+                   (char* )mReferenceBuffer + mSampleSpec.convertFramesToBytes(buf.frameCount),
+                   mSampleSpec.convertFramesToBytes(mReferenceFramesIn));
         }
     }
     return(processingReturn);

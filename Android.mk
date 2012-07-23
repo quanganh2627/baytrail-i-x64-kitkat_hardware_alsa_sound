@@ -14,7 +14,8 @@ LOCAL_C_INCLUDES += \
     bionic/libstdc++ \
     bionic/ \
     system/media/audio_utils/include \
-    system/media/audio_effects/include
+    system/media/audio_effects/include \
+    frameworks/av/services/audioflinger
 
 LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/IFX-modem \

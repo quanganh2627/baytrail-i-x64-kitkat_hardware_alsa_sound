@@ -22,17 +22,27 @@
 #include <string.h>
 #include <cutils/log.h>
 
+#include "AudioBufferProvider.h"
 #include "AudioConversion.h"
 #include "AudioConverter.h"
 #include "AudioReformatter.h"
 #include "AudioRemapper.h"
 #include "AudioResampler.h"
+#include "AudioUtils.h"
 
 namespace android_audio_legacy{
 
+const uint32_t CAudioConversion::MAX_RATE = 92000;
+
+const uint32_t CAudioConversion::MIN_RATE = 8000;
+
 // ----------------------------------------------------------------------------
 
-CAudioConversion::CAudioConversion()
+CAudioConversion::CAudioConversion() :
+    _ulConvOutBufferIndex(0),
+    _ulConvOutFrames(0),
+    _ulConvOutBufferSizeInFrames(0),
+    _pConvOutBuffer(NULL)
 {
     _apAudioConverter[EChannelCountSampleSpecItem] = new CAudioRemapper(EChannelCountSampleSpecItem);
     _apAudioConverter[EFormatSampleSpecItem] = new CAudioReformatter(EFormatSampleSpecItem);
@@ -45,6 +55,8 @@ CAudioConversion::~CAudioConversion()
 
         delete _apAudioConverter[i];
     }
+
+    free(_pConvOutBuffer);
 
 }
 
@@ -66,6 +78,13 @@ status_t CAudioConversion::configure(const CSampleSpec& ssSrc, const CSampleSpec
     status_t ret = NO_ERROR;
 
     emptyConversionChain();
+
+    free(_pConvOutBuffer);
+
+    _pConvOutBuffer = NULL;
+    _ulConvOutBufferIndex = 0;
+    _ulConvOutFrames = 0;
+    _ulConvOutBufferSizeInFrames = 0;
 
     _ssSrc = ssSrc;
     _ssDst = ssDst;
@@ -95,6 +114,115 @@ status_t CAudioConversion::configure(const CSampleSpec& ssSrc, const CSampleSpec
     return ret;
 }
 
+//
+// Convert must output outFrames
+// AudioFlinger expects outFrames to be read/written, not less, as it does not
+// care about the returned bytes of the read/write function
+//
+status_t CAudioConversion::getConvertedBuffer(void *dst, const uint32_t outFrames, AudioBufferProvider* pBufferProvider)
+{
+    assert(pBufferProvider);
+    assert(dst);
+
+    status_t status = NO_ERROR;
+
+    if (_activeAudioConvList.empty()) {
+
+        LOGE("%s: conversion called with empty converter list", __FUNCTION__);
+        return NO_INIT;
+    }
+
+    //
+    // Realloc the Output of the conversion if required (with margin of the worst case)
+    //
+    if (_ulConvOutBufferSizeInFrames < outFrames) {
+
+        _ulConvOutBufferSizeInFrames = outFrames + (MAX_RATE / MIN_RATE) * 2;
+        _pConvOutBuffer = (int16_t *)realloc(_pConvOutBuffer,
+                                              _ssDst.convertFramesToBytes(_ulConvOutBufferSizeInFrames));
+    }
+
+    size_t framesRequested = outFrames;
+
+    //
+    // Frames are already available from the ConvOutBuffer, empty it first!
+    //
+    if (_ulConvOutFrames) {
+
+        size_t frameToCopy = min(framesRequested, _ulConvOutFrames);
+        framesRequested -= frameToCopy;
+        _ulConvOutBufferIndex += _ssDst.convertFramesToBytes(frameToCopy);
+    }
+
+    //
+    // Frames still needed? (_pConvOutBuffer emptied!)
+    //
+    while (framesRequested) {
+
+        //
+        // Outputs in the convOutBuffer
+        //
+        AudioBufferProvider::Buffer& buffer(_pConvInBuffer);
+
+        // Calculate the frames we need to get from buffer provider
+        // (Runs at ssSrc sample spec)
+        // Note that is is rounded up.
+        buffer.frameCount = CAudioUtils::convertSrcToDstInFrames(framesRequested, _ssDst, _ssSrc);
+
+        //
+        // Acquire next buffer from buffer provider
+        //
+        status = pBufferProvider->getNextBuffer(&buffer);
+        if (status != NO_ERROR) {
+
+            return status;
+        }
+
+        //
+        // Convert
+        //
+        size_t convertedFrames;
+        char *convBuf = (char*)_pConvOutBuffer + _ulConvOutBufferIndex;
+        status = convert(buffer.raw, (void**)&convBuf, buffer.frameCount, &convertedFrames);
+        if (status != NO_ERROR) {
+
+            pBufferProvider->releaseBuffer(&buffer);
+            return status;
+        }
+
+        _ulConvOutFrames += convertedFrames;
+        _ulConvOutBufferIndex += _ssDst.convertFramesToBytes(convertedFrames);
+
+        size_t framesToCopy = min(framesRequested, convertedFrames);
+        framesRequested -= framesToCopy;
+
+        //
+        // Release the buffer
+        //
+        pBufferProvider->releaseBuffer(&buffer);
+    }
+
+    //
+    // Copy requested outFrames from the output buffer of the conversion.
+    // Move the remaining frames to the beginning of the convOut buffer
+    //
+    memcpy(dst, _pConvOutBuffer, _ssDst.convertFramesToBytes(outFrames));
+    _ulConvOutFrames -= outFrames;
+
+    //
+    // Move the remaining frames to the beginning of the convOut buffer
+    //
+    if (_ulConvOutFrames) {
+
+        memmove(_pConvOutBuffer, (char*)_pConvOutBuffer + _ssDst.convertFramesToBytes(outFrames), _ssDst.convertFramesToBytes(_ulConvOutFrames));
+    }
+
+    // Reset buffer Index
+    _ulConvOutBufferIndex = 0;
+
+    return status;
+}
+
 status_t CAudioConversion::convert(const void* src, void** dst, const uint32_t inFrames, uint32_t* outFrames)
 {
     void *srcBuf = (void* )src;
@@ -103,14 +231,14 @@ status_t CAudioConversion::convert(const void* src, void** dst, const uint32_t i
     size_t dstFrames = 0;
     status_t status = NO_ERROR;
 
-    if (_pActiveAudioConvList.empty()) {
+    if (_activeAudioConvList.empty()) {
 
         // Empty converter list -> No need for convertion
         // Copy the input on the ouput if provided by the client
         // or points on the imput buffer
         if (*dst) {
 
-            memcpy(*dst, src, CAudioUtils::convertFramesToBytes(inFrames, _ssSrc));
+            memcpy(*dst, src, _ssSrc.convertFramesToBytes(inFrames));
             *outFrames = inFrames;
         } else {
 
@@ -121,13 +249,13 @@ status_t CAudioConversion::convert(const void* src, void** dst, const uint32_t i
     }
 
     AudioConverterListIterator it;
-    for (it = _pActiveAudioConvList.begin(); it != _pActiveAudioConvList.end(); ++it) {
+    for (it = _activeAudioConvList.begin(); it != _activeAudioConvList.end(); ++it) {
 
         CAudioConverter* pConv = *it;
         dstBuf = NULL;
         dstFrames = 0;
 
-        if (*dst && pConv == _pActiveAudioConvList.back()) {
+        if (*dst && pConv == _activeAudioConvList.back()) {
 
             // Last converter must output within the provided buffer (if provided!!!)
             dstBuf = *dst;
@@ -148,7 +276,7 @@ status_t CAudioConversion::convert(const void* src, void** dst, const uint32_t i
 
 void CAudioConversion::emptyConversionChain()
 {
-    _pActiveAudioConvList.clear();
+    _activeAudioConvList.clear();
 }
 
 
@@ -182,7 +310,7 @@ status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpec
 
         return ret;
     }
-    _pActiveAudioConvList.push_back(_apAudioConverter[eSampleSpecItem]);
+    _activeAudioConvList.push_back(_apAudioConverter[eSampleSpecItem]);
     *pSsSrc = tmpSsDst;
 
     return NO_ERROR;

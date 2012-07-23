@@ -46,6 +46,7 @@
 #define CAPTURE_BUFFER_TIME_US   (20000 * 2 * 2)  //microseconds
 #define USEC_PER_SEC             (1000000)
 
+using namespace android;
 
 namespace android_audio_legacy
 {
@@ -214,8 +215,7 @@ size_t ALSAStreamOps::bufferSize() const
     size_t bytes;
     int32_t interval;
 
-    if (mParent->mode() == AudioSystem::MODE_IN_COMMUNICATION ||
-        mParent->mode() == AudioSystem::MODE_IN_CALL) {
+    if (!isOut()) {
 
         interval = CAPTURE_BUFFER_TIME_US;
 
@@ -229,7 +229,7 @@ size_t ALSAStreamOps::bufferSize() const
     // be a multiple of 16 frames.
     size = CAudioUtils::alignOn16(size);
 
-    bytes = CAudioUtils::convertFramesToBytes(size, mSampleSpec);
+    bytes = mSampleSpec.convertFramesToBytes(size);
     LOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
 
     return bytes;
@@ -578,9 +578,12 @@ void ALSAStreamOps::releasePowerLock()
 
 void ALSAStreamOps::configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    LOGD("%s", __FUNCTION__);
-
     mAudioConversion->configure(ssSrc, ssDst);
+}
+
+status_t ALSAStreamOps::getConvertedBuffer(void* dst, const uint32_t outFrames, AudioBufferProvider *pBufferProvider)
+{
+    return mAudioConversion->getConvertedBuffer(dst, outFrames, pBufferProvider);
 }
 
 status_t ALSAStreamOps::applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames)

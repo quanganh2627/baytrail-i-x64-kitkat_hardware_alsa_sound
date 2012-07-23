@@ -125,7 +125,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         aDev->write(aDev, buffer, bytes);
 
 
-    ssize_t srcFrames = CAudioUtils::convertBytesToFrames(bytes, mSampleSpec);
+    ssize_t srcFrames = mSampleSpec.convertBytesToFrames(bytes);
     size_t dstFrames = 0;
     char *srcBuf = (char* )buffer;
     char *dstBuf = NULL;
@@ -151,7 +151,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         return ret;
     }
 
-    return CAudioUtils::convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec);
+    return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec));
 }
 
 void AudioStreamOutALSA::pushEchoReference(void *buffer, ssize_t frames)
@@ -175,7 +175,7 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
 
     do {
         n = snd_pcm_writei(mHandle->handle,
-                           (char *)buffer + CAudioUtils::convertFramesToBytes(sentFrames, mHwSampleSpec),
+                           (char *)buffer + mHwSampleSpec.convertFramesToBytes(sentFrames),
                            frames - sentFrames);
 
         if(n == -EAGAIN || (n >= 0 && n + sentFrames < frames)) {
@@ -299,11 +299,6 @@ status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
     }
 
     return ALSAStreamOps::setParameters(keyValuePairs);
-}
-
-bool AudioStreamOutALSA::isOut() const
-{
-    return true;
 }
 
 void AudioStreamOutALSA::addEchoReference(struct echo_reference_itfe * reference)
