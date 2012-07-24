@@ -15,6 +15,11 @@ namespace android_audio_legacy {
 
 // ----------------------------------------------------------------------------
 
+float CSampleSpec::framesToMs(uint32_t uiFrames) const
+{
+    return 1000.0*(float)(uiFrames) / (getChannelCount()*getSampleRate());
+}
+
 // Generic Accessor
 void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue)
 {

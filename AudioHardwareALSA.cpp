@@ -975,6 +975,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     String8 key = String8(AudioParameter::keyRouting);
     status_t status;
     int devices;
+
     int currentLatchedAndroidMode;
 
     AutoW lock(mLock);
@@ -999,17 +1000,17 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
         mOutputDevices = devices;
 
-        // Latch the android mode
+        /* Latch the android mode */
         latchAndroidMode();
 
-        // Update the HW mode (if needed)
+        /* Update the HW mode (if needed) */
         updateHwMode();
     }
 
-    // VPC params
-    // Refreshed only on out stream changes
+    /** VPC params
+     * Refreshed only on out stream changes
+     */
     if (devices && getVpcHwDevice() && getVpcHwDevice()->params && bForOutput) {
-
         // Pass hw mode translated to VPC, in case a multimedia path is needed during call
         // or any "transmode" is required.
         status = getVpcHwDevice()->params(hwMode(), (uint32_t)devices);

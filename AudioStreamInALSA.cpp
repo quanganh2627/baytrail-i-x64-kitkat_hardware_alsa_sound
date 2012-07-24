@@ -164,14 +164,35 @@ ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
     ssize_t received_frames = 0;
     status_t err;
 
+    int wait_status = 0;
+
     while( received_frames < frames) {
 
         n = snd_pcm_readi(mHandle->handle,
                           (char *)buffer + snd_pcm_frames_to_bytes(mHandle->handle, received_frames),
                           frames - received_frames);
+
         if( (n == -EAGAIN) || ((n >= 0) && (n + received_frames) < frames)) {
 
-            snd_pcm_wait(mHandle->handle, 1000);
+            wait_status = mParent->getAlsaHwDevice()->wait_pcm(mHandle);
+
+            if (wait_status == 0) {
+                int remaining_frames;
+                // Need to differentiate timeout after having failed to receive some sample and having received
+                // some samples but less than the required number
+                if (n < 0) {
+                    n = 0;
+                }
+
+                remaining_frames = frames - received_frames - n;
+
+                LOGW("%s: wait_pcm timeout! Generating %fms of silence.", __FUNCTION__, mHwSampleSpec.framesToMs(remaining_frames));
+
+                // Timeout due to a potential hardware failure. We need to generate silence in this case.
+                n +=  mHwSampleSpec.convertBytesToFrames(
+                            generateSilence((char *)buffer + snd_pcm_frames_to_bytes(mHandle->handle, received_frames + n),
+                                       mHwSampleSpec.convertFramesToBytes(remaining_frames)));
+            }
         }
         else if (n == -EBADFD) {
 
@@ -519,6 +540,9 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
     status = param.getInt(key, inputSource);
     if (status == NO_ERROR) {
         mInputSource = inputSource;
+        if (mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->set_input_source) {
+            mParent->getVpcHwDevice()->set_input_source(inputSource);
+        }        
         if (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
             // Check the stream sample rate to select the correct VOIP band.
             // Only the input stream holds the sample rate required by the client,

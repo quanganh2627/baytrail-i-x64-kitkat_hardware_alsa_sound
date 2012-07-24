@@ -40,7 +40,7 @@ public:
     uint32_t getFormat() const { return getSampleSpecItem(EFormatSampleSpecItem); }
     void setChannelMask(uint32_t uiChannelMask) { _uiChannelMask = uiChannelMask; }
     uint32_t getChannelMask() const { return _uiChannelMask; }
-
+    float framesToMs(uint32_t uiFrames) const;
     // Generic Accessor
     void setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue);
 
