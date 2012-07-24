@@ -336,6 +336,7 @@ private:
 class AudioHardwareALSA : public AudioHardwareBase, public IModemStatusNotifier
 {
     enum RoutingEvent {
+        EAndroidModeChange,
         EParamChange,
         ECallStatusChange,
         EModemStateChange

@@ -294,6 +294,11 @@ AudioHardwareALSA::AudioHardwareALSA() :
     if(mModemAudioManager->start()) {
         LOGE("AudioHardwareALSA: could not start modem state listener");
     }
+
+#ifdef CUSTOM_BOARD_WITHOUT_MODEM
+    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
+    mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
+#endif
 }
 
 alsa_device_t* AudioHardwareALSA::getAlsaHwDevice() const
@@ -1070,9 +1075,12 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
     LOGD("%s: in, mode %d, modemAvailable=%d, ModemCallActive=%d mIsBluetoothEnabled=%d", __FUNCTION__, hwMode(), mModemAvailable, mModemCallActive, mIsBluetoothEnabled);
 
     //
-    // BT route Accessibility has to be evaluated BEFORE reconsidering the routing
-    // as it is prohibited to play on BT while modem in reset or during Android Call
-    // mode and modemAudioAvailable=0 (risk of glitch and electrical conficts)
+    // Evaluate BT route. This route has a dependency on:
+    //      -Android Mode
+    //      -Modem Call Status
+    //      -Modem State
+    // If Android Mode is still in call but the call status is false, do not
+    // use BT route (glitches may occur)
     //
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
     mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, hwMode());
@@ -1083,7 +1091,6 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
         isBtAccessible = false;
     }
     mAudioRouteMgr->setRouteAccessible(String8("BT"), isBtAccessible, hwMode());
-#endif
 
     //
     // In case of ModemStateChange OR CallStatusChanged, might have not only to
@@ -1094,14 +1101,10 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
     if (routeEvent == EModemStateChange || routeEvent == ECallStatusChange) {
 
         reconsiderRouting();
-    }
 
-#ifdef CUSTOM_BOARD_WITHOUT_MODEM
-    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
-    mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
-#else
-    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive, hwMode());
-    mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, hwMode());
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive, hwMode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, hwMode());
+    }
 #endif
 
     ALOGD("%s: out", __FUNCTION__);
@@ -1244,6 +1247,9 @@ void AudioHardwareALSA::latchAndroidMode()
 {
     // Latch the android mode
     mLatchedAndroidMode = mode();
+
+    // Apply accessibility rules that depends on AndroidMode
+    applyRouteAccessibilityRules(EAndroidModeChange);
 }
 
 }       // namespace android
