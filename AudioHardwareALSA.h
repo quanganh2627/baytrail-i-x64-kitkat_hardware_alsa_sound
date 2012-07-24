@@ -489,6 +489,7 @@ public:
     /* from ModemStatusNotifier: notified on modem status changes */
     virtual void onModemAudioStatusChanged();
     virtual void onModemStateChanged();
+    virtual void onModemAudioPCMChanged();
     /** accessor to mHaveAudience */
     bool getHaveAudience() const {return mHaveAudience;}
 

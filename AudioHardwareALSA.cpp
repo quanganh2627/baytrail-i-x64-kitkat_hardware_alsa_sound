@@ -1205,6 +1205,33 @@ void  AudioHardwareALSA::onModemStateChanged() {
     ALOGD("%s: out", __FUNCTION__);
 }
 
+//
+// From IATNotifier
+// Called on Modem Audio PCM change report
+//
+void  AudioHardwareALSA::onModemAudioPCMChanged() {
+
+    MODEM_CODEC modemCodec;
+    vpc_band_t band;
+
+    AutoW lock(mLock);
+    LOGD("%s: in", __FUNCTION__);
+
+    modemCodec = mModemAudioManager->getModemCodec();
+    if (modemCodec == CODEC_TYPE_WB_AMR_SPEECH)
+        band = VPC_BAND_WIDE;
+    else
+        band = VPC_BAND_NARROW;
+    /*
+     * Informs VPC of modem codec change
+     */
+    if (getVpcHwDevice() && getVpcHwDevice()->set_band) {
+        getVpcHwDevice()->set_band(band, AudioSystem::MODE_IN_CALL);
+    }
+
+    LOGD("%s: out", __FUNCTION__);
+}
+
 inline bool AudioHardwareALSA::isInCallOrComm() const
 {
     return ((latchedAndroidMode() == AudioSystem::MODE_IN_CALL) ||
