@@ -137,9 +137,65 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                 }
             }
             break;
-         default:
-            // do nothing
-            break;
+
+        case STRATEGY_SONIFICATION:
+        case STRATEGY_ENFORCED_AUDIBLE:
+        case STRATEGY_MEDIA: {
+            uint32_t device2 = 0;
+
+            device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_WIDI;
+
+            if (mHasA2dp && (mForceUse[AudioSystem::FOR_MEDIA] != AudioSystem::FORCE_NO_BT_A2DP) &&
+                (getA2dpOutput() != 0) && !mA2dpSuspended) {
+                if (device2 == 0) {
+                    device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP;
+                }
+                if (device2 == 0) {
+                    device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES;
+                }
+                if (device2 == 0) {
+                    device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER;
+                }
+            }
+
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_WIRED_HEADSET;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AUDIO_DEVICE_OUT_USB_ACCESSORY;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AUDIO_DEVICE_OUT_USB_DEVICE;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_AUX_DIGITAL;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET;
+            }
+            if (device2 == 0) {
+                device2 = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER;
+            }
+
+            // device is DEVICE_OUT_SPEAKER if we come from case STRATEGY_SONIFICATION or
+            // STRATEGY_ENFORCED_AUDIBLE, 0 otherwise
+            device |= device2;
+            if (device) break;
+            device = mDefaultOutputDevice;
+            if (device == 0) {
+                ALOGE("getDeviceForStrategy() no device found for STRATEGY_MEDIA");
+            }
+        } break;
+
+       default:
+         // do nothing
+         break;
     }
 
     LOGV("getDeviceForStrategy() strategy %d, device 0x%x", strategy, device);
