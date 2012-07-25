@@ -167,7 +167,7 @@ static const device_suffix_t deviceSuffix[] = {
     {AudioSystem::DEVICE_OUT_WIRED_HEADSET,  "_Headset"},
     {AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP, "_Bluetooth-A2DP"},
     {AudioSystem::DEVICE_OUT_HDMI, "_HDMI"},
-    {AudioSystem::DEVICE_OUT_WIDI_LOOPBACK, "_Widi-Loopback"},
+    {AudioSystem::DEVICE_OUT_WIDI, "_Widi"},
 
 };
 
@@ -576,7 +576,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
         handle->expectedSampleRate = MODEM_DEFAULT_SAMPLE_RATE;
     }
 
-    if (devices & AudioSystem::DEVICE_OUT_WIDI_LOOPBACK) {
+    if (devices & AudioSystem::DEVICE_OUT_WIDI) {
         LOGV("widi loopback device");
         handle->expectedSampleRate = WIDI_DEFAULT_SAMPLE_RATE;
     }

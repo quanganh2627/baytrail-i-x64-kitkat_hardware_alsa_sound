@@ -139,7 +139,7 @@ const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSe
     { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES, "A2DP_Headphones" },
     { AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER, "A2DP_Speaker" },
     { AudioSystem::DEVICE_OUT_AUX_DIGITAL, "AuxDigital" },
-    { AudioSystem::DEVICE_OUT_WIDI_LOOPBACK, "_Widi-Loopback"},
+    { AudioSystem::DEVICE_OUT_WIDI, "_Widi"},
 };
 const uint32_t AudioHardwareALSA::mNbSelectedOutputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedOutputDeviceValuePairs[0]);
 
