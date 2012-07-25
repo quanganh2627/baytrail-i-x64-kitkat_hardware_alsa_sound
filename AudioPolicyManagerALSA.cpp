@@ -42,6 +42,38 @@ extern "C" void destroyAudioPolicyManager(AudioPolicyInterface *interface)
     delete interface;
 }
 
+status_t AudioPolicyManagerALSA::setDeviceConnectionState(AudioSystem::audio_devices device,
+                                                          AudioSystem::device_connection_state state,
+                                                          const char *device_address)
+{
+    // Connect or disconnect only 1 device at a time
+    if (AudioSystem::popCount(device) != 1) {
+        return BAD_VALUE;
+    }
+
+    if (strlen(device_address) >= MAX_DEVICE_ADDRESS_LEN) {
+        ALOGE("setDeviceConnectionState() invalid address: %s", device_address);
+        return BAD_VALUE;
+    }
+
+    if (AudioSystem::isOutputDevice(device) && state == AudioSystem::DEVICE_STATE_AVAILABLE) {
+        if (mAvailableOutputDevices & device) {
+            ALOGW("setDeviceConnectionState() device already connected: %x", device);
+            return INVALID_OPERATION;
+        }
+
+        ALOGV("setDeviceConnectionState() connecting device %x", device);
+
+        // Clear wired headset/headphone device, if any already available, as only
+        // one wired headset/headphone device can be connected at a time
+        if (device & (AudioSystem::DEVICE_OUT_WIRED_HEADSET | AudioSystem::DEVICE_OUT_WIRED_HEADPHONE) ){
+          mAvailableOutputDevices = (audio_devices_t) (mAvailableOutputDevices & ~(AudioSystem::DEVICE_OUT_WIRED_HEADSET|AudioSystem::DEVICE_OUT_WIRED_HEADPHONE));
+        }
+    }
+
+    return baseClass::setDeviceConnectionState(device, state, device_address);
+}
+
 audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                                                    uint32_t samplingRate,
                                                    uint32_t format,

@@ -36,6 +36,11 @@ public:
     AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface);
     virtual ~AudioPolicyManagerALSA();
 
+    // Set the device availability depending on its connection state
+    virtual status_t setDeviceConnectionState(AudioSystem::audio_devices device,
+                                     AudioSystem::device_connection_state state,
+                                     const char *device_address);
+
     // Gets audio input handle from current input source and parameters
     virtual audio_io_handle_t getInput(int inputSource,
                                        uint32_t samplingRate,
