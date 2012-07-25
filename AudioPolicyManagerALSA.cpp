@@ -203,24 +203,6 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
     return (audio_devices_t)device;
 }
 
-void AudioPolicyManagerALSA::updateDeviceSupport(const char * property, audio_devices_t device)
-
-{
-    audio_devices_t * pAvailableDevice;
-
-    // Input or Output device ?
-    pAvailableDevice = device & AUDIO_DEVICE_OUT_ALL ? &mAvailableOutputDevices : &mAvailableInputDevices;
-    // Check the device property, if the property is not specified then the device is supported by default
-    CBooleanProperty deviceProp(property, true);
-    if (deviceProp.isSet()) {
-        ALOGD("%s: Device 0x%08X supported", __FUNCTION__, device);
-        *pAvailableDevice = (audio_devices_t)(*pAvailableDevice | device);
-    } else {
-        ALOGD("%s: Device 0x%08X not supported", __FUNCTION__, device);
-        *pAvailableDevice = (audio_devices_t)(*pAvailableDevice & ~device);
-    }
-}
-
 AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface)
     : baseClass(clientInterface)
 {

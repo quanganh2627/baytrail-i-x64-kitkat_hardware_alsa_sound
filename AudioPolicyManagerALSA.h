@@ -48,13 +48,12 @@ public:
                                                         audio_io_handle_t output,
                                                         audio_devices_t device);
     virtual audio_devices_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
-protected:
+
+ private:
     // true if current platform implements a back microphone
-    virtual bool hasBackMicrophone() const { return mAvailableInputDevices & AudioSystem::DEVICE_IN_BACK_MIC; }
+    inline bool hasBackMicrophone() const { return mAvailableInputDevices & AudioSystem::DEVICE_IN_BACK_MIC; }
     // true if current platform implements an earpiece
-    virtual bool hasEarpiece() const { return mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE; }
-private:
-    void updateDeviceSupport(const char * property, audio_devices_t device);
+    inline bool hasEarpiece() const { return mAttachedOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE; }
 };
 
 };
