@@ -41,6 +41,10 @@ public:
                                      AudioSystem::device_connection_state state,
                                      const char *device_address);
 
+    virtual status_t startOutput(audio_io_handle_t output,
+                                 AudioSystem::stream_type stream,
+                                 int session);
+
     // Gets audio input handle from current input source and parameters
     virtual audio_io_handle_t getInput(int inputSource,
                                        uint32_t samplingRate,
