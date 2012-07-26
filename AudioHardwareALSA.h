@@ -421,7 +421,7 @@ public:
 
     static AudioHardwareInterface* create();
 
-    int mode() const
+    int                 mode()
     {
         return mMode;
     }
@@ -459,7 +459,7 @@ private:
     AudioHardwareALSA(const AudioHardwareALSA &);
     AudioHardwareALSA& operator = (const AudioHardwareALSA &);
 
-    // Force a re-routing of MSIC Voice route
+    // Force a re-routing of MSIC Voice route on MM route
     void reconsiderRouting();
 
     // State machine of route accessibility
@@ -468,12 +468,14 @@ private:
     // Check modem audio path upon XProgress/XCallStat reception
     void onModemXCmdReceived();
 
-    // Returns the audio mode depending on certain cases, when
-    // a media path is needed in call or communication
-    int audioMode() const;
+    // Translate the mode and force route flag into a new mode
+    int audioMode();
+
+    // set the force MM route flag
+    void forceMediaRoute(bool isForced);
 
     // Returns true if audio mode is in call or communication
-    bool isInCallOrComm() const;
+    bool isInCallOrComm(int audMode);
 
     RWLock                mLock;
     bool mMicMuteState;
@@ -565,6 +567,9 @@ private:
     // Modem State
     bool mModemAvailable;
 
+    // MSIC voice Route forced on MM flag
+    bool mMSICVoiceRouteForcedOnMMRoute;
+
     // Output Streams list
     list<AudioStreamOutALSA*> mStreamOutList;
 
@@ -585,9 +590,6 @@ private:
 
     //Current BT state
     bool mIsBluetoothEnabled;
-
-    // Current output device(s) used
-    uint32_t mOutputDevices;
 };
 
 // ----------------------------------------------------------------------------
