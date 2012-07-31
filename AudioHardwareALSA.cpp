@@ -490,7 +490,8 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
 
     ALOGD("%s: in", __FUNCTION__);
 
-    if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS) {
+    if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS &&
+            (hwMode() == AudioSystem::MODE_NORMAL || fm_mode == AudioSystem::MODE_FM_OFF)) {
         if (fm_mode == AudioSystem::MODE_FM_ON) {
             reconsiderRouting();
             getFmHwDevice()->set_state(fm_mode);
@@ -499,9 +500,9 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
             reconsiderRouting();
         }
     }
-
     return NO_ERROR;
 }
+
 
 AudioStreamOut *
 AudioHardwareALSA::openOutputStream(uint32_t devices,
@@ -937,6 +938,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     String8 key = String8(AudioParameter::keyRouting);
     status_t status;
     int devices;
+    int currentHwMode = hwMode();
 
     AutoW lock(mLock);
 
@@ -1009,6 +1011,13 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
             mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), true, AudioSystem::MODE_IN_CALL);
         }
         // End of WorkAround
+    }
+
+    // Handle mode change while FM already ON
+    if (bForOutput && (getFmRxMode() == AudioSystem::MODE_FM_ON) &&
+            (currentHwMode != hwMode()) &&
+            (hwMode() == AudioSystem::MODE_NORMAL) ) {
+        getFmHwDevice()->set_state(getFmRxMode());
     }
 
     // Mix disable
