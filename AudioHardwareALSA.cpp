@@ -171,7 +171,7 @@ static void ALSAErrorHandler(const char *file,
     }
     vsnprintf(buf + l, BUFSIZ - l, fmt, arg);
     buf[BUFSIZ-1] = '\0';
-    ALOGE("ALSALib", "%s", buf);
+    ALOG(LOG_ERROR, "ALSALib", "%s", buf);
 
 error:
     va_end(arg);
