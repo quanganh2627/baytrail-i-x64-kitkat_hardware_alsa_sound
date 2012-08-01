@@ -86,12 +86,13 @@ status_t AudioPolicyManagerALSA::startOutput(audio_io_handle_t output,
 audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                                                    uint32_t samplingRate,
                                                    uint32_t format,
-                                                   uint32_t channels,
+                                                   uint32_t channelMask,
                                                    AudioSystem::audio_in_acoustics acoustics)
 {
-    uint32_t device = getDeviceForInputSource(inputSource);
+    audio_devices_t device = getDeviceForInputSource(inputSource);
 
     audio_io_handle_t activeInput = getActiveInput();
+    audio_io_handle_t input = 0;
 
     // If one input (device in capture) is used then the policy shall refuse to any record
     // application to acquire another input, unless a VoIP call or a voice call record preempts.
@@ -118,7 +119,62 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
         }
     }
 
-    return baseClass::getInput(inputSource, samplingRate, format, channels, acoustics);
+    ALOGV("getInput() inputSource %d, samplingRate %d, format %d, channelMask %x, acoustics %x",
+          inputSource, samplingRate, format, channelMask, acoustics);
+
+    if (device == 0) {
+        ALOGW("getInput() could not find device for inputSource %d", inputSource);
+        return 0;
+    }
+
+    IOProfile *profile = getInputProfile(device,
+                                         samplingRate,
+                                         format,
+                                         channelMask);
+    if (profile == NULL) {
+        ALOGW("getInput() could not find profile for device %04x, samplingRate %d, format %d,"
+                "channelMask %04x",
+                device, samplingRate, format, channelMask);
+        return 0;
+    }
+
+    if (profile->mModule->mHandle == 0) {
+        ALOGE("getInput(): HW module %s not opened", profile->mModule->mName);
+        return 0;
+    }
+
+    AudioInputDescriptor *inputDesc = new AudioInputDescriptor(profile);
+
+    inputDesc->mInputSource = inputSource;
+    inputDesc->mDevice = device;
+    inputDesc->mSamplingRate = samplingRate;
+    inputDesc->mFormat = (audio_format_t)format;
+    inputDesc->mChannelMask = (audio_channel_mask_t)channelMask;
+    inputDesc->mRefCount = 0;
+    input = mpClientInterface->openInput(profile->mModule->mHandle,
+                                    &inputDesc->mDevice,
+                                    &inputDesc->mSamplingRate,
+                                    &inputDesc->mFormat,
+                                    &inputDesc->mChannelMask);
+
+    // only accept input with the exact requested set of parameters
+    if (input == 0 ||
+        (samplingRate != inputDesc->mSamplingRate) ||
+        (format != inputDesc->mFormat) ||
+        (channelMask != inputDesc->mChannelMask)) {
+        ALOGV("getInput() failed opening input: samplingRate %d, format %d, channelMask %d",
+                samplingRate, format, channelMask);
+        if (input != 0) {
+            mpClientInterface->closeInput(input);
+        }
+        delete inputDesc;
+        return 0;
+    }
+    mInputs.add(input, inputDesc);
+
+    // Do not call base class method as channel mask information
+    // for voice call record is not used on our platform
+    return input;
 }
 
 float AudioPolicyManagerALSA::computeVolume(int stream,
