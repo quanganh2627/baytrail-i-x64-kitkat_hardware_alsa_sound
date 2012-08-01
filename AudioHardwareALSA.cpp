@@ -161,14 +161,14 @@ static void ALSAErrorHandler(const char *file,
     l = snprintf(buf, BUFSIZ, "%s:%i:(%s) ", file, line, function);
     if (l < 0) {
 
-        LOGE("%s: error while formating the log", __FUNCTION__);
+        ALOGE("%s: error while formating the log", __FUNCTION__);
         // Bailing out
         goto error;
     }
     if (l >= BUFSIZ) {
 
         // return of snprintf higher than size -> the output has been truncated
-        LOGE("%s: log truncated", __FUNCTION__);
+        ALOGE("%s: log truncated", __FUNCTION__);
         l = BUFSIZ - 1;
     }
     vsnprintf(buf + l, BUFSIZ - l, fmt, arg);
@@ -231,10 +231,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     std::string strError;
     if (!mParameterMgrPlatformConnector->start(strError)) {
 
-        LOGE("parameter-framework start error: %s", strError.c_str());
+        ALOGE("parameter-framework start error: %s", strError.c_str());
     } else {
 
-        LOGI("parameter-framework successfully started!");
+        ALOGI("parameter-framework successfully started!");
     }
 
     // Reset
@@ -249,12 +249,12 @@ AudioHardwareALSA::AudioHardwareALSA() :
     {
         if (hw_get_module(hw_module_list[i].module_id, (hw_module_t const**)&module))
         {
-            LOGE("%s Module not found!!!", hw_module_list[i].module_id);
+            ALOGE("%s Module not found!!!", hw_module_list[i].module_id);
             mHwDeviceArray.push_back(NULL);
         }
         else if (module->methods->open(module, hw_module_list[i].module_name, &device))
         {
-            LOGE("%s Module could not be opened!!!", hw_module_list[i].module_name);
+            ALOGE("%s Module could not be opened!!!", hw_module_list[i].module_name);
             mHwDeviceArray.push_back(NULL);
         }
         else {
@@ -273,7 +273,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
         if (getVpcHwDevice()->init(getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S1_PORT], true, DEFAULT_IFX_CLK_SELECT),
                                    getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S2_PORT], true, DEFAULT_IFX_CLK_SELECT)))
         {
-            LOGE("VPC MODULE init FAILED");
+            ALOGE("VPC MODULE init FAILED");
             // if any open issue, bailing out...
             getVpcHwDevice()->common.close(&getVpcHwDevice()->common);
             mHwDeviceArray[VPC_HW_DEV] = NULL;
@@ -288,13 +288,13 @@ AudioHardwareALSA::AudioHardwareALSA() :
     if (getFmHwDevice()) {
         getFmHwDevice()->init();
     } else {
-        LOGE("Cannot load FM HW Module");
+        ALOGE("Cannot load FM HW Module");
     }
 #endif
 
     // Starts the modem state listener
     if(mModemAudioManager->start()) {
-        LOGE("AudioHardwareALSA: could not start modem state listener");
+        ALOGE("AudioHardwareALSA: could not start modem state listener");
     }
 
 
@@ -434,7 +434,7 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
         strError = strParameterPath.c_str();
         strError += " not found!";
 
-        LOGE("Unable to get parameter handle: %s", strError.c_str());
+        ALOGE("Unable to get parameter handle: %s", strError.c_str());
 
         ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
@@ -446,7 +446,7 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
 
     if ((!bSigned && !pParameterHandle->getAsInteger(uiValue, strError)) || (bSigned && !pParameterHandle->getAsSignedInteger((int32_t&)uiValue, strError))) {
 
-        LOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
+        ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
 
         ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
@@ -525,7 +525,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
 
     if (!getAlsaHwDevice()) {
 
-        LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
+        ALOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
         err = DEAD_OBJECT;
         goto finish;
     }
@@ -536,7 +536,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode());
     if (err) {
 
-        LOGE("%s: init Stream error.", __FUNCTION__);
+        ALOGE("%s: init Stream error.", __FUNCTION__);
         goto finish;
     }
 
@@ -545,7 +545,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     err = out->set(format, channels, sampleRate);
     if (err) {
 
-        LOGE("%s: set error.", __FUNCTION__);
+        ALOGE("%s: set error.", __FUNCTION__);
         goto finish;
     }
 
@@ -635,7 +635,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     if (!getAlsaHwDevice()) {
 
-        LOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
+        ALOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
         err = DEAD_OBJECT;
         goto finish;
     }
@@ -646,7 +646,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode());
     if (err) {
 
-        LOGE("%s: init Stream error.", __FUNCTION__);
+        ALOGE("%s: init Stream error.", __FUNCTION__);
         goto finish;
     }
 
@@ -655,14 +655,14 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     err = in->setGain(defaultGain);
     if (err != NO_ERROR) {
 
-        LOGE("%s: setGain", __FUNCTION__);
+        ALOGE("%s: setGain", __FUNCTION__);
         goto finish;
     }
 
     err = in->set(format, channels, sampleRate);
     if (err != NO_ERROR) {
 
-        LOGE("%s: Set err", __FUNCTION__);
+        ALOGE("%s: Set err", __FUNCTION__);
         goto finish;
     }
 
@@ -760,15 +760,15 @@ size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, in
     case 48000:
         break;
     default:
-        LOGW("getInputBufferSize bad sampling rate: %d", sampleRate);
+        ALOGW("getInputBufferSize bad sampling rate: %d", sampleRate);
         return 0;
     }
     if (format != AudioSystem::PCM_16_BIT) {
-        LOGW("getInputBufferSize bad format: %d", format);
+        ALOGW("getInputBufferSize bad format: %d", format);
         return 0;
     }
     if ((channelCount < 1) || (channelCount > 2)) {
-        LOGW("getInputBufferSize bad channel count: %d", channelCount);
+        ALOGW("getInputBufferSize bad channel count: %d", channelCount);
         return 0;
     }
 
@@ -785,7 +785,7 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 {
     AutoW lock(mLock);
 
-    LOGI("key value pair %s\n", keyValuePairs.string());
+    ALOGI("key value pair %s\n", keyValuePairs.string());
 
     if (!getVpcHwDevice()) {
         return NO_ERROR;
@@ -805,12 +805,12 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     if(status == NO_ERROR)
     {
         if (strBtState == AUDIO_PARAMETER_VALUE_BLUETOOTH_STATE_ON) {
-            LOGV("bt enabled\n");
+            ALOGV("bt enabled\n");
             mIsBluetoothEnabled = true;
         }
         else {
             //BT off or undefined: set flag to false and force BT path to off
-            LOGV("bt disabled\n");
+            ALOGV("bt disabled\n");
             mIsBluetoothEnabled = false;
         }
         //BT mode change: apply new route accessibility rules
@@ -832,19 +832,19 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     if (status == NO_ERROR) {
 
         if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
-            LOGV("tty full\n");
+            ALOGV("tty full\n");
             iTtyDevice = VPC_TTY_FULL;
         }
         else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
-            LOGV("tty hco\n");
+            ALOGV("tty hco\n");
             iTtyDevice = VPC_TTY_HCO;
         }
         else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
-            LOGV("tty vco\n");
+            ALOGV("tty vco\n");
             iTtyDevice = VPC_TTY_VCO;
         }
         else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_OFF) {
-            LOGV("tty off\n");
+            ALOGV("tty off\n");
             iTtyDevice = VPC_TTY_OFF;
 
         }
@@ -867,11 +867,11 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 
     if (status == NO_ERROR) {
         if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_ON) {
-            LOGV("BT NREC on, headset is without noise reduction and echo cancellation algorithms");
+            ALOGV("BT NREC on, headset is without noise reduction and echo cancellation algorithms");
             getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
         }
         else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
-            LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
+            ALOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
             getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
 
             // We reconsider routing as VPC_BT_NREC_ON intent is sent first, then setStreamParameters and finally
@@ -896,11 +896,11 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 
     if (status == NO_ERROR) {
         if(strHACSetting == AUDIO_PARAMETER_VALUE_HAC_ON) {
-            LOGV("HAC setting is turned on, enable output on HAC device");
+            ALOGV("HAC setting is turned on, enable output on HAC device");
             iHACSetting = VPC_HAC_ON;
         }
         else if(strHACSetting == AUDIO_PARAMETER_VALUE_HAC_OFF) {
-            LOGV("HAC setting is turned off");
+            ALOGV("HAC setting is turned off");
             iHACSetting = VPC_HAC_OFF;
         }
 
@@ -951,7 +951,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     // Remove parameter
     param.remove(key);
 
-    LOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
+    ALOGW("AudioHardwareALSA::setStreamParameters() for %s devices: 0x%08x", bForOutput ? "output" : "input", devices);
 
     if (bForOutput) {
 
@@ -976,7 +976,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         if (status != NO_ERROR) {
 
             // Just log!
-            LOGE("VPC params error: %d", status);
+            ALOGE("VPC params error: %d", status);
         }
     }
 
@@ -997,7 +997,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         if (status != NO_ERROR) {
 
             // Just log!
-            LOGE("alsa route error: %d", status);
+            ALOGE("alsa route error: %d", status);
         }
 
         // WorkAround
@@ -1036,7 +1036,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         std::string strError;
         if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
 
-            LOGE("%s", strError.c_str());
+            ALOGE("%s", strError.c_str());
         }
     }
 
@@ -1044,7 +1044,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     if (param.size()) {
 
         // Just log!
-        LOGW("Unhandled argument.");
+        ALOGW("Unhandled argument.");
     }
 
     return NO_ERROR;

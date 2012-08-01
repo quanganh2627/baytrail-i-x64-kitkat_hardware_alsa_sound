@@ -97,21 +97,21 @@ ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
         }
         else if (n == -EBADFD) {
 
-            LOGE("read err: %s, TRY REOPEN...", snd_strerror(n));
+            ALOGE("read err: %s, TRY REOPEN...", snd_strerror(n));
             err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
             if(err != NO_ERROR) {
 
-                LOGE("Open device error");
+                ALOGE("Open device error");
                 return err;
             }
         }
         else if (n < 0) {
 
-            LOGE("read err: %s", snd_strerror(n));
+            ALOGE("read err: %s", snd_strerror(n));
             err = snd_pcm_recover(mHandle->handle, n, 1);
             if(err != NO_ERROR) {
 
-                LOGE("pcm read recover error: %s", snd_strerror(n));
+                ALOGE("pcm read recover error: %s", snd_strerror(n));
                 return err;
             }
         }
@@ -146,7 +146,7 @@ ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
 
         if (n < 0) {
 
-            LOGE("pcm read recover error: %s", snd_strerror(n));
+            ALOGE("pcm read recover error: %s", snd_strerror(n));
             return n;
         }
 
@@ -182,14 +182,14 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
         if (err < 0) {
 
-            LOGE("%s: Cannot open alsa device(0x%x) in mode (%d)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
+            ALOGE("%s: Cannot open alsa device(0x%x) in mode (%d)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
             return err;
         }
 
         err = allocateHwBuffer();
         if (err < 0) {
 
-            LOGE("%s: Cannot allocate HwBuffer", __FUNCTION__);
+            ALOGE("%s: Cannot allocate HwBuffer", __FUNCTION__);
             return err;
         }
         mStandby = false;
@@ -223,7 +223,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     if (received_frames < 0) {
 
-        LOGE("%s(buffer=%p, bytes=%ld) will return %ld (strerror \"%s\")", __FUNCTION__, buffer, bytes, received_frames, snd_strerror(received_frames));
+        ALOGE("%s(buffer=%p, bytes=%ld) will return %ld (strerror \"%s\")", __FUNCTION__, buffer, bytes, received_frames, snd_strerror(received_frames));
         return received_frames;
     }
 
@@ -343,7 +343,7 @@ status_t AudioStreamInALSA::allocateHwBuffer()
     mHwBuffer = new char[mHwBufferSize];
     if (!mHwBuffer) {
 
-        LOGE("%s: cannot allocate resampler mHwbuffer", __FUNCTION__);
+        ALOGE("%s: cannot allocate resampler mHwbuffer", __FUNCTION__);
         return NO_MEMORY;
     }
 

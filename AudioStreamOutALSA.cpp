@@ -93,7 +93,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
 
         if (err < 0) {
-            LOGE("Write: Cannot open alsa device(0x%x) in mode(0x%x).", mHandle->curDev, mHandle->curMode);
+            ALOGE("Write: Cannot open alsa device(0x%x) in mode(0x%x).", mHandle->curDev, mHandle->curMode);
             return err;
         }
         mStandby = false;
@@ -158,25 +158,25 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
         if(n == -EAGAIN || (n >= 0 && n + sentFrames < frames)) {
             it++;
             if (it > MAX_AGAIN_RETRY){
-                LOGE("write err: EAGAIN breaking...");
+                ALOGE("write err: EAGAIN breaking...");
                 return n;
             }
             snd_pcm_wait(mHandle->handle, WAIT_TIME_MS);
         }
         else if (n == -EBADFD) {
-            LOGE("write err: %s, TRY REOPEN...", snd_strerror(n));
+            ALOGE("write err: %s, TRY REOPEN...", snd_strerror(n));
             err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
             if(err != NO_ERROR) {
-                LOGE("Open device error");
+                ALOGE("Open device error");
                 return err;
             }
         }
         else if (n == -ENODEV) {
-            LOGE("write err: %s, bailing out", snd_strerror(n));
+            ALOGE("write err: %s, bailing out", snd_strerror(n));
             return err;
         }
         else if (n < 0) {
-            LOGE("write err: %s", snd_strerror(n));
+            ALOGE("write err: %s", snd_strerror(n));
             for (unsigned int totalSleepTime = 0; totalSleepTime < mHandle->latency; totalSleepTime += WAIT_BEFORE_RETRY) {
                 err = snd_pcm_recover(mHandle->handle, n, 1);
                 if ((err == -EAGAIN) &&
@@ -194,7 +194,7 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
                     break;
             }
             if(err != NO_ERROR) {
-                LOGE("pcm write recover error: %s", snd_strerror(n));
+                ALOGE("pcm write recover error: %s", snd_strerror(n));
                 return err;
             }
         }
