@@ -7,6 +7,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "AudioUtils"
+
 using namespace android;
 using namespace std;
 

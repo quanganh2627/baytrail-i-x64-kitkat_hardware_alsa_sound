@@ -44,6 +44,7 @@ LOCAL_SRC_FILES := \
     AudioConverter.cpp \
     AudioRemapper.cpp \
     AudioReformatter.cpp \
+    Resampler.cpp \
     AudioResampler.cpp \
     ALSAMixer.cpp \
     ALSAControl.cpp \

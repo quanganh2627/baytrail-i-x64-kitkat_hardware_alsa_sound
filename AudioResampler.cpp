@@ -23,61 +23,33 @@
 #include <cutils/log.h>
 
 #include "AudioResampler.h"
-#include <alsa/asoundlib.h>
-#include <iasrc_resampler.h>
+#include "Resampler.h"
 
 #define base CAudioConverter
 
 namespace android_audio_legacy{
 
+const uint32_t CAudioResampler::_guiPivotSampleRate = 48000;
+
 // ----------------------------------------------------------------------------
 
 CAudioResampler::CAudioResampler(SampleSpecItem eSampleSpecItem) :
     base(eSampleSpecItem),
-    mMaxFrameCnt(0),
-    mContext(NULL), mFloatInp(0), mFloatOut(0)
+    _pResampler(new CResampler(ERateSampleSpecItem)),
+    _pPivotResampler(new CResampler(ERateSampleSpecItem))
 {
 }
 
 CAudioResampler::~CAudioResampler()
 {
-    if (mContext) {
-        iaresamplib_reset(mContext);
-        iaresamplib_delete(&mContext);
-    }
-
-    delete []mFloatInp;
-    delete []mFloatOut;
-}
-
-status_t CAudioResampler::allocateBuffer()
-{
-    if (mMaxFrameCnt == 0) {
-        mMaxFrameCnt = BUF_SIZE;
-    } else {
-        mMaxFrameCnt *= 2; // simply double the buf size
-    }
-
-    delete []mFloatInp;
-    delete []mFloatOut;
-
-    mFloatInp = new float[(mMaxFrameCnt + 1) * _ssSrc.getChannelCount()];
-    mFloatOut = new float[(mMaxFrameCnt + 1) * _ssSrc.getChannelCount()];
-
-    if (!mFloatInp || !mFloatOut) {
-        LOGE("cannot allocate resampler tmp buffers.\n");
-        return NO_MEMORY;
-    }
-    return NO_ERROR;
+    _activeResamplerList.clear();
+    delete _pResampler;
+    delete _pPivotResampler;
 }
 
 status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    if (ssSrc.getSampleRate() == _ssSrc.getSampleRate() &&
-        ssDst.getSampleRate() == _ssDst.getSampleRate() && mContext) {
-
-        return NO_ERROR;
-    }
+    _activeResamplerList.clear();
 
     status_t status = base::doConfigure(ssSrc, ssDst);
     if (status != NO_ERROR) {
@@ -85,70 +57,67 @@ status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
         return status;
     }
 
-    if (mContext) {
-        iaresamplib_reset(mContext);
-        iaresamplib_delete(&mContext);
-        mContext = NULL;
-    }
+    status = _pResampler->doConfigure(ssSrc, ssDst);
+    if (status != NO_ERROR) {
 
-    if (!iaresamplib_supported_conversion(ssSrc.getSampleRate(), ssDst.getSampleRate())) {
+        //
+        // Our resampling lib does not support all conversions
+        // using 2 resamplers
+        //
+        LOGD("%s: trying to use working sample rate @ 48kHz", __FUNCTION__);
+        CSampleSpec pivotSs = ssDst;
+        pivotSs.setSampleRate(_guiPivotSampleRate);
 
-        LOGE("%s: SRC lib doesn't support this conversion", __FUNCTION__);
-        return INVALID_OPERATION;
-    }
+        status = _pPivotResampler->doConfigure(ssSrc, pivotSs);
+        if (status != NO_ERROR) {
 
-    iaresamplib_new(&mContext, ssSrc.getChannelCount(), ssSrc.getSampleRate(), ssDst.getSampleRate());
-    if (!mContext) {
-        LOGE("cannot create resampler handle for lacking of memory.\n");
-        return BAD_VALUE;
-    }
-
-    _pfnConvertSamples = (ConvertSamples)(&CAudioResampler::resampleFrames);
-    return NO_ERROR;
-}
-
-void CAudioResampler::convert_short_2_float(int16_t *inp, float * out, size_t sz) const
-{
-    size_t i;
-    for (i = 0; i < sz; i++) {
-        *out++ = (float) *inp++;
-    }
-}
-
-void CAudioResampler::convert_float_2_short(float *inp, int16_t * out, size_t sz) const
-{
-    size_t i;
-    for (i = 0; i < sz; i++) {
-        if (*inp > SHRT_MAX) {
-            *inp = SHRT_MAX;
-        } else if (*inp < SHRT_MIN) {
-            *inp = SHRT_MIN;
+            LOGD("%s: trying to use pivot sample rate @ %dkHz: FAILED", __FUNCTION__, _guiPivotSampleRate);
+            return status;
         }
-        *out++ = (short) *inp++;
-    }
-}
+        _activeResamplerList.push_back(_pPivotResampler);
 
-status_t CAudioResampler::resampleFrames(const void *in, void *out, const uint32_t inFrames, uint32_t *outFrames)
-{
-    size_t outFrameCount = convertSrcToDstInFrames(inFrames);
+        status = _pResampler->doConfigure(pivotSs, ssDst);
+        if (status != NO_ERROR) {
 
-    while (outFrameCount > mMaxFrameCnt) {
-
-        status_t ret = allocateBuffer();
-        if (ret != NO_ERROR) {
-
-            LOGE("%s: could not allocate memory for resampling operation", __FUNCTION__);
-            return ret;
+            LOGD("%s: trying to use pivot sample rate @ 48kHz: FAILED", __FUNCTION__);
+            return status;
         }
     }
-    unsigned int out_n_frames;
-    convert_short_2_float((short*)in, mFloatInp, inFrames * _ssSrc.getChannelCount());
-    iaresamplib_process_float(mContext, mFloatInp, inFrames, mFloatOut, &out_n_frames);
-    convert_float_2_short(mFloatOut, (short*)out, out_n_frames * _ssSrc.getChannelCount());
+    _activeResamplerList.push_back(_pResampler);
 
-    *outFrames = out_n_frames;
+    return status;
+}
 
-    return NO_ERROR;
+status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames, uint32_t *outFrames)
+{
+    void *srcBuf = (void* )src;
+    void *dstBuf = NULL;
+    size_t srcFrames = inFrames;
+    size_t dstFrames = 0;
+    status_t status = NO_ERROR;
+
+    ResamplerListIterator it;
+    for (it = _activeResamplerList.begin(); it != _activeResamplerList.end(); ++it) {
+
+        CResampler* pConv = *it;
+        dstFrames = 0;
+
+        if (*dst && pConv == _activeResamplerList.back()) {
+
+            // Last converter must output within the provided buffer (if provided!!!)
+            dstBuf = *dst;
+        }
+        status = pConv->convert(srcBuf, &dstBuf, srcFrames, &dstFrames);
+        if (status != NO_ERROR) {
+
+            return status;
+        }
+        srcBuf = dstBuf;
+        srcFrames = dstFrames;
+    }
+    *dst = dstBuf;
+    *outFrames = dstFrames;
+    return status;
 }
 
 // ----------------------------------------------------------------------------

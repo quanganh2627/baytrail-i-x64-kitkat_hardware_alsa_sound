@@ -39,7 +39,7 @@ public:
 
     virtual status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
-    status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t *outFrames);
+    virtual status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t *outFrames);
 
 protected:
 

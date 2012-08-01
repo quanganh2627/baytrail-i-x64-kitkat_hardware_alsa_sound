@@ -12,7 +12,11 @@ namespace android_audio_legacy {
 
 // ----------------------------------------------------------------------------
 
+class CResampler;
+
 class CAudioResampler : public CAudioConverter {
+
+    typedef list<CResampler*>::iterator ResamplerListIterator;
 
 public:
     CAudioResampler(SampleSpecItem eSampleSpecItem);
@@ -28,17 +32,15 @@ private:
 
     virtual status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
-    status_t allocateBuffer();
+    virtual status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t *outFrames);
 
-    void convert_short_2_float(int16_t *inp, float * out, size_t sz) const;
+    CResampler* _pResampler;
+    CResampler* _pPivotResampler;
 
-    void convert_float_2_short(float *inp, int16_t * out, size_t sz) const;
+    // List of audio converter enabled
+    list<CResampler*>  _activeResamplerList;
 
-    static const int BUF_SIZE = (1 << 13);
-    size_t  mMaxFrameCnt;  /* max frame count the buffer can store */
-    void*   mContext;      /* handle used to do resample */
-    float*  mFloatInp;     /* here sample size is 4 bytes */
-    float*  mFloatOut;     /* here sample size is 4 bytes */
+    static const uint32_t _guiPivotSampleRate;
 };
 
 // ----------------------------------------------------------------------------
