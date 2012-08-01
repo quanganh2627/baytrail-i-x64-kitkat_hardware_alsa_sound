@@ -354,7 +354,26 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     ssize_t received_frames = -1;
     ssize_t frames = CAudioUtils::convertBytesToFrames(bytes, mSampleSpec);
 
-    if (!mPreprocessorsHandlerList.empty())
+    //workaround, will be replaced by BZ#49961
+    // if at least one effect has been added
+    //   if platform embeds an audience chip
+    //     if (mode is not in_call and mode is not in_communication)) then
+    //       the input stream should be processed using SW effects
+    //     else
+    //       *raw* samples are sent to upper layers
+    //     end
+    //   else
+    //     the input stream should be processed using SW effects
+    //   end
+    // else
+    //   *raw* samples are sent to upper layers
+    // end
+    //[*raw* samples but which have been treated by audience if pf embeds audience chip
+    //if platform does not embed audience chip but effects are expected, it is sufficient
+    //to add (configure) appropriate effects in /vendor/etc/audio_effects.conf file
+    if (!mPreprocessorsHandlerList.empty() &&
+            (!(mParent->getHaveAudience()) ||
+             ((mHandle->curMode != AudioSystem::MODE_IN_CALL) && (mHandle->curMode != AudioSystem::MODE_IN_COMMUNICATION))))
     {
         received_frames = processFrames(buffer, frames);
     }
