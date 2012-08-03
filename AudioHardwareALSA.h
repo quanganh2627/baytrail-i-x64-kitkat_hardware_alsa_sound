@@ -420,6 +420,8 @@ public:
     /* from ModemStatusNotifier: notified on modem status changes */
     virtual void onModemAudioStatusChanged();
     virtual void onModemStateChanged();
+    /** accessor to mHaveAudience */
+    bool getHaveAudience() const {return mHaveAudience;}
 
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
@@ -601,6 +603,9 @@ private:
     // Latch of the Android Telephony mode once the setParameter is called
     // on the output stream, giving the output device to use.
     int mLatchedAndroidMode;
+
+    // Indicate if platform embeds an Audience chip. required for acoustics effects
+    bool mHaveAudience;
 };
 
 // ----------------------------------------------------------------------------

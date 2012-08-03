@@ -47,6 +47,8 @@
 #include "stmd.h"
 
 #define DEFAULTGAIN "1.0"
+#define AUDIENCE_IS_PRESENT_PROPERTY_NAME "Audiocomms.Audience.IsPresent"
+#define AUDIENCE_IS_PRESENT_PROPERTY_DEFAULT_VALUE "false"
 
 namespace android_audio_legacy
 {
@@ -295,10 +297,24 @@ AudioHardwareALSA::AudioHardwareALSA() :
         LOGE("AudioHardwareALSA: could not start modem state listener");
     }
 
+
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
     mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
     mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
 #endif
+
+    char propHaveAudience[PROPERTY_VALUE_MAX];
+    property_get(AUDIENCE_IS_PRESENT_PROPERTY_NAME, propHaveAudience, AUDIENCE_IS_PRESENT_PROPERTY_DEFAULT_VALUE);
+    if(strcmp(propHaveAudience, "true") == 0)
+    {
+        ALOGD("%s(): platform embeds an Audience chip", __FUNCTION__);
+        mHaveAudience = true;
+    }
+    else
+    {
+        ALOGD("%s(): platform does NOT embed an Audience chip", __FUNCTION__);
+        mHaveAudience = false;
+    }
 }
 
 alsa_device_t* AudioHardwareALSA::getAlsaHwDevice() const
