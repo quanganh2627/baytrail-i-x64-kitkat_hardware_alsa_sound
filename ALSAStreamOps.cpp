@@ -353,7 +353,12 @@ void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
     if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
        mParent->getVpcHwDevice()) {
         ALOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
+#ifdef CUSTOM_BOARD_WITH_AUDIENCE
         mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
+#else /* CUSTOM_BOARD_WITH_AUDIENCE */
+        mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_OPEN);
+#endif /* CUSTOM_BOARD_WITH_AUDIENCE */
+
     }
 }
 
@@ -363,7 +368,12 @@ void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
        mParent->getVpcHwDevice())
     {
         ALOGD("%s", __FUNCTION__);
+#ifdef CUSTOM_BOARD_WITH_AUDIENCE
         mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
+#else /* CUSTOM_BOARD_WITH_AUDIENCE */
+        mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_CLOSE);
+#endif /* CUSTOM_BOARD_WITH_AUDIENCE */
+
     }
 }
 
