@@ -22,7 +22,8 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/libaudioresample \
     $(TARGET_OUT_HEADERS)/event-listener \
     $(TARGET_OUT_HEADERS)/modem-audio-manager \
-    $(TARGET_OUT_HEADERS)/audio-at-manager
+    $(TARGET_OUT_HEADERS)/audio-at-manager \
+    $(TARGET_OUT_HEADERS)/property
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -95,7 +96,8 @@ LOCAL_SHARED_LIBRARIES := \
     libat-manager \
     libaudioresample \
     libaudioutils \
-    libmodem-audio-manager
+    libmodem-audio-manager \
+    libproperty
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  LOCAL_SHARED_LIBRARIES += liba2dp

@@ -43,6 +43,7 @@
 #include "AudioRoute.h"
 #include "AudioConversion.h"
 #include "ModemAudioManagerInstance.h"
+#include "BooleanProperty.h"
 
 #include "stmd.h"
 
@@ -90,6 +91,9 @@ const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardw
     { VPC_HARDWARE_MODULE_ID, VPC_HARDWARE_NAME },
     { FM_HARDWARE_MODULE_ID, FM_HARDWARE_MODULE_ID },
 };
+
+// Property name indicating if platform embeds a modem chip
+const char* AudioHardwareALSA::propertyNameModemEmbedded = "Audiocomms.Modem.IsPresent";
 
 /// PFW related definitions
 // Logger
@@ -298,6 +302,12 @@ AudioHardwareALSA::AudioHardwareALSA() :
         ALOGE("AudioHardwareALSA: could not start modem state listener");
     }
 
+    //check if platform embeds a modem
+    mPropHaveModem = new CBooleanProperty(propertyNameModemEmbedded, true);
+    if (mPropHaveModem->isSet())
+        LOGD("%s(): platform embeds a Modem chip", __FUNCTION__);
+    else
+        LOGD("%s(): platform does NOT embed a Modem chip", __FUNCTION__);
 
 #ifdef CUSTOM_BOARD_WITHOUT_MODEM
     mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
@@ -860,31 +870,36 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         param.remove(key);
     }
 
-    // Search BT NREC parameter
-    String8 strBTnRecSetting;
-    key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
+    // Tablet supports only HSP, these requests should be ignored on tablet to avoid "non acoustic" audience profile by default.
+    if(mPropHaveModem->isSet())
+    {
+        // Search BT NREC parameter
+        String8 strBTnRecSetting;
+        key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
 
-    // Get BT NREC setting value
-    status = param.get(key, strBTnRecSetting);
+        // Get BT NREC setting value
+        status = param.get(key, strBTnRecSetting);
 
-    if (status == NO_ERROR) {
-        if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_ON) {
-            ALOGV("BT NREC on, headset is without noise reduction and echo cancellation algorithms");
-            getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
-        }
-        else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
-            ALOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
-            getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
+        if(status == NO_ERROR) {
+            if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_ON) {
+                LOGV("BT NREC on, headset is without noise reduction and echo cancellation algorithms");
+                getVpcHwDevice()->bt_nrec(VPC_BT_NREC_ON);
+            }
+            else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
+                LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
+                getVpcHwDevice()->bt_nrec(VPC_BT_NREC_OFF);
 
-            // We reconsider routing as VPC_BT_NREC_ON intent is sent first, then setStreamParameters and finally
-            // VPC_BT_NREC_OFF when the SCO link is enabled. But only VPC_BT_NREC_ON setting is applied in that
-            // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
-            // becomes necessary, to be aligned with VPC_BT_NREC_OFF to process the correct Audience profile.
-            mForceReconsiderInCallRoute = true;
-        }
+                /* We reconsider routing as VPC_BT_NREC_ON intent is sent first, then setStreamParameters and finally
+                 * VPC_BT_NREC_OFF when the SCO link is enabled. But only VPC_BT_NREC_ON setting is applied in that
+                 * context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
+                 * becomes necessary, to be aligned with VPC_BT_NREC_OFF to process the correct Audience profile.
+                 */
+                mForceReconsiderInCallRoute = true;
+            }
 
         // Remove parameter
         param.remove(key);
+        }
     }
 
     // Search HAC setting
