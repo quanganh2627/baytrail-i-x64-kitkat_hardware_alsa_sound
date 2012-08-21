@@ -185,7 +185,8 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
     float volume = 1.0;
 
     // For CSV voice call, DTMF stream attenuation is only applied in the modem
-    if ( (stream == AudioSystem::DTMF) && (mPhoneState == AudioSystem::MODE_IN_CALL) ) {
+    // Force volume to max for bluetooth SCO as volume is managed by the headset
+    if ( ((stream == AudioSystem::DTMF) && (mPhoneState == AudioSystem::MODE_IN_CALL)) || (stream == AudioSystem::BLUETOOTH_SCO) ) {
         return volume;
     }
 
