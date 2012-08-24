@@ -922,7 +922,9 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
 
             mCurrentHACSetting = iHACSetting;
             getVpcHwDevice()->set_hac(mCurrentHACSetting);
-            mForceReconsiderInCallRoute = true;
+            // Reconsider routing only if current accessory is earpiece
+            if (mOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE)
+                mForceReconsiderInCallRoute = true;
         }
 
         // Remove parameter
