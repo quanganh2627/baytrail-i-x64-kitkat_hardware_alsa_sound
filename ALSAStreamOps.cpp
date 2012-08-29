@@ -45,9 +45,9 @@
 // This define is a LPE constraints. LPE works with
 // 46440 us buffer to optimize the power consumption
 // HAL needs to transfer 2 periods to avoid underrun
-#define BUFFER_TIME_US          (23220 * 2 * 2)  //microseconds
-#define INCALL_BUFFER_TIME_US   (20000)     //microseconds
-#define USEC_PER_SEC            (1000000)
+#define PLAYBACK_BUFFER_TIME_US  (23220 * 2 * 2)  //microseconds
+#define CAPTURE_BUFFER_TIME_US   (20000 * 2 * 2)  //microseconds
+#define USEC_PER_SEC             (1000000)
 
 
 namespace android_audio_legacy
@@ -220,11 +220,11 @@ size_t ALSAStreamOps::bufferSize() const
     if (mParent->mode() == AudioSystem::MODE_IN_COMMUNICATION ||
             mParent->mode() ==  AudioSystem::MODE_IN_CALL) {
 
-        interval = INCALL_BUFFER_TIME_US;
+        interval = CAPTURE_BUFFER_TIME_US;
 
     } else {
 
-        interval = BUFFER_TIME_US;
+        interval = PLAYBACK_BUFFER_TIME_US;
     }
     size_t size = (int64_t) interval * sampleRate() / USEC_PER_SEC;
     // take resampling into account and return the closest majoring
