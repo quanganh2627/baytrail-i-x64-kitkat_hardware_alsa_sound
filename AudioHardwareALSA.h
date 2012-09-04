@@ -132,7 +132,7 @@ public:
     void                doStandby();
     status_t            standby();
 
-    virtual bool        isOut() = 0;
+    virtual bool        isOut() const = 0;
     status_t            setRoute(AudioRoute *audioRoute, uint32_t devices, int mode);
 
     status_t            doRoute(int mode);
@@ -238,7 +238,7 @@ public:
     // the output has exited standby
     virtual status_t    getRenderPosition(uint32_t *dspFrames);
 
-    virtual bool        isOut();
+    virtual bool        isOut() const;
 
     status_t            open(int mode);
     status_t            close();
@@ -312,7 +312,7 @@ public:
     // Unit: the number of input audio frames
     virtual unsigned int  getInputFramesLost() const;
 
-    virtual bool        isOut();
+    virtual bool        isOut() const;
 
     status_t            setAcousticParams(void* params);
 

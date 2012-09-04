@@ -42,10 +42,7 @@
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
-// This define is a LPE constraints. LPE works with
-// 46440 us buffer to optimize the power consumption
-// HAL needs to transfer 2 periods to avoid underrun
-#define PLAYBACK_BUFFER_TIME_US  (23220 * 2 * 2)  //microseconds
+#define PLAYBACK_BUFFER_TIME_US  (23220)          //microseconds
 #define CAPTURE_BUFFER_TIME_US   (20000 * 2 * 2)  //microseconds
 #define USEC_PER_SEC             (1000000)
 
@@ -218,7 +215,7 @@ size_t ALSAStreamOps::bufferSize() const
     int32_t interval;
 
     if (mParent->mode() == AudioSystem::MODE_IN_COMMUNICATION ||
-            mParent->mode() ==  AudioSystem::MODE_IN_CALL) {
+        mParent->mode() == AudioSystem::MODE_IN_CALL) {
 
         interval = CAPTURE_BUFFER_TIME_US;
 
@@ -233,7 +230,7 @@ size_t ALSAStreamOps::bufferSize() const
     size = CAudioUtils::alignOn16(size);
 
     bytes = CAudioUtils::convertFramesToBytes(size, mSampleSpec);
-    LOGD("%s: %d (in bytes)", __FUNCTION__, bytes);
+    LOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
 
     return bytes;
 }

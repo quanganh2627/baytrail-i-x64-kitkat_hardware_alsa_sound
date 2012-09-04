@@ -522,7 +522,7 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
     return ALSAStreamOps::setParameters(keyValuePairs);
 }
 
-bool AudioStreamInALSA::isOut()
+bool AudioStreamInALSA::isOut() const
 {
     return false;
 }
