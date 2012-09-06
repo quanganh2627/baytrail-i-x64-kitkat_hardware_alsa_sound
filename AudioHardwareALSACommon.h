@@ -53,6 +53,7 @@ struct alsa_handle_t {
     unsigned int        bufferSize;      // Size of sample buffer
     void *              modPrivate;
     bool                openFlag;        //if handle has opened openFlag = 1 esle openFlag = 0
+    int                 curFmRxMode;
 };
 
 struct alsa_device_t {
@@ -64,7 +65,7 @@ struct alsa_device_t {
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);
     status_t (*volume)(alsa_handle_t *, uint32_t, float);
-    status_t (*initStream)(alsa_handle_t *, uint32_t, int);
+    status_t (*initStream)(alsa_handle_t *, uint32_t, int, int);
 };
 
 /**

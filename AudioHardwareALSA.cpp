@@ -294,11 +294,13 @@ AudioHardwareALSA::AudioHardwareALSA() :
     }
 
 #ifdef WITH_FM_SUPPORT
-    if (getFmHwDevice()) {
-        getFmHwDevice()->init();
-    } else {
-        ALOGE("Cannot load FM HW Module");
-    }
+    #ifndef FM_RX_ANALOG
+        if (getFmHwDevice()) {
+            getFmHwDevice()->init();
+        } else {
+            ALOGE("Cannot load FM HW Module");
+        }
+    #endif
 #endif
 
     // Starts the modem state listener
@@ -506,9 +508,13 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
             (hwMode() == AudioSystem::MODE_NORMAL || fm_mode == AudioSystem::MODE_FM_OFF)) {
         if (fm_mode == AudioSystem::MODE_FM_ON) {
             reconsiderRouting();
+#ifndef FM_RX_ANALOG
             getFmHwDevice()->set_state(fm_mode);
+#endif
         } else {
+#ifndef FM_RX_ANALOG
             getFmHwDevice()->set_state(fm_mode);
+#endif
             reconsiderRouting();
         }
     }
@@ -547,7 +553,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     // Instantiante and initialize a new ALSA handle
     pHandle = new alsa_handle_t;
 
-    err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode());
+    err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode(), getFmRxMode());
     if (err) {
 
         ALOGE("%s: init Stream error.", __FUNCTION__);
@@ -652,7 +658,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     // Instantiante and initialize a new ALSA handle
     pHandle = new alsa_handle_t;
 
-    err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode());
+    err = getAlsaHwDevice()->initStream(pHandle, devices, hwMode(), getFmRxMode());
     if (err) {
 
         ALOGE("%s: init Stream error.", __FUNCTION__);
@@ -1027,12 +1033,14 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         // End of WorkAround
     }
 
+#ifndef FM_RX_ANALOG
     // Handle mode change while FM already ON
     if (bForOutput && (getFmRxMode() == AudioSystem::MODE_FM_ON) &&
             (currentHwMode != hwMode()) &&
             (hwMode() == AudioSystem::MODE_NORMAL) ) {
         getFmHwDevice()->set_state(getFmRxMode());
     }
+#endif
 
     // Mix disable
     if (devices && getVpcHwDevice() && getVpcHwDevice()->mix_disable) {
