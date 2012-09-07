@@ -17,7 +17,7 @@ LOCAL_C_INCLUDES += \
     system/media/audio_effects/include
 
 LOCAL_C_INCLUDES += \
-    hardware/intel/IFX-modem \
+    $(TARGET_OUT_HEADERS)/IFX-modem \
     $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/libaudioresample \
     $(TARGET_OUT_HEADERS)/event-listener \
@@ -58,10 +58,6 @@ LOCAL_CFLAGS := -D_POSIX_SOURCE
 
 ifeq ($(BOARD_HAVE_AUDIENCE),true)
     LOCAL_CFLAGS += -DCUSTOM_BOARD_WITH_AUDIENCE
-endif
-
-ifneq ($(BOARD_HAVE_MODEM),true)
-    LOCAL_CFLAGS += -DCUSTOM_BOARD_WITHOUT_MODEM
 endif
 
 ifeq ($(ENABLE_AUDIO_DUMP),true)
@@ -115,7 +111,7 @@ include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += \
-    hardware/intel/IFX-modem \
+    $(TARGET_OUT_HEADERS)/IFX-modem \
     $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/event-listener \
     $(TARGET_OUT_HEADERS)/libaudioresample \

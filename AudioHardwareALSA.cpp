@@ -282,6 +282,15 @@ AudioHardwareALSA::AudioHardwareALSA() :
             mHwDeviceArray.push_back(device);
         }
     }
+
+    //check if platform embeds a modem
+    mHaveModem = TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue);
+    if (mHaveModem) {
+        LOGD("%s(): platform embeds a Modem chip", __FUNCTION__);
+    } else {
+        LOGD("%s(): platform does NOT embed a Modem chip", __FUNCTION__);
+    }
+
     if (getAlsaHwDevice()) {
 
         getAlsaHwDevice()->init(getAlsaHwDevice(), getIntegerParameterValue(gapcDefaultSampleRates[ALSA_CONF_DIRECTION_IN], false, DEFAULT_SAMPLE_RATE),
@@ -291,7 +300,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
     if (getVpcHwDevice()) {
 
         if (getVpcHwDevice()->init(getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S1_PORT], true, DEFAULT_IFX_CLK_SELECT),
-                                   getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S2_PORT], true, DEFAULT_IFX_CLK_SELECT)))
+                                   getIntegerParameterValue(gapcModemPortClockSelection[IFX_I2S2_PORT], true, DEFAULT_IFX_CLK_SELECT), mHaveModem))
         {
             ALOGE("VPC MODULE init FAILED");
             // if any open issue, bailing out...
@@ -313,24 +322,15 @@ AudioHardwareALSA::AudioHardwareALSA() :
         }
     #endif
 #endif
-
-    // Starts the modem state listener
-    if(mModemAudioManager->start()) {
-        ALOGE("AudioHardwareALSA: could not start modem state listener");
+    if(mHaveModem){
+        // Starts the modem state listener
+        if(mModemAudioManager->start()) {
+            ALOGE("AudioHardwareALSA: could not start modem state listener");
+        }
+    }else{
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
+        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
     }
-
-    //check if platform embeds a modem
-    mHaveModem = TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue);
-    if (mHaveModem) {
-        LOGD("%s(): platform embeds a Modem chip", __FUNCTION__);
-    } else {
-        LOGD("%s(): platform does NOT embed a Modem chip", __FUNCTION__);
-    }
-
-#ifdef CUSTOM_BOARD_WITHOUT_MODEM
-    mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), false, hwMode());
-    mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), true, hwMode());
-#endif
 
     mHaveAudience = TProperty<bool>(mAudienceIsPresentPropName, mAudienceIsPresentDefaultValue);
     if(mHaveAudience)
@@ -1149,30 +1149,30 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
     // If Android Mode is still in call but the call status is false, do not
     // use BT route (glitches may occur)
     //
-#ifdef CUSTOM_BOARD_WITHOUT_MODEM
-    mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, hwMode());
-#else
-    bool isBtAccessible = mIsBluetoothEnabled && mModemAvailable;
-    if (mode() == AudioSystem::MODE_IN_CALL && !mModemCallActive) {
+    if(!mHaveModem){
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), mIsBluetoothEnabled, hwMode());
+    }else{
+        bool isBtAccessible = mIsBluetoothEnabled && mModemAvailable;
+        if (mode() == AudioSystem::MODE_IN_CALL && !mModemCallActive) {
 
-        isBtAccessible = false;
+            isBtAccessible = false;
+        }
+        mAudioRouteMgr->setRouteAccessible(String8("BT"), isBtAccessible, hwMode());
+
+        //
+        // In case of ModemStateChange OR CallStatusChanged, might have not only to
+        // set the route accessible/unaccessible but also to force to reconsider
+        // the routing and providing a new route to listen end of call or lost
+        // coverage tones.
+        //
+        if (routeEvent == EModemStateChange || routeEvent == ECallStatusChange) {
+
+            reconsiderRouting();
+
+            mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive, hwMode());
+            mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, hwMode());
+        }
     }
-    mAudioRouteMgr->setRouteAccessible(String8("BT"), isBtAccessible, hwMode());
-
-    //
-    // In case of ModemStateChange OR CallStatusChanged, might have not only to
-    // set the route accessible/unaccessible but also to force to reconsider
-    // the routing and providing a new route to listen end of call or lost
-    // coverage tones.
-    //
-    if (routeEvent == EModemStateChange || routeEvent == ECallStatusChange) {
-
-        reconsiderRouting();
-
-        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive, hwMode());
-        mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, hwMode());
-    }
-#endif
 
     ALOGD("%s: out", __FUNCTION__);
 }
