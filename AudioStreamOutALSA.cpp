@@ -307,15 +307,16 @@ void AudioStreamOutALSA::addEchoReference(struct echo_reference_itfe * reference
 {
     ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
     assert(reference != NULL);
-    AutoR lock(mParent->mLock);
+
+    // Called from a WLocked context
     mEchoReference = reference;
 }
 
 void AudioStreamOutALSA::removeEchoReference(struct echo_reference_itfe * reference)
 {
     ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
-    AutoR lock(mParent->mLock);
 
+    // Called from a WLocked context
     if(mEchoReference == reference)
     {
         mEchoReference->write(mEchoReference, NULL);
