@@ -58,8 +58,6 @@ AudioHardwareInterface *createAudioHardware(void) {
 }
 }         // extern "C"
 
-#define AUDIO_AT_CHANNEL_NAME   "/dev/gsmtty20"
-
 // Defines path to parameters in PFW XML config files
 const char* const AudioHardwareALSA::gapcDefaultSampleRates [AudioHardwareALSA::ALSA_CONF_NB_DIRECTIONS] = {
     "/Audio/CONFIGURATION/ALSA_CONF/IN/DEFAULT_SAMPLE_RATE", // Type = unsigned integer
