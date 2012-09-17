@@ -131,8 +131,11 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     char *dstBuf = NULL;
     status_t status;
 
-    // If needed, push echo reference
-    pushEchoReference(srcBuf, srcFrames);
+    // If applicable, push echo reference from Android effects
+    if ( !mParent->getHaveAudience() ||
+             ((mHandle->curMode != AudioSystem::MODE_IN_CALL) && (mHandle->curMode != AudioSystem::MODE_IN_COMMUNICATION))) {
+        pushEchoReference(srcBuf, srcFrames);
+    }
 
     status = applyAudioConversion(srcBuf, (void**)&dstBuf, srcFrames, &dstFrames);
 
