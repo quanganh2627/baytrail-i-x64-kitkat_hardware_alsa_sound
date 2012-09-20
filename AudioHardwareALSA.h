@@ -123,7 +123,7 @@ public:
     String8             getParameters(const String8& keys);
 
     inline uint32_t     sampleRate() const { return mSampleSpec.getSampleRate();}
-    size_t              bufferSize() const;
+    size_t              bufferSize(int32_t iIntervalInUs) const;
     inline int          format() const {return mSampleSpec.getFormat();}
     inline uint32_t     channelCount() const {return mSampleSpec.getChannelCount();}
     inline uint32_t     channels() const {return mSampleSpec.getChannelMask();}
@@ -210,10 +210,7 @@ public:
         return ALSAStreamOps::sampleRate();
     }
 
-    virtual size_t      bufferSize() const
-    {
-        return ALSAStreamOps::bufferSize();
-    }
+    virtual size_t      bufferSize() const;
 
     virtual uint32_t    channels() const;
 
@@ -279,10 +276,7 @@ public:
         return ALSAStreamOps::sampleRate();
     }
 
-    virtual size_t      bufferSize() const
-    {
-        return ALSAStreamOps::bufferSize();
-    }
+    virtual size_t      bufferSize() const;
 
     virtual uint32_t    channels() const
     {
@@ -407,6 +401,8 @@ private:
 
     char* mHwBuffer;
     ssize_t mHwBufferSize;
+
+    uint32_t mInputSource;
 };
 
 class AudioHardwareALSA : public AudioHardwareBase, public IModemStatusNotifier

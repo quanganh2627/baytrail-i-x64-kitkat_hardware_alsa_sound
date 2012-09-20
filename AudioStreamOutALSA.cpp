@@ -41,6 +41,10 @@
 #define WAIT_TIME_MS        20
 #define WAIT_BEFORE_RETRY 10000 //10ms
 
+#define PLAYBACK_BUFFER_TIME_US  (23220)  //microseconds
+
+#define base ALSAStreamOps
+
 namespace android_audio_legacy
 {
 
@@ -286,6 +290,14 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
 {
     *dspFrames = mFrameCount;
     return NO_ERROR;
+}
+
+//
+// Return the number of bytes (not frames)
+//
+size_t AudioStreamOutALSA::bufferSize() const
+{
+    return base::bufferSize(PLAYBACK_BUFFER_TIME_US);
 }
 
 status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)

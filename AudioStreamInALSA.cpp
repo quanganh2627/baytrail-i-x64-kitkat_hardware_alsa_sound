@@ -41,6 +41,10 @@
 // A higher sample rate will use a WB audio processing.
 #define MAX_VOIP_SAMPLE_RATE_FOR_NARROW_BAND_PROCESSING 8000
 
+#define CAPTURE_BUFFER_TIME_US   (20000)  //microseconds
+
+#define base ALSAStreamOps
+
 namespace android_audio_legacy
 {
 
@@ -58,7 +62,8 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
     mReferenceBuffer(NULL),
     mReferenceBufferSizeInFrames(0),
     mPreprocessorsHandlerList(),
-    mHwBuffer(NULL)
+    mHwBuffer(NULL),
+    mInputSource(0)
 {
     acoustic_device_t *aDev = acoustics();
 
@@ -481,6 +486,24 @@ status_t AudioStreamInALSA::setAcousticParams(void *params)
     return aDev ? aDev->set_params(aDev, mAcoustics, params) : (status_t)NO_ERROR;
 }
 
+//
+// Return the number of bytes (not frames)
+//
+size_t AudioStreamInALSA::bufferSize() const
+{
+    int32_t iInterval;
+
+    if (mInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+
+        iInterval = CAPTURE_BUFFER_TIME_US;
+
+    } else {
+
+        iInterval = CAPTURE_BUFFER_TIME_US * 4;
+    }
+    return base::bufferSize(iInterval);
+}
+
 status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
 {
     AutoW lock(mParent->mLock);
@@ -495,6 +518,7 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
     LOGD("%s in.\n", __FUNCTION__);
     status = param.getInt(key, inputSource);
     if (status == NO_ERROR) {
+        mInputSource = inputSource;
         if (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
             // Check the stream sample rate to select the correct VOIP band.
             // Only the input stream holds the sample rate required by the client,

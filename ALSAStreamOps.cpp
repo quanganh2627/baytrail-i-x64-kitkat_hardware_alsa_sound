@@ -42,8 +42,6 @@
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
-#define PLAYBACK_BUFFER_TIME_US  (23220)          //microseconds
-#define CAPTURE_BUFFER_TIME_US   (20000 * 2 * 2)  //microseconds
 #define USEC_PER_SEC             (1000000)
 
 using namespace android;
@@ -210,26 +208,16 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
 //
 // Return the number of bytes (not frames)
 //
-size_t ALSAStreamOps::bufferSize() const
+size_t ALSAStreamOps::bufferSize(int32_t iInterval) const
 {
-    size_t bytes;
-    int32_t interval;
+    size_t size = (int64_t) iInterval * sampleRate() / USEC_PER_SEC;
 
-    if (!isOut()) {
-
-        interval = CAPTURE_BUFFER_TIME_US;
-
-    } else {
-
-        interval = PLAYBACK_BUFFER_TIME_US;
-    }
-    size_t size = (int64_t) interval * sampleRate() / USEC_PER_SEC;
     // take resampling into account and return the closest majoring
     // multiple of 16 frames, as audioflinger expects audio buffers to
     // be a multiple of 16 frames.
     size = CAudioUtils::alignOn16(size);
 
-    bytes = mSampleSpec.convertFramesToBytes(size);
+    size_t bytes = mSampleSpec.convertFramesToBytes(size);
     LOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
 
     return bytes;
