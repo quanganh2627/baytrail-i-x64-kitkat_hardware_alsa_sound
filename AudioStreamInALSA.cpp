@@ -244,7 +244,7 @@ ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
     int processingReturn = 0;
 
     // Then process the frames
-    while ((processed_frames < frames) && (processingReturn == 0))
+    while ((processed_frames < frames) && (processing_frames_in > 0) && (processingReturn == 0))
     {
         for (i = mPreprocessorsHandlerList.begin(); i != mPreprocessorsHandlerList.end(); i++)
         {
@@ -291,13 +291,14 @@ ssize_t AudioStreamInALSA::processFrames(void *buffer, ssize_t frames)
         // HW read frames, so it is necessary to realign the buffer
         if (processing_frames_in != 0)
         {
+            assert(processing_frames_in > 0);
             memmove(mProcessingBuffer,
-                    (char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(processed_frames, mSampleSpec),
+                    (char* )mProcessingBuffer + CAudioUtils::convertFramesToBytes(mProcessingFramesIn - processing_frames_in, mSampleSpec),
                     CAudioUtils::convertFramesToBytes(processing_frames_in, mSampleSpec));
         }
     }
-    // at the end, we processed some processed_frames frames, so decrease the number of stored frames
-    mProcessingFramesIn -= processed_frames;
+    // at the end, we keep remainder frames not cosumed by effect processor.
+    mProcessingFramesIn = processing_frames_in;
 
     return processed_frames;
 }
