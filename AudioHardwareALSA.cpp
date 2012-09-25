@@ -514,7 +514,7 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
     ALOGD("%s: in", __FUNCTION__);
 
     if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS &&
-            (hwMode() == AudioSystem::MODE_NORMAL || fm_mode == AudioSystem::MODE_FM_OFF)) {
+            (latchedAndroidMode() == AudioSystem::MODE_NORMAL || fm_mode == AudioSystem::MODE_FM_OFF)) {
         if (fm_mode == AudioSystem::MODE_FM_ON) {
             reconsiderRouting();
 #ifndef FM_RX_ANALOG
@@ -975,9 +975,11 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     String8 key = String8(AudioParameter::keyRouting);
     status_t status;
     int devices;
-    int currentHwMode = hwMode();
+    int currentLatchedAndroidMode;
 
     AutoW lock(mLock);
+
+    currentLatchedAndroidMode = latchedAndroidMode();
 
     // Get concerned devices
     status = param.getInt(key, devices);
@@ -1050,11 +1052,14 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         // End of WorkAround
     }
 
+
 #ifndef FM_RX_ANALOG
-    // Handle mode change while FM already ON
+    // Handle Android Latched mode change while FM already ON
+    // Checking upon Android Latched mode can guarantee the output device
+    // has been changed, and the modem has closed its I2S ports.
     if (bForOutput && (getFmRxMode() == AudioSystem::MODE_FM_ON) &&
-            (currentHwMode != hwMode()) &&
-            (hwMode() == AudioSystem::MODE_NORMAL) ) {
+            (currentLatchedAndroidMode != latchedAndroidMode()) &&
+            (latchedAndroidMode() == AudioSystem::MODE_NORMAL) ) {
         getFmHwDevice()->set_state(getFmRxMode());
     }
 #endif
