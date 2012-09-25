@@ -436,6 +436,9 @@ public:
     /** set the audio volume of a voice call. Range is between 0.0 and 1.0 */
     virtual status_t    setVoiceVolume(float volume);
 
+    /** set the audio volume of fm rx playback. Range is between 0.0 and 1.0 */
+    virtual status_t    setFmRxVolume(float volume);
+
     /**
      * set the audio volume for all audio activities other than voice call.
      * Range between 0.0 and 1.0. If any value other than NO_ERROR is returned,
@@ -589,6 +592,19 @@ private:
     static const uint32_t DEFAULT_SAMPLE_RATE;
     static const uint32_t DEFAULT_CHANNEL_COUNT;
     static const uint32_t DEFAULT_FORMAT;
+    static const uint32_t DEFAULT_FM_RX_VOL_MAX;
+    static const uint32_t FM_RX_STREAM_MAX_VOLUME;
+
+    enum FM_RX_DEVICE {
+        FM_RX_SPEAKER,
+        FM_RX_HEADSET,
+
+        FM_RX_NB_DEVICE
+    };
+    static const char* const gapcDefaultFmRxMaxVolume[FM_RX_NB_DEVICE];
+    static const char* const gapcLineInToHeadsetLineVolume;
+    static const char* const gapcLineInToSpeakerLineVolume;
+    static const char* const gapcLineInToEarSpeakerLineVolume;
 
     // MODEM I2S PORTS
     enum IFX_IS2S_PORT {
@@ -619,6 +635,10 @@ private:
 
     // unsigned integer parameter value retrieval
     uint32_t getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const;
+    // unsigned integer parameter value setter
+    status_t setIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const;
+    // unsigned integer parameter value setter
+    status_t setIntegerArrayParameterValue(const string& strParameterPath, std::vector<uint32_t>& uiArray) const;
 
     // Mode type
     static const SSelectionCriterionTypeValuePair mModeValuePairs[];
@@ -699,6 +719,10 @@ private:
 
     // Indicate if platform embeds an Audience chip. required for acoustics effects
     bool mHaveAudience;
+
+    //max values of FM RX Volume
+    uint32_t mFmRxSpeakerMaxVolumeValue;
+    uint32_t mFmRxHeadsetMaxVolumeValue;
 
     struct echo_reference_itfe *mEchoReference;
 };

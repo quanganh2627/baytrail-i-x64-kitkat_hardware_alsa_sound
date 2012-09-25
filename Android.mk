@@ -122,6 +122,10 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
     AudioPolicyManagerALSA.cpp
 
+ifeq ($(FM_RADIO_RX_ANALOG),true)
+  LOCAL_CFLAGS += -DFM_RX_ANALOG
+endif
+
 LOCAL_C_INCLUDES += \
     external/stlport/stlport/ \
     bionic/

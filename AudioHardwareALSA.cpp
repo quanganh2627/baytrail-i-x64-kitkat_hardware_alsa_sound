@@ -58,21 +58,31 @@ AudioHardwareInterface *createAudioHardware(void) {
 }
 }         // extern "C"
 
-// Defines path to parameters in PFW XML config files
+// Defines path to parameters in PFW XML config files for default sampling rate of audio codec
 const char* const AudioHardwareALSA::gapcDefaultSampleRates [AudioHardwareALSA::ALSA_CONF_NB_DIRECTIONS] = {
     "/Audio/CONFIGURATION/ALSA_CONF/IN/DEFAULT_SAMPLE_RATE", // Type = unsigned integer
     "/Audio/CONFIGURATION/ALSA_CONF/OUT/DEFAULT_SAMPLE_RATE" // Type = unsigned integer
 };
-// Default sampling rate in case the value is not found in xml file
-const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 44100;
-const uint32_t AudioHardwareALSA::DEFAULT_CHANNEL_COUNT = 2;
-const uint32_t AudioHardwareALSA::DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT;
-
-// Defines path to parameters in PFW XML config files
+// Defines path to parameters in PFW XML config files for modem clock selection
 const char* const AudioHardwareALSA::gapcModemPortClockSelection[AudioHardwareALSA::IFX_NB_I2S_PORT] = {
     "/Audio/CONFIGURATION/IFX_MODEM/I2S1/CLK_SELECT", // Type = signed integer
     "/Audio/CONFIGURATION/IFX_MODEM/I2S2/CLK_SELECT" // Type = signed integer
 };
+const char* const AudioHardwareALSA::gapcDefaultFmRxMaxVolume[AudioHardwareALSA::FM_RX_NB_DEVICE] = {
+    "/Audio/CONFIGURATION/FM_CONF/SPEAKER/VOLUME", // Type = unsigned integer
+    "/Audio/CONFIGURATION/FM_CONF/HEADSET/VOLUME"  // Type = unsigned integer
+};
+// Default parameters in case the values are not found in xml file
+const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 44100;
+const uint32_t AudioHardwareALSA::DEFAULT_CHANNEL_COUNT = 2;
+const uint32_t AudioHardwareALSA::DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT;
+const uint32_t AudioHardwareALSA::DEFAULT_FM_RX_VOL_MAX = 55;
+const uint32_t AudioHardwareALSA::FM_RX_STREAM_MAX_VOLUME = 15;
+
+
+const char* const AudioHardwareALSA::gapcLineInToHeadsetLineVolume = "/Audio/CIRRUS/SOUND_CARD/MIXER/HEADPHONE_LINE/INPUT_PATH_SOURCE/VOLUME"; // Type = integer
+const char* const AudioHardwareALSA::gapcLineInToSpeakerLineVolume = "/Audio/CIRRUS/SOUND_CARD/MIXER/SPEAKERPHONE_LINE/INPUT_PATH_SOURCE/VOLUME"; // Type = integer
+const char* const AudioHardwareALSA::gapcLineInToEarSpeakerLineVolume = "/Audio/CIRRUS/SOUND_CARD/MIXER/EAR_SPEAKER_LINE/INPUT_PATH_SOURCE/VOLUME"; // Type = integer
 
 // Default clock selection
 const uint32_t AudioHardwareALSA::DEFAULT_IFX_CLK_SELECT = -1;
@@ -333,6 +343,9 @@ AudioHardwareALSA::AudioHardwareALSA() :
         } else {
             ALOGE("Cannot load FM HW Module");
         }
+    #else
+        mFmRxSpeakerMaxVolumeValue = getIntegerParameterValue(gapcDefaultFmRxMaxVolume[FM_RX_SPEAKER], false, DEFAULT_FM_RX_VOL_MAX);
+        mFmRxHeadsetMaxVolumeValue = getIntegerParameterValue(gapcDefaultFmRxMaxVolume[FM_RX_HEADSET], false, DEFAULT_FM_RX_VOL_MAX);
     #endif
 #endif
     if(mHaveModem){
@@ -483,7 +496,8 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
     // Retrieve value
     uint32_t uiValue;
 
-    if ((!bSigned && !pParameterHandle->getAsInteger(uiValue, strError)) || (bSigned && !pParameterHandle->getAsSignedInteger((int32_t&)uiValue, strError))) {
+    if ((!bSigned && !pParameterHandle->getAsInteger(uiValue, strError)) ||
+        (bSigned && !pParameterHandle->getAsSignedInteger((int32_t&)uiValue, strError))) {
 
         ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
 
@@ -503,6 +517,87 @@ uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterP
     return uiValue;
 }
 
+status_t AudioHardwareALSA::setIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiValue) const
+{
+    ALOGD("%s in", __FUNCTION__);
+
+    if (!mParameterMgrPlatformConnector->isStarted()) {
+
+        return INVALID_OPERATION;
+    }
+
+    string strError;
+    // Get handle
+    CParameterHandle* pParameterHandle = mParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
+
+    if (!pParameterHandle) {
+
+        strError = strParameterPath.c_str();
+        strError += " not found!";
+
+        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+
+        return INVALID_OPERATION;
+    }
+
+    // set value
+    if ((!bSigned && !pParameterHandle->setAsInteger(uiValue, strError)) ||
+        (bSigned && !pParameterHandle->setAsSignedInteger((int32_t&)uiValue, strError))) {
+
+        ALOGE("Unable to set value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
+
+        // Remove handle
+        delete pParameterHandle;
+
+        return INVALID_OPERATION;
+    }
+
+    // Remove handle
+    delete pParameterHandle;
+
+    return NO_ERROR;
+}
+
+status_t AudioHardwareALSA::setIntegerArrayParameterValue(const string& strParameterPath, std::vector<uint32_t>& uiArray) const
+{
+    ALOGD("%s in", __FUNCTION__);
+
+    if (!mParameterMgrPlatformConnector->isStarted()) {
+
+        return INVALID_OPERATION;
+    }
+
+    string strError;
+    // Get handle
+    CParameterHandle* pParameterHandle = mParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
+
+    if (!pParameterHandle) {
+
+        strError = strParameterPath.c_str();
+        strError += " not found!";
+
+        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+
+        return INVALID_OPERATION;
+    }
+
+    // set value
+    if (!pParameterHandle->setAsIntegerArray(uiArray, strError)) {
+
+        ALOGE("Unable to set value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
+
+        // Remove handle
+        delete pParameterHandle;
+
+        return INVALID_OPERATION;
+    }
+
+    // Remove handle
+    delete pParameterHandle;
+
+    return NO_ERROR;
+}
+
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
     // The voice volume is used by the VOICE_CALL audio stream.
@@ -511,6 +606,49 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
         return getVpcHwDevice()->volume(volume);
     else
         return INVALID_OPERATION;
+}
+
+status_t AudioHardwareALSA::setFmRxVolume(float volume)
+{
+    int volumeAsIntegerParameter;
+    uint32_t headsetVolume = 0;
+    uint32_t speakerVolume = 0;
+    vector<uint32_t> pfwVolumeArray;
+    //computed values (in float): {002172, 0.004660, 0.010000, 0.014877, 0.023646, 0.037584, 0.055912, 0.088869, 0.141254, 0.189453, 0.266840, 0.375838, 0.504081, 0.709987, 1.000000}
+    //FM_RX_STREAM_MAX_VOLUME levels of volumes - must be aligned with MAX_STREAM_VOLUME of STREAM_FM_RX in AudioService.java
+    float volumeLevels[FM_RX_STREAM_MAX_VOLUME]={0.001, 0.003, 0.005, 0.011, 0.015, 0.024, 0.04, 0.06, 0.09, 0.15, 0.2, 0.3, 0.4, 0.6, 0.8};
+    uint32_t integerVolume = 0;
+
+    while ((integerVolume < FM_RX_STREAM_MAX_VOLUME) && (volume > volumeLevels[integerVolume]))
+    {
+        integerVolume++;
+    }
+
+    AutoW lock(mLock);
+    // update volumes only if FM is ON (else apply 0)
+    if (getFmRxMode() == AudioSystem::MODE_FM_ON) {
+        //if framework forces device on speaker
+        if (mOutputDevices == AudioSystem::DEVICE_OUT_SPEAKER) {
+            headsetVolume = (uint32_t) (0);
+            speakerVolume = (uint32_t) (integerVolume * mFmRxSpeakerMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
+        }
+        //else: use wired accessory for FM
+        else if ((mOutputDevices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) || (mOutputDevices & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)) {
+            headsetVolume = (uint32_t) (integerVolume * mFmRxHeadsetMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
+            speakerVolume = (uint32_t) 0;
+        }
+    }
+    ALOGV("%s: FM Rx volume applied on speaker %d and on headset %d", __FUNCTION__, speakerVolume, headsetVolume);
+    //apply calculated volumes into audio codec
+    //left and right channels of stereo headset - only one value for speaker (mono speaker)
+    pfwVolumeArray.push_back(headsetVolume);
+    pfwVolumeArray.push_back(headsetVolume);
+    if((setIntegerArrayParameterValue(gapcLineInToHeadsetLineVolume, pfwVolumeArray) != NO_ERROR) ||
+       (setIntegerParameterValue(gapcLineInToSpeakerLineVolume, false, (uint32_t)speakerVolume) != NO_ERROR) ||
+       (setIntegerParameterValue(gapcLineInToEarSpeakerLineVolume, false, (uint32_t)speakerVolume)!= NO_ERROR))
+        return INVALID_OPERATION;
+    else
+        return NO_ERROR;
 }
 
 status_t AudioHardwareALSA::setMasterVolume(float volume)
@@ -538,6 +676,9 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
         } else {
 #ifndef FM_RX_ANALOG
             getFmHwDevice()->set_state(fm_mode);
+#else
+            //set all volumes to 0
+            setFmRxVolume(0);
 #endif
             reconsiderRouting();
         }

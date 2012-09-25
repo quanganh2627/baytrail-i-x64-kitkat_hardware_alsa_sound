@@ -140,6 +140,8 @@ public:
                             {return mFinalInterface->initCheck();}
     virtual status_t    setVoiceVolume(float volume)
                             {return mFinalInterface->setVoiceVolume(volume);}
+    virtual status_t    setFmRxVolume(float volume)
+                            {return mFinalInterface->setFmRxVolume(volume);}
     virtual status_t    setMasterVolume(float volume)
                             {return mFinalInterface->setMasterVolume(volume);}
 
