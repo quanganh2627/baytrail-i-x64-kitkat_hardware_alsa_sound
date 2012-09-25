@@ -41,7 +41,7 @@
 #define WAIT_TIME_MS        20
 #define WAIT_BEFORE_RETRY 10000 //10ms
 
-#define PLAYBACK_BUFFER_TIME_US  (23220)  //microseconds
+#define LATENCY_TO_BUFFER_INTERVAL_RATIO  4
 
 #define base ALSAStreamOps
 
@@ -297,7 +297,7 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
 //
 size_t AudioStreamOutALSA::bufferSize() const
 {
-    return base::bufferSize(PLAYBACK_BUFFER_TIME_US);
+    return base::bufferSize(mHandle->latency / LATENCY_TO_BUFFER_INTERVAL_RATIO);
 }
 
 status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)

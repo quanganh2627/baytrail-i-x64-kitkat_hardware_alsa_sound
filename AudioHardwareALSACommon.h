@@ -1,6 +1,6 @@
-/* AudioHardwareALSA.h
+/* AudioHardwareALSACommon.h
  **
- ** Copyright 2008-2009, Wind River Systems
+ ** Copyright 2012 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -52,8 +52,9 @@ struct alsa_handle_t {
     unsigned int        latency;         // Delay in usec
     unsigned int        wait_timeoutMs;  // Timeout for snd_pcm_wait function
     unsigned int        bufferSize;      // Size of sample buffer
+    uint32_t            periodTime;
     void *              modPrivate;
-    bool                openFlag;        //if handle has opened openFlag = 1 esle openFlag = 0
+    bool                openFlag;        // If handle is opened then openFlag = 1
     int                 curFmRxMode;
 };
 
