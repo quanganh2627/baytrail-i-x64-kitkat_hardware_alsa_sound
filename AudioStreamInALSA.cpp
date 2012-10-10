@@ -595,6 +595,10 @@ status_t AudioStreamInALSA::allocateHwBuffer()
         ALOGE("%s: cannot allocate resampler mHwbuffer", __FUNCTION__);
         return NO_MEMORY;
     }
+    //valgrind warning fix: it is necessary to initialize the allocated memory
+    //Note: if the mHwBuffer is not entirely filled by hardware, 0 is more
+    //appropriate value that a random one from heap!
+    memset(mHwBuffer, 0, mHwBufferSize);
 
     return NO_ERROR;
 }
