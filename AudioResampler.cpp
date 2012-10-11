@@ -36,7 +36,8 @@ const uint32_t CAudioResampler::_guiPivotSampleRate = 48000;
 CAudioResampler::CAudioResampler(SampleSpecItem eSampleSpecItem) :
     base(eSampleSpecItem),
     _pResampler(new CResampler(ERateSampleSpecItem)),
-    _pPivotResampler(new CResampler(ERateSampleSpecItem))
+    _pPivotResampler(new CResampler(ERateSampleSpecItem)),
+    _activeResamplerList()
 {
 }
 

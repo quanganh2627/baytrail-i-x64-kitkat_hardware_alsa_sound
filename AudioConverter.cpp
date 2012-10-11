@@ -30,6 +30,8 @@ namespace android_audio_legacy{
 
 CAudioConverter::CAudioConverter(SampleSpecItem eSampleSpecItem) :
     _pfnConvertSamples(NULL),
+    _ssSrc(),
+    _ssDst(),
     _pConvertBuf(NULL),
     _pConvertBufSize(0),
     _eSampleSpecItem(eSampleSpecItem)
