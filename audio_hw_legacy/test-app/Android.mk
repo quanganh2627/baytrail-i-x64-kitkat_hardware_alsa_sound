@@ -1,4 +1,3 @@
-ifneq (,$(findstring $(CUSTOM_BOARD),mrst_edv mfld_cdk mfld_pr1 mfld_pr2 mfld_gi))
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -20,5 +19,3 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_STATIC_LIBRARIES := libcutils libc
 LOCAL_LDLIBS += -lpthread
 include $(BUILD_EXECUTABLE)
-
-endif
