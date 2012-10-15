@@ -226,7 +226,8 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mOutputDevices(0),
     mHwMode(AudioSystem::MODE_NORMAL),
     mLatchedAndroidMode(AudioSystem::MODE_NORMAL),
-    mEchoReference(NULL)
+    mEchoReference(NULL),
+    mAudioParameterHandler(new AudioParameterHandler())
 {
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
@@ -828,10 +829,9 @@ status_t AudioHardwareALSA::dump(int fd, const Vector<String16>& args)
     return NO_ERROR;
 }
 
-status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
+// This function should be called from a locked context
+status_t AudioHardwareALSA::doSetParameters(const String8& keyValuePairs)
 {
-    AutoW lock(mLock);
-
     ALOGI("key value pair %s\n", keyValuePairs.string());
 
     if (!getVpcHwDevice()) {
@@ -982,6 +982,36 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     return NO_ERROR;
 }
 
+status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
+{
+    AutoW lock(mLock);
+
+    AudioParameter param = AudioParameter(keyValuePairs);
+    status_t status;
+    String8 strRst;
+
+    String8 key = String8("restarting");
+    status = param.get(key, strRst);
+    if (status == NO_ERROR) {
+        if (strRst == "true") {
+            // Restore the audio parameters when mediaserver is restarted in case of crash.
+            ALOGI("Restore audio parameters as mediaserver is restarted");
+            doSetParameters(mAudioParameterHandler->getParameters());
+        }
+        param.remove(key);
+    }
+    else {
+        // Set the audio parameters
+        status = doSetParameters(keyValuePairs);
+        if (status == NO_ERROR) {
+            // Save the audio parameters for recovering audio parameters in case of crash.
+            mAudioParameterHandler->saveParameters(keyValuePairs);
+        }
+        else
+            return status;
+    }
+    return NO_ERROR;
+}
 
 // set Stream Parameters
 status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bForOutput, const String8& keyValuePairs)

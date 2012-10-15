@@ -41,6 +41,7 @@
 #include "AudioUtils.h"
 #include "SampleSpec.h"
 #include "ModemAudioManager.h"
+#include "AudioParameterHandler.h"
 
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
@@ -556,6 +557,9 @@ private:
     // Check if hw mode has changed
     bool checkAndSetHwMode();
 
+    // Set AudioParameters
+    status_t doSetParameters(const String8& keyValuePairs);
+
     RWLock                mLock;
     bool mMicMuteState;
 
@@ -700,6 +704,9 @@ private:
     bool mHaveAudience;
 
     struct echo_reference_itfe *mEchoReference;
+
+    //For backup and restore audio parameters
+    AudioParameterHandler* mAudioParameterHandler;
 };
 
 // ----------------------------------------------------------------------------
