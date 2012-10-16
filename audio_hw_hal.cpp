@@ -603,17 +603,19 @@ static int legacy_adev_open(const hw_module_t* module, const char* name,
         goto err_create_audio_hw;
     }
 #ifdef ENABLE_AUDIO_DUMP
-	// This code adds a record of buffers in a file to write calls made by AudioFlinger.
-	// It replaces the current AudioHardwareInterface object by an intermediate one which
-	// will record buffers in a file (after sending them to hardware) for testing purpose.
-	// This feature is enabled by defining symbol ENABLE_AUDIO_DUMP.
-	// The output file is set with setParameters("test_cmd_file_name=<name>"). Pause are not recorded in the file.
-	LOGV("opening PCM dump interface");
-	ladev->hwif = new AudioDumpInterface(ladev->hwif);    // replace interface
-	String8 audio_dump_filename("test_cmd_file_name=audio_dump");
-	ladev->hwif->setParameters(audio_dump_filename);
+    // This code adds a record of buffers in a file to write calls made by AudioFlinger.
+    // It replaces the current AudioHardwareInterface object by an intermediate one which
+    // will record buffers in a file (after sending them to hardware) for testing purpose.
+    // This feature is enabled by defining symbol ENABLE_AUDIO_DUMP.
+    // The output file is set with setParameters("test_cmd_file_name=<name>"). Pause are not recorded in the file.
+    {
+        LOGV("opening PCM dump interface");
+        ladev->hwif = new AudioDumpInterface(ladev->hwif);    // replace interface
+        String8 audio_dump_filename("test_cmd_file_name=audio_dump");
+        ladev->hwif->setParameters(audio_dump_filename);
+    }
 #endif
-	*device = &ladev->device.common;
+    *device = &ladev->device.common;
 
     return 0;
 
