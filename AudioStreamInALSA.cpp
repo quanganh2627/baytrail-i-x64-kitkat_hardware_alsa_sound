@@ -127,6 +127,7 @@ status_t AudioStreamInALSA::allocateProcessingMemory(ssize_t frames)
 size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
 {
     // Simulate audio input timing and send zeroed buffer
+    ALOGD("%s %d bytes", __FUNCTION__, bytes);
     usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
     memset(buffer, 0, bytes);
     mStandby = false;
@@ -351,7 +352,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     if(mStandby) {
 
-        err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+        err = doOpen(mHandle->curDev, mHandle->curMode);
         if (err < 0) {
 
             ALOGE("%s: Cannot open alsa device(0x%x) in mode (%d)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
@@ -439,11 +440,32 @@ status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
     return NO_ERROR;
 }
 
+status_t AudioStreamInALSA::doOpen(uint32_t devices, int mode)
+{
+    ALOGD("StreamInAlsa doOpen mode=%d\n", mode);
+    // When (re)opening a voice input (CSV/VCR, ...), the HW needs to be
+    // reconfigured to get the right mixing parameters.
+    // Indeed, for this type of input, the setParameters() function is
+    // called in the RINGTONE mode, where the mInputSource is not
+    // updated yet to the CVS voice family possible values
+    // (due to other input on-going, or call reject....)
+    // So, we must do it here, when opening the stream.
+    // Note that for Voip stream, the mInputSource is correctly updated
+    // at first mode transition (MODE_IN_COMMUNICATION), in setParameters()
+    // call
+    if (mParent->getVpcHwDevice() && mode == AudioSystem::MODE_IN_CALL){
+        mParent->getVpcHwDevice()->set_input_source(mInputSource);
+    }
+
+    return ALSAStreamOps::doOpen(devices, mode);
+}
+
 status_t AudioStreamInALSA::open(int mode)
 {
     AutoW lock(mParent->mLock);
+    ALOGD("StreamInAlsa open.\n");
 
-    status_t status = ALSAStreamOps::open(0, mode);
+    status_t status = doOpen(0, mode);
 
     acoustic_device_t *aDev = acoustics();
 

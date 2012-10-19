@@ -52,6 +52,8 @@ public:
                                        uint32_t channels,
                                        AudioSystem::audio_in_acoustics acoustics);
 
+    status_t startInput(audio_io_handle_t input);
+
     virtual float computeVolume(int stream,
                                                         int index,
                                                         audio_io_handle_t output,

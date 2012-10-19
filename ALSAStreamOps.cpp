@@ -245,6 +245,9 @@ void ALSAStreamOps::doClose()
         }
     }
 
+    if(mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->mix_disable)
+        mParent->getVpcHwDevice()->mix_disable(isOut());
+
     mParent->getAlsaHwDevice()->close(mHandle);
 
     releasePowerLock();
@@ -297,7 +300,7 @@ status_t ALSAStreamOps::standby()
 // If the "routes" value does not map to a valid device, the default playback
 // device is used.
 //
-status_t ALSAStreamOps::open(uint32_t devices, int mode)
+status_t ALSAStreamOps::doOpen(uint32_t devices, int mode)
 {
     assert(routeAvailable());
     assert(!mHandle->handle);
@@ -321,7 +324,7 @@ status_t ALSAStreamOps::open(uint32_t devices, int mode)
         CSampleSpec ssDst = isOut() ? mHwSampleSpec : mSampleSpec;
         configureAudioConversion(ssSrc, ssDst);
     }
-    LOGD("ALSAStreamOps::open status=%d", err);
+    LOGD("ALSAStreamOps::doOpen status=%d", err);
     return err;
 }
 
@@ -421,7 +424,7 @@ status_t ALSAStreamOps::doRoute(int mode)
 
     vpcRoute(mDevices, mode);
 
-    err = open(mDevices, mode);
+    err = doOpen(mDevices, mode);
     if (err < 0) {
         LOGE("Cannot open alsa device(0x%x) in mode (%d)", mDevices, mode);
         return err;

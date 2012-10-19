@@ -129,7 +129,7 @@ public:
     inline uint32_t     channelCount() const {return mSampleSpec.getChannelCount();}
     inline uint32_t     channels() const {return mSampleSpec.getChannelMask();}
 
-    status_t            open(uint32_t devices, int mode);
+    virtual status_t    doOpen(uint32_t devices, int mode);
     void                close();
     void                doClose();
     void                doStandby();
@@ -315,6 +315,7 @@ public:
     status_t            setAcousticParams(void* params);
 
     status_t            open(int mode);
+    status_t            doOpen(uint32_t devices, int mode);
     status_t            close();
     virtual status_t    addAudioEffect(effect_handle_t effect);
     virtual status_t    removeAudioEffect(effect_handle_t effect);

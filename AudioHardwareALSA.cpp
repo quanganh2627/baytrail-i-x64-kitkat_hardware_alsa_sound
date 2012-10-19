@@ -1050,6 +1050,8 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
 
         /* Update the HW mode (if needed) */
         updateHwMode();
+
+        applyRouteAccessibilityRules(EAndroidModeChange);
     }
 
     /** VPC params
@@ -1208,6 +1210,10 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
         }
         mAudioRouteMgr->setRouteAccessible(String8("BT"), isBtAccessible, hwMode());
 
+        // Enable the VoiceRec route only when we are in IN_CALL mode, in order to generate
+        // silence on any VCR input while not in this mode
+        mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive && (hwMode() == AudioSystem::MODE_IN_CALL), hwMode());
+
         //
         // In case of ModemStateChange OR CallStatusChanged, might have not only to
         // set the route accessible/unaccessible but also to force to reconsider
@@ -1218,7 +1224,6 @@ void AudioHardwareALSA::applyRouteAccessibilityRules(RoutingEvent routeEvent)
 
             reconsiderRouting();
 
-            mAudioRouteMgr->setRouteAccessible(String8("VoiceRec"), mModemAvailable && mModemCallActive, hwMode());
             mAudioRouteMgr->setRouteAccessible(String8("MSIC_Voice"), mModemAvailable, hwMode());
         }
     }
@@ -1390,9 +1395,6 @@ void AudioHardwareALSA::latchAndroidMode()
 {
     // Latch the android mode
     mLatchedAndroidMode = mode();
-
-    // Apply accessibility rules that depends on AndroidMode
-    applyRouteAccessibilityRules(EAndroidModeChange);
 }
 /**
   * the purpose of this function is

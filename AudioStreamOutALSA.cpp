@@ -99,7 +99,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     }
 
     if(mStandby) {
-        err = ALSAStreamOps::open(mHandle->curDev, mHandle->curMode);
+        err = doOpen(mHandle->curDev, mHandle->curMode);
 
         if (err < 0) {
             ALOGE("Write: Cannot open alsa device(0x%x) in mode(0x%x).", mHandle->curDev, mHandle->curMode);
@@ -246,7 +246,7 @@ status_t AudioStreamOutALSA::open(int mode)
 {
     AutoW lock(mParent->mLock);
 
-    return ALSAStreamOps::open(0, mode);
+    return doOpen(0, mode);
 }
 
 status_t AudioStreamOutALSA::close()

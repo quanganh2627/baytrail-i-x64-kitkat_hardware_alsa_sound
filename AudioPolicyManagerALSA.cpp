@@ -127,6 +127,10 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
               LOGI("Stop current active input %d because of higher priority input %d !", inputDesc->mInputSource, inputSource);
               baseClass::stopInput(activeInput);
         }
+        else if ((inputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                 (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
+            LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
+        }
         else {
             LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
             return 0;
@@ -189,6 +193,50 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     // Do not call base class method as channel mask information
     // for voice call record is not used on our platform
     return input;
+}
+
+status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
+{
+    ALOGV("startInput() input %d", input);
+    ssize_t index = mInputs.indexOfKey(input);
+    if (index < 0) {
+        ALOGW("startInput() unknow input %d", input);
+        return BAD_VALUE;
+    }
+    AudioInputDescriptor *inputDesc = mInputs.valueAt(index);
+
+#ifdef AUDIO_POLICY_TEST
+    if (mTestInput == 0)
+#endif //AUDIO_POLICY_TEST
+    {
+        // refuse 2 active AudioRecord clients at the same time
+        // except in the case of incoming VOIP call during voice call recording
+        audio_io_handle_t activeInput = getActiveInput();
+        if (activeInput != 0) {
+            AudioInputDescriptor *activeInputDesc = mInputs.valueFor(activeInput);
+            if ((inputDesc->mInputSource & AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                (activeInputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                ((activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_UPLINK) ||
+                 (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_DOWNLINK) ||
+                 (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_CALL))){
+                ALOGI("startInput() input %d: VCR input %d already started", input, activeInput);
+            } else {
+                ALOGI("startInput() input %d failed: other input already started", input);
+                return INVALID_OPERATION;
+            }
+        }
+    }
+
+    AudioParameter param = AudioParameter();
+    param.addInt(String8(AudioParameter::keyRouting), (int)inputDesc->mDevice);
+
+    param.addInt(String8(AudioParameter::keyInputSource), (int)inputDesc->mInputSource);
+    ALOGV("startInput() input source = %d", inputDesc->mInputSource);
+
+    mpClientInterface->setParameters(input, param.toString());
+
+    inputDesc->mRefCount = 1;
+    return NO_ERROR;
 }
 
 float AudioPolicyManagerALSA::computeVolume(int stream,
