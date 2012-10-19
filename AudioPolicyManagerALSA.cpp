@@ -131,6 +131,10 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                  (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
             LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
         }
+        else if ((inputDesc->mInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                 (inputSource == AUDIO_SOURCE_VOICE_RECOGNITION)){
+            LOGI("Voice recognition requested during VoIP call");
+        }
         else {
             LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
             return 0;
