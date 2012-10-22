@@ -766,6 +766,7 @@ finish:
 void
 AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
+    AutoW lock(mLock);
     // Remove output stream from the list
 
     CAudioStreamOutALSAListIterator it;
@@ -878,6 +879,8 @@ finish:
 void
 AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
+    AutoW lock(mLock);
+
     mMicMuteState = false;
 
     // Remove input stream from the list
