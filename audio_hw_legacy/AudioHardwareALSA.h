@@ -628,6 +628,7 @@ private:
     static const bool mFmIsAnalogDefaultValue;
     static const char* const mBluetoothHFPSupportedPropName;
     static const bool mBluetoothHFPSupportedDefaultValue;
+    static const char* const mPFWConfigurationFileNamePropertyName;
 
 private:
     // PFW type value pairs type

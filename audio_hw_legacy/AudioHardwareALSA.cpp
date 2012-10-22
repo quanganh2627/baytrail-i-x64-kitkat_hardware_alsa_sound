@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <string>
+#include <cutils/properties.h>
 
 #define LOG_TAG "AudioHardwareALSA"
 //#define LOG_NDEBUG 0
@@ -86,6 +88,9 @@ const char* const AudioHardwareALSA::gapcLineInToHeadsetLineVolume = "/Audio/CIR
 const char* const AudioHardwareALSA::gapcLineInToSpeakerLineVolume = "/Audio/CIRRUS/SOUND_CARD/MIXER/SPEAKERPHONE_LINE/INPUT_PATH_SOURCE/VOLUME"; // Type = integer
 const char* const AudioHardwareALSA::gapcLineInToEarSpeakerLineVolume = "/Audio/CIRRUS/SOUND_CARD/MIXER/EAR_SPEAKER_LINE/INPUT_PATH_SOURCE/VOLUME"; // Type = integer
 
+// Defines the name of the Android property describing the name of the PFW configuration file
+const char* const AudioHardwareALSA::mPFWConfigurationFileNamePropertyName = "AudioComms.PFW.ConfPath";
+
 // Default clock selection
 const uint32_t AudioHardwareALSA::DEFAULT_IFX_CLK_SELECT = -1;
 
@@ -94,7 +99,7 @@ const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardw
     { ALSA_HARDWARE_MODULE_ID, ALSA_HARDWARE_NAME },
     { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
     { VPC_HARDWARE_MODULE_ID, VPC_HARDWARE_NAME },
-    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_MODULE_ID },
+    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_NAME }
 };
 
 
@@ -220,7 +225,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mDeviceList(),
     mLock(),
     mMicMuteState(false),
-    mParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("/etc/parameter-framework/ParameterFrameworkConfiguration.xml")),
     mParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     mModeType(NULL),
     mInputDeviceType(NULL),
@@ -248,6 +252,18 @@ AudioHardwareALSA::AudioHardwareALSA() :
     mLatchedAndroidMode(AudioSystem::MODE_NORMAL),
     mEchoReference(NULL)
 {
+    /// Connector
+    // Fetch the name of the PFW configuration file: this name is stored in an Android property
+    // and can be different for each hardware
+    char configurationFileName[PROPERTY_VALUE_MAX];
+    property_get(mPFWConfigurationFileNamePropertyName, configurationFileName, "");
+
+    string strParameterConfigurationFilePath = configurationFileName;
+    LOGI("parameter-framework: using configuration file: %s", strParameterConfigurationFilePath.c_str());
+
+    // Actually create the Connector
+    mParameterMgrPlatformConnector = new CParameterMgrPlatformConnector(strParameterConfigurationFilePath);
+
     // Logger
     mParameterMgrPlatformConnector->setLogger(mParameterMgrPlatformConnectorLogger);
 
