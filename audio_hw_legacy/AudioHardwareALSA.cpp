@@ -108,6 +108,8 @@ const bool AudioHardwareALSA::mAudienceIsPresentDefaultValue = false;
 const char* const AudioHardwareALSA::mModemEmbeddedPropName = "Audiocomms.Modem.IsPresent";
 const bool AudioHardwareALSA::mModemEmbeddedDefaultValue = true;
 
+const char* const AudioHardwareALSA::mBluetoothHFPSupportedPropName = "Audiocomms.BT.HFP.Supported";
+const bool AudioHardwareALSA::mBluetoothHFPSupportedDefaultValue = true;
 
 const char* const AudioHardwareALSA::mFmSupportedPropName = "Audiocomms.FM.Supported";
 const bool AudioHardwareALSA::mFmSupportedDefaultValue = false;
@@ -376,6 +378,14 @@ AudioHardwareALSA::AudioHardwareALSA() :
     else
     {
         ALOGD("%s(): platform does NOT embed an Audience chip", __FUNCTION__);
+    }
+
+    //Check if platform supports Bluetooth HFP
+    mBluetoothHFPSupported = TProperty<bool>(mBluetoothHFPSupportedPropName, mBluetoothHFPSupportedDefaultValue);
+    if(mBluetoothHFPSupported){
+        LOGD("%s(): platform supports Bluetooth HFP", __FUNCTION__);
+    } else {
+        LOGD("%s(): platform does NOT support Bluetooth HFP", __FUNCTION__);
     }
 }
 
@@ -1053,8 +1063,9 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
         param.remove(key);
     }
 
-    // Tablet supports only HSP, these requests should be ignored on tablet to avoid "non acoustic" audience profile by default.
-    if(mHaveModem) {
+    // Because BT_NREC feature only supported on Bluetooth HFP support device,
+    // this request should be ignored on non supported devices like tablet to avoid "non acoustic" audience profile by default.
+    if(mBluetoothHFPSupported) {
 
         // Search BT NREC parameter
         String8 strBTnRecSetting;

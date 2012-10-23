@@ -626,6 +626,8 @@ private:
     static const bool mFmSupportedDefaultValue;
     static const char* const mFmIsAnalogPropName;
     static const bool mFmIsAnalogDefaultValue;
+    static const char* const mBluetoothHFPSupportedPropName;
+    static const bool mBluetoothHFPSupportedDefaultValue;
 
 private:
     // PFW type value pairs type
@@ -716,6 +718,8 @@ private:
 
     // Indicate if FM module supports RX Analog
     bool mFmIsAnalog;
+
+    bool mBluetoothHFPSupported;
 
     // Current output device(s) used
     uint32_t mOutputDevices;
