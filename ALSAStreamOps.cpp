@@ -335,65 +335,30 @@ bool ALSAStreamOps::routeAvailable()
 
 void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
 {
-    if (mParent->getHaveAudience()) {
-        //
-        // On board with Audience, both CSV and VoIP call are routed through VPC
-        //
-        if (((mode == AudioSystem::MODE_IN_COMMUNICATION) || (mode == AudioSystem::MODE_IN_CALL)) &&
-                (isOut()) &&
-                mParent->getVpcHwDevice()) {
+    if((mode == AudioSystem::MODE_IN_COMMUNICATION) && (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
+       mParent->getVpcHwDevice()) {
+        ALOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
+#ifdef CUSTOM_BOARD_WITH_AUDIENCE
+        mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
+#else /* CUSTOM_BOARD_WITH_AUDIENCE */
+        mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_OPEN);
+#endif /* CUSTOM_BOARD_WITH_AUDIENCE */
 
-            LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
-            mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
-        }
-    } else {
-        //
-        // On board without Audience, CSV on all accessories and VoIP on BT SCO are
-        // routed through VPC
-        //
-        if ((AudioSystem::MODE_IN_CALL) &&
-                (isOut()) &&
-                mParent->getVpcHwDevice()) {
-
-            LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
-            mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
-        } else if ((mode == AudioSystem::MODE_IN_COMMUNICATION) &&
-                  (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
-                  mParent->getVpcHwDevice()){
-            mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_OPEN);
-        }
     }
 }
 
 void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
 {
-    if (mParent->getHaveAudience()) {
-        //
-        // On board with Audience, both CSV and VoIP call are unrouted through VPC
-        //
-        if (((curMode == AudioSystem::MODE_IN_COMMUNICATION) || (curMode == AudioSystem::MODE_IN_CALL)) &&
-                (isOut()) &&
-                mParent->getVpcHwDevice()) {
-            LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
-            mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
-        }
-    } else {
-        //
-        // On board without Audience, CSV on all accessories and VoIP on BT SCO are
-        // routed unthrough VPC
-        //
-        if ((AudioSystem::MODE_IN_CALL) &&
-                (isOut()) &&
-                mParent->getVpcHwDevice()) {
+    if((curMode == AudioSystem::MODE_IN_COMMUNICATION) && (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
+       mParent->getVpcHwDevice())
+    {
+        ALOGD("%s", __FUNCTION__);
+#ifdef CUSTOM_BOARD_WITH_AUDIENCE
+        mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
+#else /* CUSTOM_BOARD_WITH_AUDIENCE */
+        mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_CLOSE);
+#endif /* CUSTOM_BOARD_WITH_AUDIENCE */
 
-            LOGD("%s: BT Playback INCOMMUNICATION", __FUNCTION__);
-            mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
-        } else if ((curMode == AudioSystem::MODE_IN_COMMUNICATION) &&
-                   (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
-                   mParent->getVpcHwDevice()){
-
-            mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_CLOSE);
-        }
     }
 }
 
