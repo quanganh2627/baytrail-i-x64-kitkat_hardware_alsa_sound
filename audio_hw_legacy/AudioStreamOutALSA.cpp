@@ -182,15 +182,26 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
                            (char *)buffer + mHwSampleSpec.convertFramesToBytes(sentFrames),
                            frames - sentFrames);
 
-        if(n == -EAGAIN || (n >= 0 && n + sentFrames < frames)) {
-            it++;
-            if (it > MAX_AGAIN_RETRY){
-                ALOGE("write err: EAGAIN breaking...");
-                return n;
+        if( (n == -EAGAIN) || ((n >= 0) && (n + sentFrames) < frames)) {
+
+            int wait_status = mParent->getAlsaHwDevice()->wait_pcm(mHandle);
+
+            if (wait_status == 0) {
+                int remaining_frames;
+                // Need to differentiate timeout after having failed to receive some sample and having received
+                // some samples but less than the required number
+                if (n < 0) {
+                    n = 0;
+                }
+
+                remaining_frames = frames - sentFrames - n;
+
+                LOGW("%s: wait_pcm timeout! Generating %fms of silence.", __FUNCTION__, mHwSampleSpec.framesToMs(sentFrames));
+
+                // Timeout due to a potential hardware failure. We need to generate silence in this case.
+                n += mHwSampleSpec.convertBytesToFrames(remaining_frames);
             }
-            snd_pcm_wait(mHandle->handle, WAIT_TIME_MS);
-        }
-        else if (n == -EBADFD) {
+        }else if (n == -EBADFD) {
             ALOGE("write err: %s, TRY REOPEN...", snd_strerror(n));
             err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
             if(err != NO_ERROR) {
