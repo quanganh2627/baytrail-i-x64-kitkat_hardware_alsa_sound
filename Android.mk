@@ -54,8 +54,7 @@ LOCAL_SRC_FILES := \
     AudioRouteMSICVoice.cpp \
     AudioRouteBT.cpp \
     AudioRouteMM.cpp \
-    AudioRouteVoiceRec.cpp \
-    AudioParameterHandler.cpp
+    AudioRouteVoiceRec.cpp
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 
