@@ -280,6 +280,11 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
     return mRouteMgr->setIntegerParameterValue(gpcVoiceVolume, false, gain);
 }
 
+status_t AudioHardwareALSA::setFmRxVolume(float volume)
+{
+    return NO_ERROR;
+}
+
 status_t AudioHardwareALSA::setMasterVolume(float volume)
 {
     CAudioAutoRoutingLock lock(this);
