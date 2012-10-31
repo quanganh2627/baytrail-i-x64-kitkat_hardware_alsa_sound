@@ -431,7 +431,7 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
 
     if (ret != NO_ERROR) {
 
-        ALOGD("%s: error while routing the stream...", __FUNCTION__);
+      ALOGD("%s: error while routing the stream..., ret = %d", __FUNCTION__, ret);
         // Error while routing the stream to its route, unset it!!!
         mAudioRoute->unsetStream(this, mode);
         mAudioRoute = NULL;

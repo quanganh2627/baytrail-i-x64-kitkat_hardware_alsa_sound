@@ -151,7 +151,8 @@ const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSe
     { AudioSystem::DEVICE_IN_WIRED_HEADSET & ~AUDIO_DEVICE_BIT_IN, "Headset" },
     { AudioSystem::DEVICE_IN_AUX_DIGITAL & ~AUDIO_DEVICE_BIT_IN, "AuxDigital" },
     { AudioSystem::DEVICE_IN_VOICE_CALL & ~AUDIO_DEVICE_BIT_IN, "VoiceCall" },
-    { AudioSystem::DEVICE_IN_BACK_MIC & ~AUDIO_DEVICE_BIT_IN, "Back" }
+    { AudioSystem::DEVICE_IN_BACK_MIC & ~AUDIO_DEVICE_BIT_IN, "Back" },
+    { AudioSystem::DEVICE_IN_FM_RECORD & ~AUDIO_DEVICE_BIT_IN, "FmRecord" }
 };
 const uint32_t AudioHardwareALSA::mNbSelectedInputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs[0]);
 

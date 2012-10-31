@@ -74,6 +74,7 @@ status_t AudioPolicyManagerALSA::setDeviceConnectionState(AudioSystem::audio_dev
     return baseClass::setDeviceConnectionState(device, state, device_address);
 }
 
+
 status_t AudioPolicyManagerALSA::startOutput(audio_io_handle_t output,
                                              AudioSystem::stream_type stream,
                                              int session)
