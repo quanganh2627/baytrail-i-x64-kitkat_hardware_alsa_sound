@@ -369,14 +369,17 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
             }
             break;
         case STRATEGY_ENFORCED_AUDIBLE:
-                if ( isInCall() && !mStreams[AUDIO_STREAM_ENFORCED_AUDIBLE].mCanBeMuted
-                     && ((getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_BT_SCO)
-                         || (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE)) ) {
+                // During call, if an enforced audible stream is played, output it on the
+                // speaker + current device used for speech
+                if ( isInCall() &&
+                     !mStreams[AUDIO_STREAM_ENFORCED_AUDIBLE].mCanBeMuted &&
+                     ((getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_BT_SCO) ||
+                      (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE)) ) {
                         // Set 2 devices for ALSA module : so the mode will be set as normal
                         //  - the BT SCO will be unrouted for instance during a shutter sound
                         //  during CSV call.
                         //  - the earpiece is not handled by the base class on MEDIA fall through case.
-                        ALOGD("%s- current device(0x%x) and ihf are concerned by Enforced Audible strategy", __FUNCTION__, currentDevice);
+                        ALOGV("%s- Current device(0x%x) and speaker stream output for an enforced audible stream", __FUNCTION__, currentDevice);
                         device = (mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER) | currentDevice;
                 }
             break;
