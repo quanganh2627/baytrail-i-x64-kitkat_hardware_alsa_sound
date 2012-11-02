@@ -304,9 +304,11 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
     switch (strategy) {
         case STRATEGY_PHONE:
             // in voice call, the ouput device can not be DGTL_DOCK_HEADSET, AUX_DIGITAL (i.e. HDMI) or  ANLG_DOCK_HEADSET
-            if ( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL) ||
+            if ( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL)       ||
                  ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
-                 ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ) {
+                 ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ||
+                 ( device == AUDIO_DEVICE_OUT_USB_ACCESSORY)            ||
+                 ( device == AUDIO_DEVICE_OUT_USB_DEVICE) ) {
                 uint32_t forceUseInComm =  getForceUse(AudioSystem::FOR_COMMUNICATION);
                 switch (forceUseInComm) {
 
