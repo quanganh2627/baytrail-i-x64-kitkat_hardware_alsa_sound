@@ -683,13 +683,8 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
             reconsiderRouting();
         }
 
-        mSelectedFmMode->setCriterionState(fm_mode);
-
-        std::string strError;
-        if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            LOGE("%s", strError.c_str());
-        }
+        // Refresh FmMode criterion state
+        setFmModeCriterionState(fm_mode);
     }
     return NO_ERROR;
 }
@@ -1215,16 +1210,20 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
     }
 
 
-#ifndef FM_RX_ANALOG
     // Handle Android Latched mode change while FM already ON
     // Checking upon Android Latched mode can guarantee the output device
     // has been changed, and the modem has closed its I2S ports.
-    if (bForOutput && (getFmRxMode() == AudioSystem::MODE_FM_ON) &&
+    int fm_mode = getFmRxMode();
+    if (bForOutput && (fm_mode == AudioSystem::MODE_FM_ON) &&
             (currentLatchedAndroidMode != latchedAndroidMode()) &&
             (latchedAndroidMode() == AudioSystem::MODE_NORMAL) ) {
-        getFmHwDevice()->set_state(getFmRxMode());
-    }
+
+#ifndef FM_RX_ANALOG
+        getFmHwDevice()->set_state(fm_mode);
+        // Refresh FmMode criterion state
 #endif
+        setFmModeCriterionState(fm_mode);
+    }
 
     // Mix disable
     if (devices && getVpcHwDevice() && getVpcHwDevice()->mix_disable) {
@@ -1595,5 +1594,19 @@ struct echo_reference_itfe * AudioHardwareALSA::getEchoReference(int format, uin
     ALOGD(" %s() will return that mEchoReference=%p", __FUNCTION__, mEchoReference);
     return mEchoReference;
 }
+
+void AudioHardwareALSA::setFmModeCriterionState(int fm_mode) const
+{
+
+    // Set FmMode criterion state
+    mSelectedFmMode->setCriterionState(fm_mode);
+
+    std::string strError;
+    if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
+
+        LOGE("%s", strError.c_str());
+    }
+}
+
 
 }       // namespace android

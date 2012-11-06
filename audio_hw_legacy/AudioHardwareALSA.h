@@ -640,6 +640,9 @@ private:
     // unsigned integer parameter value setter
     status_t setIntegerArrayParameterValue(const string& strParameterPath, std::vector<uint32_t>& uiArray) const;
 
+    // Used to refresh FmMode Criterion State for PFW
+    void setFmModeCriterionState(int fm_mode) const;
+
     // Mode type
     static const SSelectionCriterionTypeValuePair mModeValuePairs[];
     static const uint32_t mNbModeValuePairs;
