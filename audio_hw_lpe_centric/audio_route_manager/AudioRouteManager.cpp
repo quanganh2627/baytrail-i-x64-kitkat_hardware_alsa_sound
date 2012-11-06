@@ -200,7 +200,7 @@ const string CAudioRouteManager::print_criteria(int32_t uiValue, const SSelectio
 }
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
-    _pParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("/etc/parameter-framework/ParameterFrameworkConfigurationTest.xml")),
+    _pParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("/etc/parameter-framework/ParameterFrameworkConfiguration.xml")),
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     _pModemAudioManager(CModemAudioManagerInstance::create(this)),
     _pPlatformState(new CAudioPlatformState(this)),
