@@ -23,6 +23,10 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
+#ifdef USE_FRAMEWORK_GTI
+#include "gtiservice/GtiService.h"
+#endif
+
 #define LOG_TAG "AudioHardwareALSA"
 //#define LOG_NDEBUG 0
 #include <utils/Log.h>
@@ -123,6 +127,10 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 AudioHardwareALSA::AudioHardwareALSA() :
     mRouteMgr(new CAudioRouteManager(this))
 {
+#ifdef USE_FRAMEWORK_GTI
+    GtiService::Start();
+#endif
+
     /// Creates the routes and adds them to the route mgr
     for (int rte = 0; rte < NB_ROUTE; rte++) {
 

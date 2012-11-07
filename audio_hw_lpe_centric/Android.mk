@@ -112,6 +112,18 @@ ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  LOCAL_SHARED_LIBRARIES += liba2dp
 endif
 
+ifeq ($(BOARD_USES_GTI_FRAMEWORK),true)
+LOCAL_C_INCLUDES += \
+    hardware/intel/PRIVATE/gti/GtiService \
+    hardware/intel/PRIVATE/gti/include \
+    hardware/intel/PRIVATE/uta_os/include \
+    hardware/intel/PRIVATE/gti/uta_inc
+
+LOCAL_SHARED_LIBRARIES += libgtisrv
+
+LOCAL_CFLAGS += -DUSE_FRAMEWORK_GTI
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 # This is the ALSA audio policy manager
