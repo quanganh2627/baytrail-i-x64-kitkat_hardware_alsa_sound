@@ -622,6 +622,10 @@ private:
     static const bool mAudienceIsPresentDefaultValue;
     static const char* const mModemEmbeddedPropName;
     static const bool mModemEmbeddedDefaultValue;
+    static const char* const mFmSupportedPropName;
+    static const bool mFmSupportedDefaultValue;
+    static const char* const mFmIsAnalogPropName;
+    static const bool mFmIsAnalogDefaultValue;
 
 private:
     // PFW type value pairs type
@@ -706,6 +710,12 @@ private:
 
     // Indicate if platform embeds a Modem chip.
     bool mHaveModem;
+
+    // Indicate if platform supports FM Radio
+    bool mFmSupported;
+
+    // Indicate if FM module supports RX Analog
+    bool mFmIsAnalog;
 
     // Current output device(s) used
     uint32_t mOutputDevices;

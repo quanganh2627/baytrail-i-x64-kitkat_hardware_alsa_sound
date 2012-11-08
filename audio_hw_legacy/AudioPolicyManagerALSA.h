@@ -68,6 +68,10 @@ public:
     inline bool hasBackMicrophone() const { return mAvailableInputDevices & AudioSystem::DEVICE_IN_BACK_MIC; }
     // true if current platform implements an earpiece
     inline bool hasEarpiece() const { return mAttachedOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE; }
+
+    static const char* const mFmRxAnalogSupportedPropName;
+    static const bool mFmRxAnalogSupportedDefaultValue;
+    bool mFmRxAnalogSupported;
 };
 
 };

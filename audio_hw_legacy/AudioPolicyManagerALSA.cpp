@@ -42,6 +42,9 @@ extern "C" void destroyAudioPolicyManager(AudioPolicyInterface *interface)
     delete interface;
 }
 
+const char* const AudioPolicyManagerALSA::mFmRxAnalogSupportedPropName = "Audiocomms.FM.Analog.Supported";
+const bool AudioPolicyManagerALSA::mFmRxAnalogSupportedDefaultValue = false;
+
 status_t AudioPolicyManagerALSA::setDeviceConnectionState(AudioSystem::audio_devices device,
                                                           AudioSystem::device_connection_state state,
                                                           const char *device_address)
@@ -275,19 +278,19 @@ status_t AudioPolicyManagerALSA::checkAndSetVolume(int stream,
                                                    int delayMs,
                                                    bool force)
 {
-#ifdef FM_RX_ANALOG
-    //if FM is on, update FM Rx Volume
-    if(stream == AudioSystem::FM_RX){
-        float volume = computeVolume(stream, index, output, device);
-        if (volume != mOutputs.valueFor(output)->mCurVolume[stream] ||
-                force) {
-            mOutputs.valueFor(output)->mCurVolume[stream] = volume;
-            ALOGV("checkAndSetVolume() for output %d stream %d (FM RX), volume %f, delay %d", output, stream, volume, delayMs);
-            return mpClientInterface->setFmRxVolume(volume, delayMs);
+    if (mFmRxAnalogSupported){
+        //if FM is on, update FM Rx Volume
+        if(stream == AudioSystem::FM_RX){
+            float volume = computeVolume(stream, index, output, device);
+            if (volume != mOutputs.valueFor(output)->mCurVolume[stream] ||
+                    force) {
+                mOutputs.valueFor(output)->mCurVolume[stream] = volume;
+                ALOGV("checkAndSetVolume() for output %d stream %d (FM RX), volume %f, delay %d", output, stream, volume, delayMs);
+                return mpClientInterface->setFmRxVolume(volume, delayMs);
+            }
+            return NO_ERROR;
         }
-        return NO_ERROR;
     }
-#endif
     return baseClass::checkAndSetVolume(stream, index, output, device, delayMs, force);
 }
 
@@ -376,6 +379,7 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
 AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface)
     : baseClass(clientInterface)
 {
+    mFmRxAnalogSupported = TProperty<bool>(mFmRxAnalogSupportedPropName, mFmRxAnalogSupportedDefaultValue);
     // check if earpiece device is supported
 //    updateDeviceSupport("audiocomms.dev.earpiece.present", AUDIO_DEVICE_OUT_EARPIECE);
 //    // check if back mic device is supported

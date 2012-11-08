@@ -109,6 +109,12 @@ const char* const AudioHardwareALSA::mModemEmbeddedPropName = "Audiocomms.Modem.
 const bool AudioHardwareALSA::mModemEmbeddedDefaultValue = true;
 
 
+const char* const AudioHardwareALSA::mFmSupportedPropName = "Audiocomms.FM.Supported";
+const bool AudioHardwareALSA::mFmSupportedDefaultValue = false;
+
+const char* const AudioHardwareALSA::mFmIsAnalogPropName = "Audiocomms.FM.IsAnalog";
+const bool AudioHardwareALSA::mFmIsAnalogDefaultValue = false;
+
 /// PFW related definitions
 // Logger
 class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnector::ILogger
@@ -337,19 +343,21 @@ AudioHardwareALSA::AudioHardwareALSA() :
             getVpcHwDevice()->set_modem_state(mModemAudioManager->getModemStatus());
         }
     }
-
-#ifdef WITH_FM_SUPPORT
-    #ifndef FM_RX_ANALOG
-        if (getFmHwDevice()) {
-            getFmHwDevice()->init();
+    mFmSupported = TProperty<bool>(mFmSupportedPropName, mFmSupportedDefaultValue);
+    mFmIsAnalog = TProperty<bool>(mFmIsAnalogPropName, mFmIsAnalogDefaultValue);
+    if (mFmSupported) {
+        if (!mFmIsAnalog) {
+            if (getFmHwDevice()) {
+                getFmHwDevice()->init();
+            } else {
+                ALOGE("Cannot load FM HW Module");
+            }
         } else {
-            ALOGE("Cannot load FM HW Module");
+            mFmRxSpeakerMaxVolumeValue = getIntegerParameterValue(gapcDefaultFmRxMaxVolume[FM_RX_SPEAKER], false, DEFAULT_FM_RX_VOL_MAX);
+            mFmRxHeadsetMaxVolumeValue = getIntegerParameterValue(gapcDefaultFmRxMaxVolume[FM_RX_HEADSET], false, DEFAULT_FM_RX_VOL_MAX);
         }
-    #else
-        mFmRxSpeakerMaxVolumeValue = getIntegerParameterValue(gapcDefaultFmRxMaxVolume[FM_RX_SPEAKER], false, DEFAULT_FM_RX_VOL_MAX);
-        mFmRxHeadsetMaxVolumeValue = getIntegerParameterValue(gapcDefaultFmRxMaxVolume[FM_RX_HEADSET], false, DEFAULT_FM_RX_VOL_MAX);
-    #endif
-#endif
+    }
+
     if(mHaveModem){
         // Starts the modem state listener
         if(mModemAudioManager->start()) {
@@ -672,16 +680,15 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
             (latchedAndroidMode() == AudioSystem::MODE_NORMAL || fm_mode == AudioSystem::MODE_FM_OFF)) {
         if (fm_mode == AudioSystem::MODE_FM_ON) {
             reconsiderRouting();
-#ifndef FM_RX_ANALOG
-            getFmHwDevice()->set_state(fm_mode);
-#endif
+            if (!mFmIsAnalog)
+                getFmHwDevice()->set_state(fm_mode);
         } else {
-#ifndef FM_RX_ANALOG
-            getFmHwDevice()->set_state(fm_mode);
-#else
-            //set all volumes to 0
-            setFmRxVolume(0);
-#endif
+            if (!mFmIsAnalog) {
+                getFmHwDevice()->set_state(fm_mode);
+            } else {
+                //set all volumes to 0
+                setFmRxVolume(0);
+            }
             reconsiderRouting();
         }
 
@@ -1211,20 +1218,17 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         // End of WorkAround
     }
 
-
     // Handle Android Latched mode change while FM already ON
     // Checking upon Android Latched mode can guarantee the output device
     // has been changed, and the modem has closed its I2S ports.
-    int fm_mode = getFmRxMode();
-    if (bForOutput && (fm_mode == AudioSystem::MODE_FM_ON) &&
+    if (bForOutput && (getFmRxMode() == AudioSystem::MODE_FM_ON) &&
             (currentLatchedAndroidMode != latchedAndroidMode()) &&
             (latchedAndroidMode() == AudioSystem::MODE_NORMAL) ) {
 
-#ifndef FM_RX_ANALOG
-        getFmHwDevice()->set_state(fm_mode);
-        // Refresh FmMode criterion state
-#endif
-        setFmModeCriterionState(fm_mode);
+	if (!mFmIsAnalog) {
+	    getFmHwDevice()->set_state(getFmRxMode());
+	    // Refresh FmMode criterion state
+	}
     }
 
     // Mix disable

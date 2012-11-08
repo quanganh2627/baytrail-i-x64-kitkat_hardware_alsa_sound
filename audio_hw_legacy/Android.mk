@@ -71,15 +71,6 @@ ifeq ($(BOARD_HAVE_BLUETOOTH),true)
   LOCAL_CFLAGS += -DWITH_A2DP
 endif
 
-ifeq ($(BUILD_FM_RADIO),true)
-  LOCAL_CFLAGS += -DWITH_FM_SUPPORT
-endif
-
-ifeq ($(FM_RADIO_RX_ANALOG),true)
-  LOCAL_CFLAGS += -DFM_RX_ANALOG
-endif
-
-
 LOCAL_MODULE := audio.primary.$(TARGET_DEVICE)
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE_TAGS := optional
@@ -121,10 +112,6 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SRC_FILES := \
     AudioPolicyManagerALSA.cpp
-
-ifeq ($(FM_RADIO_RX_ANALOG),true)
-  LOCAL_CFLAGS += -DFM_RX_ANALOG
-endif
 
 LOCAL_C_INCLUDES += \
     external/stlport/stlport/ \
