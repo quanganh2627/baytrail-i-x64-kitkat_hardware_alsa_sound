@@ -9,7 +9,8 @@ LEGACY_ROUTING_PRODUCTS := \
         mfld_gi \
         mfld_dv10 \
         ctp_pr1 \
-        ctp_nomodem
+        ctp_nomodem \
+        yukkabeach
 
 #
 # Add here all products which are using enhanced Audio Route Manager
