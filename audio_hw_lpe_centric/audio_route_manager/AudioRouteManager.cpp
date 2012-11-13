@@ -1619,7 +1619,7 @@ void CAudioRouteManager::onModemAudioStatusChanged()
 
 //
 // From IModemStatusNotifier
-// Called on Modem State change reported by ModemAudioManager
+// Called on Modem State change reported by MMGR
 // Need to hold AudioHardwareALSA::mLock
 //
 void  CAudioRouteManager::onModemStateChanged()
@@ -1731,7 +1731,7 @@ void CAudioRouteManager::onPollError()
 //
 // Worker thread context
 //
-void CAudioRouteManager::onProcess()
+bool CAudioRouteManager::onProcess(uint16_t uiEvent)
 {
     //
     // Take the lock only in case of asynchronous request
@@ -1748,6 +1748,7 @@ void CAudioRouteManager::onProcess()
 
         mLock.unlock();
     }
+    return false;
 }
 
 void CAudioRouteManager::lock()

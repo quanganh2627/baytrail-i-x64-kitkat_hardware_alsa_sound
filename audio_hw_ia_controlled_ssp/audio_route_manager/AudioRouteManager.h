@@ -242,7 +242,7 @@ private:
     virtual bool onHangup(int iFd);
     virtual void onTimeout();
     virtual void onPollError();
-    virtual void onProcess();
+    virtual bool onProcess(uint16_t uiEvent);
 
     status_t doSetParameters(const String8& keyValuePairs);
 

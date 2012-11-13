@@ -42,6 +42,7 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/audio_route_manager \
+    $(TARGET_OUT_HEADERS)/modem-mgr-wrapper \
     $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/libaudioresample \
     $(TARGET_OUT_HEADERS)/event-listener \

@@ -1934,7 +1934,7 @@ void CAudioRouteManager::onPollError()
 //
 // Worker thread context
 //
-void CAudioRouteManager::onProcess()
+bool CAudioRouteManager::onProcess(uint16_t uiEvent)
 {
     //
     // Take the lock only in case of asynchronous request
@@ -1951,6 +1951,7 @@ void CAudioRouteManager::onProcess()
 
         mLock.unlock();
     }
+    return false;
 }
 
 void CAudioRouteManager::lock()

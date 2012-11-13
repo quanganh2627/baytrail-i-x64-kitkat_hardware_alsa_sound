@@ -46,8 +46,6 @@
 #include "AudioConversion.h"
 #include "ModemAudioManagerInstance.h"
 
-#include "stmd.h"
-
 namespace android_audio_legacy
 {
 extern "C"
@@ -357,7 +355,7 @@ AudioHardwareALSA::AudioHardwareALSA() :
         }
         else
         {
-            getVpcHwDevice()->set_modem_state(mModemAudioManager->getModemStatus());
+            getVpcHwDevice()->set_modem_state(mModemAudioManager->isModemAlive());
         }
     }
     mFmSupported = TProperty<bool>(mFmSupportedPropName, mFmSupportedDefaultValue);
@@ -1414,8 +1412,8 @@ void AudioHardwareALSA::onModemAudioStatusChanged()
 }
 
 //
-// From IATNotifier
-// Called on Modem State change reported by STMD
+// From IModemStatusNotifier
+// Called on Modem State change reported by MMGR
 //
 void  AudioHardwareALSA::onModemStateChanged() {
 
@@ -1433,7 +1431,7 @@ void  AudioHardwareALSA::onModemStateChanged() {
      * HW module
      */
     if (getVpcHwDevice() && getVpcHwDevice()->set_modem_state) {
-        getVpcHwDevice()->set_modem_state(mModemAudioManager->getModemStatus());
+        getVpcHwDevice()->set_modem_state(mModemAvailable);
     }
 
     // Reset ModemCallStatus boolean

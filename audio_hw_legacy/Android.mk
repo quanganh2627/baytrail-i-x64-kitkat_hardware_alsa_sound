@@ -47,7 +47,7 @@ LOCAL_C_INCLUDES += \
     frameworks/av/include/media
 
 LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/IFX-modem \
+    $(TARGET_OUT_HEADERS)/modem-mgr-wrapper \
     $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/libaudioresample \
     $(TARGET_OUT_HEADERS)/event-listener \
@@ -139,7 +139,6 @@ include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/IFX-modem \
     $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/event-listener \
     $(TARGET_OUT_HEADERS)/libaudioresample \
