@@ -7,11 +7,14 @@ LOCAL_PATH := $(call my-dir)
 LEGACY_ROUTING_PRODUCTS := \
         mfld_pr2 \
         mfld_gi \
+        yukkabeach \
         mfld_dv10 \
+        redridge \
+        redridge3G \
+        salitpa \
         ctp_pr1 \
         ctp_nomodem \
-        yukkabeach
-
+        victoriabay
 #
 # Add here all products which are using enhanced Audio Route Manager
 # and Parameter Framework to establish the audio routing
