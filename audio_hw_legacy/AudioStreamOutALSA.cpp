@@ -37,7 +37,7 @@
 
 #include "AudioHardwareALSA.h"
 
-#define MAX_AGAIN_RETRY     2
+#define MAX_AGAIN_RETRY     5
 #define WAIT_TIME_MS        20
 #define WAIT_BEFORE_RETRY 10000 //10ms
 
@@ -196,10 +196,11 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
 
                 remaining_frames = frames - sentFrames - n;
 
+                LOGW("%s: remaining frames = %d", __FUNCTION__, remaining_frames);
                 LOGW("%s: wait_pcm timeout! Generating %fms of silence.", __FUNCTION__, mHwSampleSpec.framesToMs(sentFrames));
 
                 // Timeout due to a potential hardware failure. We need to generate silence in this case.
-                n += mHwSampleSpec.convertBytesToFrames(remaining_frames);
+                n += remaining_frames;
             }
         }else if (n == -EBADFD) {
             ALOGE("write err: %s, TRY REOPEN...", snd_strerror(n));
@@ -238,7 +239,6 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
         }
 
         if(n > 0) {
-
             mFrameCount += CAudioUtils::convertSrcToDstInFrames(n, mHwSampleSpec, mSampleSpec);
             sentFrames += n;
         }
