@@ -31,16 +31,10 @@ class ALSAStreamOps;
 class CAudioStreamRoute : public CAudioRoute
 {
 public:
-    CAudioStreamRoute(uint32_t uiRouteId,
-                      const string& strName,
-                      int iOutputDeviceId,
-                      int iInputDeviceId,
-                      int iCardId,
-                      const pcm_config& outputPcmConfig,
-                      const pcm_config& inputPcmConfig,
+    CAudioStreamRoute(uint32_t uiRouteIndex,
                       CAudioPlatformState* platformState);
 
-    int getPcmDevice(bool bIsOut) const;
+    int getPcmDeviceId(bool bIsOut) const;
 
     const pcm_config& getPcmConfig(bool bIsOut) const;
 
@@ -67,24 +61,23 @@ public:
     virtual void resetAvailability();
 
     // Inherited from AudioRoute - Called from RouteManager
-    virtual bool currentlyBorrowed(bool bIsOut);
+    virtual bool currentlyBorrowed(bool bIsOut) const;
 
     // Inherited from AudioRoute - Called from RouteManager
-    virtual bool willBeBorrowed(bool bIsOut);
+    virtual bool willBeBorrowed(bool bIsOut) const;
 
     // Inherited for AudioRoute - called from RouteManager
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut);
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlagsInputSource = 0) const;
 
-protected:
     // Filters the unroute/route
-    virtual bool needReconfiguration(bool bIsOut);
+    virtual bool needReconfiguration(bool bIsOut) const;
 
 protected:
     ALSAStreamOps* _pCurrentStreams[2];
     ALSAStreamOps* _pNewStreams[2];
 
 private:
-    int _iDeviceId[2];
+    int _iPcmDeviceId[2];
     int _iCardId;
     pcm_config _pcmConfig[2];
 };

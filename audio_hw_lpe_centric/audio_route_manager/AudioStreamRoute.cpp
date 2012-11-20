@@ -21,34 +21,28 @@
 #include "AudioStreamRoute.h"
 #include <ALSAStreamOps.h>
 
-#define INPUT_STREAM        false
-#define OUTPUT_STREAM       true
+#include "AudioPlatformHardware.h"
+
 
 #define base    CAudioRoute
 
 namespace android_audio_legacy
 {
 
-CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteId,
-                                     const string &strName,
-                                     int iOutputDeviceId,
-                                     int iInputDeviceId,
-                                     int iCardId,
-                                     const pcm_config &outputPcmConfig,
-                                     const pcm_config &inputPcmConfig,
+CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
                                      CAudioPlatformState *platformState) :
-    CAudioRoute(uiRouteId, strName, platformState),
-    _iCardId(iCardId)
+    CAudioRoute(uiRouteIndex, platformState)
 {
-    LOGD("%s: %s", __FUNCTION__, strName.c_str());
-    _iDeviceId[OUTPUT_STREAM] = iOutputDeviceId;
-    _iDeviceId[INPUT_STREAM] = iInputDeviceId;
-    _pcmConfig[OUTPUT_STREAM] = outputPcmConfig;
-    _pcmConfig[INPUT_STREAM] = inputPcmConfig;
-    _pNewStreams[INPUT_STREAM] = NULL;
-    _pNewStreams[OUTPUT_STREAM] = NULL;
-    _pCurrentStreams[INPUT_STREAM] = NULL;
-    _pCurrentStreams[OUTPUT_STREAM] = NULL;
+    _iCardId = CAudioPlatformHardware::getRouteCardId(uiRouteIndex);
+    _iPcmDeviceId[OUTPUT] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, OUTPUT);
+    _iPcmDeviceId[INPUT] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, INPUT);
+    _pcmConfig[OUTPUT] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, OUTPUT);
+    _pcmConfig[INPUT] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, INPUT);
+
+    _pNewStreams[INPUT] = NULL;
+    _pNewStreams[OUTPUT] = NULL;
+    _pCurrentStreams[INPUT] = NULL;
+    _pCurrentStreams[OUTPUT] = NULL;
 }
 
 //
@@ -58,14 +52,14 @@ CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteId,
 // TODO: what are the condition on MRFLD to consider that a route
 // needs to be reconfigured
 //
-bool CAudioStreamRoute::needReconfiguration(bool bIsOut)
+bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
 {
-//    LOGD("%s: %s isOut=%d", __FUNCTION__, getName().c_str(), bIsOut);
+//    ALOGD("%s: %s isOut=%d", __FUNCTION__, getName().c_str(), bIsOut);
     // TBD: what conditions will lead to set the need reconfiguration flag for this route???
     // The route needs reconfiguration except if:
     //      - still borrowed by the same stream
     //      - the stream is using the same device -> NO FOR MRFLD!!!
-    if (base::needReconfiguration(bIsOut) ||
+    if (base::needReconfiguration(bIsOut) &&
             (_pCurrentStreams[bIsOut] != _pNewStreams[bIsOut])) {
 
         return true;
@@ -75,14 +69,12 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut)
 
 status_t CAudioStreamRoute::route(bool bIsOut)
 {
-//    base::route(bIsOut);
     return openStream(bIsOut);
 }
 
 void CAudioStreamRoute::unRoute(bool bIsOut)
 {
     closeStream(bIsOut);
- //   base::unRoute(bIsOut);
 }
 
 status_t CAudioStreamRoute::openStream(bool bIsOut)
@@ -99,6 +91,9 @@ status_t CAudioStreamRoute::openStream(bool bIsOut)
             return err;
         }
         _pCurrentStreams[bIsOut] = _pNewStreams[bIsOut];
+
+        // Consume the new device(s)
+        _pCurrentStreams[bIsOut]->setCurrentDevice(_pCurrentStreams[bIsOut]->getNewDevice());
     }
 
     return NO_ERROR;
@@ -117,16 +112,16 @@ void CAudioStreamRoute::closeStream(bool bIsOut)
 
 void CAudioStreamRoute::resetAvailability()
 {
-    if (_pNewStreams[INPUT_STREAM]) {
+    if (_pNewStreams[INPUT]) {
 
-        _pNewStreams[INPUT_STREAM]->resetRoute();
-        _pNewStreams[INPUT_STREAM] = NULL;
+        _pNewStreams[INPUT]->resetRoute();
+        _pNewStreams[INPUT] = NULL;
     }
 
-    if (_pNewStreams[OUTPUT_STREAM]) {
+    if (_pNewStreams[OUTPUT]) {
 
-        _pNewStreams[OUTPUT_STREAM]->resetRoute();
-        _pNewStreams[OUTPUT_STREAM] = NULL;
+        _pNewStreams[OUTPUT]->resetRoute();
+        _pNewStreams[OUTPUT] = NULL;
     }
 
 
@@ -135,7 +130,7 @@ void CAudioStreamRoute::resetAvailability()
 
 status_t CAudioStreamRoute::setStream(ALSAStreamOps* pStream)
 {
-    LOGD("%s to %s route", __FUNCTION__, getName().c_str());
+    ALOGD("%s to %s route", __FUNCTION__, getName().c_str());
     bool bIsOut = pStream->isOut();
 
     assert(!_pNewStreams[bIsOut]);
@@ -147,28 +142,38 @@ status_t CAudioStreamRoute::setStream(ALSAStreamOps* pStream)
     return NO_ERROR;
 }
 
-bool CAudioStreamRoute::isApplicable(uint32_t , int , bool bIsOut)
+bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int mode, bool bIsOut, uint32_t uiFlags) const
 {
+    ALOGI("%s: is Route %s applicable? ",__FUNCTION__, getName().c_str());
+    ALOGI("%s: \t\t\t bIsOut=%s && (1 << uiFlags)=0x%X & _uiApplicableFlags[%s]=0x%X", __FUNCTION__,
+          bIsOut? "output" : "input",
+          (1 << uiFlags),
+          bIsOut? "output" : "input",
+          _uiApplicableFlags[bIsOut]);
+
     // Base class does not have much work to do than checking
-    // if the route is already borrowed (in the future...)...
-    return !(willBeBorrowed(bIsOut));
+    // if no stream is already using it and if not condemened
+    if (!bIsOut &&
+            !((1 << uiFlags) & _uiApplicableFlags[bIsOut])) {
+
+        return false;
+    }
+    return base::isApplicable(uiDevices, mode, bIsOut);
 }
 
-bool CAudioStreamRoute::currentlyBorrowed(bool bIsOut)
+bool CAudioStreamRoute::currentlyBorrowed(bool bIsOut) const
 {
-//    LOGD("%s: route %s in %s %s borrowed", __FUNCTION__, getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE", _pCurrentStreams[bIsOut]? "is" : "isn't");
     return !!_pCurrentStreams[bIsOut];
 }
 
-bool CAudioStreamRoute::willBeBorrowed(bool bIsOut)
+bool CAudioStreamRoute::willBeBorrowed(bool bIsOut) const
 {
-//    LOGD("%s: route %s in %s %s be borrowed", __FUNCTION__, getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE", _pNewStreams[bIsOut]? "will" : "won't");
     return !!_pNewStreams[bIsOut];
 }
 
-int CAudioStreamRoute::getPcmDevice(bool bIsOut) const
+int CAudioStreamRoute::getPcmDeviceId(bool bIsOut) const
 {
-    return _iDeviceId[bIsOut];
+    return _iPcmDeviceId[bIsOut];
 }
 
 const pcm_config& CAudioStreamRoute::getPcmConfig(bool bIsOut) const

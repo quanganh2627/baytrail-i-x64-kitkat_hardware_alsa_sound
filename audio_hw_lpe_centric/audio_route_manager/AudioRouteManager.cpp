@@ -17,19 +17,23 @@
 
 #define LOG_TAG "RouteManager"
 #include <utils/Log.h>
+#include <string>
 
 #include <AudioHardwareALSA.h>
 #include <ALSAStreamOps.h>
 #include <AudioStreamInALSA.h>
 #include "EventThread.h"
 #include "AudioRouteManager.h"
-#include "AudioRouteFactory.h"
 #include "AudioRoute.h"
 #include "AudioStreamRoute.h"
 #include "AudioPlatformState.h"
 #include "ParameterMgrPlatformConnector.h"
 #include "SelectionCriterionInterface.h"
 #include "ModemAudioManagerInstance.h"
+#include "Property.h"
+
+#include "AudioPlatformHardware.h"
+#include "AudioParameterHandler.h"
 
 typedef RWLock::AutoRLock AutoR;
 typedef RWLock::AutoWLock AutoW;
@@ -37,13 +41,12 @@ typedef RWLock::AutoWLock AutoW;
 namespace android_audio_legacy
 {
 
+// Defines the name of the Android property describing the name of the PFW configuration file
+const char* const CAudioRouteManager::mPFWConfigurationFileNamePropertyName = "AudioComms.PFW.ConfPath";
+
 const uint32_t CAudioRouteManager::_uiTimeoutSec = 2;
 
-// Defines path to parameters in PFW XML config files
-const char* const CAudioRouteManager::gapcVoicePortEnable [2] = {
-    "/Audio/MSIC/SOUND_CARD/VOICE_PORT/CONFIG/PLAYBACK_ENABLED", // Type = unsigned integer
-    "/Audio/MSIC/SOUND_CARD/VOICE_PORT/CONFIG/CAPTURE_ENABLED" // Type = unsigned integer
-};
+const char* CAudioRouteManager::gpcVoiceVolume = "/Audio/IMC/SOUND_CARD/PORTS/I2S1/TX/VOLUME/LEVEL"; // Type = unsigned integer
 
 const uint32_t CAudioRouteManager::ENABLED = 1;
 const uint32_t CAudioRouteManager::DISABLED = 0;
@@ -57,9 +60,28 @@ public:
 
     virtual void log(const std::string& strLog)
     {
-        LOGD("%s",strLog.c_str());
+        ALOGD("%s",strLog.c_str());
     }
 };
+
+const CAudioRouteManager::CriteriaInterface CAudioRouteManager::_apCriteriaInterface[CAudioRouteManager::ENbCriteria] = {
+    {"Mode", CAudioRouteManager::EModeCriteriaType},
+    {"FmMode", CAudioRouteManager::EFmModeCriteriaType},
+    {"TTYMode", CAudioRouteManager::ETtyDirectionCriteriaType},
+    {"RoutageState", CAudioRouteManager::ERoutingStageCriteriaType},
+    {"PreviousRouteCapture", CAudioRouteManager::ERouteCriteriaType},
+    {"PreviousRoutePlayback", CAudioRouteManager::ERouteCriteriaType},
+    {"CurrentRouteCapture", CAudioRouteManager::ERouteCriteriaType},
+    {"CurrentRoutePlayback", CAudioRouteManager::ERouteCriteriaType},
+    {"SelectedInputDevice", CAudioRouteManager::EInputDeviceCriteriaType},
+    {"SelectedOutputDevice", CAudioRouteManager::EOutputDeviceCriteriaType},
+    {"AudioSource", CAudioRouteManager::EInputSourceCriteriaType},
+    {"BandRinging", CAudioRouteManager::EBandRingingCriteriaType},
+    {"BandType", CAudioRouteManager::EBandCriteriaType},
+    {"BtHeadsetNrEc", CAudioRouteManager::EBtHeadsetNrEcCriteriaType},
+    {"HAC", CAudioRouteManager::EHacModeCriteriaType},
+};
+
 
 // Mode type
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stModeValuePairs[] = {
@@ -68,10 +90,9 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
     { AudioSystem::MODE_IN_CALL, "InCsvCall" },
     { AudioSystem::MODE_IN_COMMUNICATION, "InVoipCall" }
 };
-const uint32_t CAudioRouteManager::_uiNbModeValuePairs = sizeof(CAudioRouteManager::_stModeValuePairs)/sizeof(CAudioRouteManager::_stModeValuePairs[0]);
 
 // Selected Input Device type
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stSelectedInputDeviceValuePairs[] = {
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stInputDeviceValuePairs[] = {
     { AudioSystem::DEVICE_IN_COMMUNICATION, "Communication" },
     { AudioSystem::DEVICE_IN_AMBIENT, "Ambient" },
     { AudioSystem::DEVICE_IN_BUILTIN_MIC, "Main" },
@@ -79,12 +100,12 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
     { AudioSystem::DEVICE_IN_WIRED_HEADSET, "Headset" },
     { AudioSystem::DEVICE_IN_AUX_DIGITAL, "AuxDigital" },
     { AudioSystem::DEVICE_IN_VOICE_CALL, "VoiceCall" },
-    { AudioSystem::DEVICE_IN_BACK_MIC, "Back" }
+    { AudioSystem::DEVICE_IN_BACK_MIC, "Back" },
+    { AudioSystem::DEVICE_IN_FM_RECORD, "FmRecord" }
 };
-const uint32_t CAudioRouteManager::_uiNbSelectedInputDeviceValuePairs = sizeof(CAudioRouteManager::_stSelectedInputDeviceValuePairs)/sizeof(CAudioRouteManager::_stSelectedInputDeviceValuePairs[0]);
 
 // Selected Output Device type
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stSelectedOutputDeviceValuePairs[] = {
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stOutputDeviceValuePairs[] = {
     { AudioSystem::DEVICE_OUT_EARPIECE, "Earpiece" },
     { AudioSystem::DEVICE_OUT_SPEAKER, "IHF" },
     { AudioSystem::DEVICE_OUT_WIRED_HEADSET, "Headset" },
@@ -98,17 +119,15 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
     { AudioSystem::DEVICE_OUT_AUX_DIGITAL, "AuxDigital" },
     { AudioSystem::DEVICE_OUT_WIDI, "_Widi"},
 };
-const uint32_t CAudioRouteManager::_uiNbSelectedOutputDeviceValuePairs = sizeof(CAudioRouteManager::_stSelectedOutputDeviceValuePairs)/sizeof(CAudioRouteManager::_stSelectedOutputDeviceValuePairs[0]);
 
 // Routing mode
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stRoutingModeValuePairs[] = {
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stRoutingStageValuePairs[] = {
     { CAudioRouteManager::EMute , "Mute" },
     { CAudioRouteManager::EDisable , "Disable" },
     { CAudioRouteManager::EConfigure , "Configure" },
     { CAudioRouteManager::EEnable , "Enable" },
     { CAudioRouteManager::EUnmute , "Unmute" }
 };
-const uint32_t CAudioRouteManager::_uiNbRoutingModeValuePairs = sizeof(CAudioRouteManager::_stRoutingModeValuePairs)/sizeof(CAudioRouteManager::_stRoutingModeValuePairs[0]);
 
 // Audio Source
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stAudioSourceValuePairs[] = {
@@ -121,50 +140,141 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
     { AUDIO_SOURCE_VOICE_RECOGNITION, "VoiceRecognition" },
     { AUDIO_SOURCE_VOICE_COMMUNICATION, "VoiceCommunication" }
 };
-const uint32_t CAudioRouteManager::_uiNbAudioSourceValuePairs = sizeof(CAudioRouteManager::_stAudioSourceValuePairs)/sizeof(CAudioRouteManager::_stAudioSourceValuePairs[0]);
+
+// Voice Codec Band
+// Band ringing
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stBandTypeValuePairs[] = {
+    { 0 , "NB" },
+    { 1 , "WB" }
+};
 
 // TTY mode
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stTTYModeValuePairs[] = {
-    { 1 , "TTY_HCO" },
-    { 2 , "TTY_VCO" }
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stTTYDirectionValuePairs[] = {
+    { 1 , "TTY_VCO" },
+    { 2 , "TTY_HCO" },
 };
-const uint32_t CAudioRouteManager::_uiNbTTYModeValuePairs = sizeof(CAudioRouteManager::_stTTYModeValuePairs)/sizeof(CAudioRouteManager::_stTTYModeValuePairs[0]);
 
 // FM Mode
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stFmModeValuePairs[] = {
-    { 1 , "Off" },
-    { 2 , "On" }
+    { 0 , "Off" },
+    { 1 , "On" }
 };
-const uint32_t CAudioRouteManager::_uiNbFmModeValuePairs = sizeof(CAudioRouteManager::_stFmModeValuePairs)/sizeof(CAudioRouteManager::_stFmModeValuePairs[0]);
 
 // Band ringing
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stBandRingingValuePairs[] = {
     { 1 , "NetworkGenerated" },
     { 2 , "PhoneGenerated" }
 };
-const uint32_t CAudioRouteManager::_uiNbBandRingingValuePairs = sizeof(CAudioRouteManager::_stBandRingingValuePairs)/sizeof(CAudioRouteManager::_stBandRingingValuePairs[0]);
 
-
-// HAC: TBD
-
-
-// Routes
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stSelectedRouteValuePairs[] = {
-    { 1 << MEDIA , "Media" },
-//    { 1 << VOICE , "Voice" },
-    { 1 << HWCODEC_OIA , "HwCodec0IA" },
-    { 1 << HWCODEC_1IA , "HwCodec1IA" },
-    { 1 << MODEM_IA , "ModemIA" },
-    { 1 << BT_IA, "BtIA" },
-    { 1 << FM_IA, "FMIA" }
+// BT Headset NrEc
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stBtHeadsetNrEcValuePairs[] = {
+    { 0 , "false" },
+    { 1 , "true" }
 };
-const uint32_t CAudioRouteManager::_uiNbSelectedRouteValuePairs = sizeof(CAudioRouteManager::_stSelectedRouteValuePairs)/sizeof(CAudioRouteManager::_stSelectedRouteValuePairs[0]);
 
-const string CAudioRouteManager::print_criteria(int32_t uiValue, const SSelectionCriterionTypeValuePair* sPair, uint32_t uiNbPairs, bool bIsInclusive) const{
+// HAC Mode
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stHACModeValuePairs[] = {
+    { 0 , "false" },
+    { 1 , "true" }
+};
+
+const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::_asCriteriaType[ENbCriteriaType] = {
+    // Mode
+    {
+        CAudioRouteManager::EModeCriteriaType,
+        CAudioRouteManager::_stModeValuePairs,
+        sizeof(CAudioRouteManager::_stModeValuePairs)/sizeof(CAudioRouteManager::_stModeValuePairs[0]),
+        false
+    },
+    // FM Mode
+    {
+        CAudioRouteManager::EFmModeCriteriaType,
+        CAudioRouteManager::_stFmModeValuePairs,
+        sizeof(CAudioRouteManager::_stFmModeValuePairs)/sizeof(CAudioRouteManager::_stFmModeValuePairs[0]),
+        false
+    },
+    // TTY Direction
+    {
+        CAudioRouteManager::ETtyDirectionCriteriaType,
+        CAudioRouteManager::_stTTYDirectionValuePairs,
+        sizeof(CAudioRouteManager::_stTTYDirectionValuePairs)/sizeof(CAudioRouteManager::_stTTYDirectionValuePairs[0]),
+        true
+    },
+    // Routing Stage
+    {
+        CAudioRouteManager::ERoutingStageCriteriaType,
+        CAudioRouteManager::_stRoutingStageValuePairs,
+        sizeof(CAudioRouteManager::_stRoutingStageValuePairs)/sizeof(CAudioRouteManager::_stRoutingStageValuePairs[0]),
+        false
+    },
+    // Route
+    {
+        CAudioRouteManager::ERouteCriteriaType,
+        CAudioPlatformHardware::_stRouteValuePairs,
+        CAudioPlatformHardware::_uiNbRouteValuePairs,
+        true
+    },
+    // InputDevice
+    {
+        CAudioRouteManager::EInputDeviceCriteriaType,
+        CAudioRouteManager::_stInputDeviceValuePairs,
+        sizeof(CAudioRouteManager::_stInputDeviceValuePairs)/sizeof(CAudioRouteManager::_stInputDeviceValuePairs[0]),
+        true
+    },
+    // OutputDevice
+    {
+        CAudioRouteManager::EOutputDeviceCriteriaType,
+        CAudioRouteManager::_stOutputDeviceValuePairs,
+        sizeof(CAudioRouteManager::_stOutputDeviceValuePairs)/sizeof(CAudioRouteManager::_stOutputDeviceValuePairs[0]),
+        true
+    },
+    // Input Source
+    {
+        CAudioRouteManager::EInputSourceCriteriaType,
+        CAudioRouteManager::_stAudioSourceValuePairs,
+        sizeof(CAudioRouteManager::_stAudioSourceValuePairs)/sizeof(CAudioRouteManager::_stAudioSourceValuePairs[0]),
+        false
+    },
+    // Band Ringing
+    {
+        CAudioRouteManager::EBandRingingCriteriaType,
+        CAudioRouteManager::_stBandRingingValuePairs,
+        sizeof(CAudioRouteManager::_stBandRingingValuePairs)/sizeof(CAudioRouteManager::_stBandRingingValuePairs[0]),
+        false
+    },
+    // Band Type
+    {
+        CAudioRouteManager::EBandCriteriaType,
+        CAudioRouteManager::_stBandTypeValuePairs,
+        sizeof(CAudioRouteManager::_stBandTypeValuePairs)/sizeof(CAudioRouteManager::_stBandTypeValuePairs[0]),
+        false
+    },
+    // BT HEADSET NrEc
+    {
+        CAudioRouteManager::EBtHeadsetNrEcCriteriaType,
+        CAudioRouteManager::_stBtHeadsetNrEcValuePairs,
+        sizeof(CAudioRouteManager::_stBtHeadsetNrEcValuePairs)/sizeof(CAudioRouteManager::_stBtHeadsetNrEcValuePairs[0]),
+        false
+    },
+    // HAC mode
+    {
+        CAudioRouteManager::EHacModeCriteriaType,
+        CAudioRouteManager::_stHACModeValuePairs,
+        sizeof(CAudioRouteManager::_stHACModeValuePairs)/sizeof(CAudioRouteManager::_stHACModeValuePairs[0]),
+        false
+    }
+};
+
+
+const string CAudioRouteManager::print_criteria(int32_t uiValue, CriteriaType eCriteriaType) const {
 
     string strPrint = "{";
     bool bFirst = true;
     bool bFound = false;
+
+    const SSelectionCriterionTypeValuePair* sPair = _asCriteriaType[eCriteriaType]._pCriterionTypeValuePairs;
+    uint32_t uiNbPairs = _asCriteriaType[eCriteriaType]._uiNbValuePairs;
+    bool bIsInclusive = _asCriteriaType[eCriteriaType]._bIsInclusive;
 
     for (uint32_t i=0; i < uiNbPairs; i++) {
 
@@ -200,7 +310,6 @@ const string CAudioRouteManager::print_criteria(int32_t uiValue, const SSelectio
 }
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
-    _pParameterMgrPlatformConnector(new CParameterMgrPlatformConnector("/etc/parameter-framework/ParameterFrameworkConfiguration.xml")),
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     _pModemAudioManager(CModemAudioManagerInstance::create(this)),
     _pPlatformState(new CAudioPlatformState(this)),
@@ -209,7 +318,8 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _pEventThread(new CEventThread(this)),
     _bIsStarted(false),
     _bClientWaiting(false),
-    _pParent(pParent)
+    _pParent(pParent),
+    _pAudioParameterHandler(new CAudioParameterHandler())
 {
     _uiNeedToReconfigureRoutes[INPUT] = 0;
     _uiNeedToReconfigureRoutes[OUTPUT] = 0;
@@ -220,67 +330,33 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _uiPreviousEnabledRoutes[INPUT] = 0;
     _uiPreviousEnabledRoutes[OUTPUT] = 0;
 
+    /// Connector
+    // Fetch the name of the PFW configuration file: this name is stored in an Android property
+    // and can be different for each hardware
+    string strParameterConfigurationFilePath = TProperty<string>(mPFWConfigurationFileNamePropertyName,
+                                                                 "/etc/parameter-framework/ParameterFrameworkConfiguration.xml");
+    LOGI("parameter-framework: using configuration file: %s", strParameterConfigurationFilePath.c_str());
+
+    // Actually create the Connector
+    _pParameterMgrPlatformConnector = new CParameterMgrPlatformConnector(strParameterConfigurationFilePath);
+
     // Logger
     _pParameterMgrPlatformConnector->setLogger(_pParameterMgrPlatformConnectorLogger);
 
     /// Criteria Types
-    // Mode
-    _pModeType = _pParameterMgrPlatformConnector->createSelectionCriterionType();
-    fillSelectionCriterionType(_pModeType, _stModeValuePairs, _uiNbModeValuePairs);
+    for (int i = 0; i < ENbCriteriaType; i++) {
 
-    // FM Mode
-    _pFmModeType = _pParameterMgrPlatformConnector->createSelectionCriterionType();
-    fillSelectionCriterionType(_pFmModeType, _stFmModeValuePairs, _uiNbFmModeValuePairs);
-
-    // TTY Mode
-    _pmTTYModeType = _pParameterMgrPlatformConnector->createSelectionCriterionType(true);
-    fillSelectionCriterionType(_pmTTYModeType, _stTTYModeValuePairs, _uiNbTTYModeValuePairs);
-
-    // Routing Mode
-    _pRoutingModeType = _pParameterMgrPlatformConnector->createSelectionCriterionType();
-    fillSelectionCriterionType(_pRoutingModeType, _stRoutingModeValuePairs, _uiNbRoutingModeValuePairs);
-
-    // Route
-    _pRouteType = _pParameterMgrPlatformConnector->createSelectionCriterionType(true);
-    fillSelectionCriterionType(_pRouteType, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs);
-
-    // InputDevice
-    _pInputDeviceType = _pParameterMgrPlatformConnector->createSelectionCriterionType(true);
-    fillSelectionCriterionType(_pInputDeviceType, _stSelectedInputDeviceValuePairs, _uiNbSelectedInputDeviceValuePairs);
-
-    // OutputDevice
-    _pOutputDeviceType = _pParameterMgrPlatformConnector->createSelectionCriterionType(true);
-    fillSelectionCriterionType(_pOutputDeviceType, _stSelectedOutputDeviceValuePairs, _uiNbSelectedOutputDeviceValuePairs);
-
-    // AudioSource
-    _pAudioSourceType = _pParameterMgrPlatformConnector->createSelectionCriterionType();
-    fillSelectionCriterionType(_pAudioSourceType, _stAudioSourceValuePairs, _uiNbAudioSourceValuePairs);
-
-    // Band Ringing
-    _pBandRingingType = _pParameterMgrPlatformConnector->createSelectionCriterionType();
-    fillSelectionCriterionType(_pBandRingingType, _stBandRingingValuePairs, _uiNbBandRingingValuePairs);
+        _apCriteriaTypeInterface[i] = createAndFillSelectionCriterionType((CriteriaType)i);
+    }
 
     /// Criteria
-    _pSelectedMode = _pParameterMgrPlatformConnector->createSelectionCriterion("Mode", _pModeType);
-    _pSelectedFmMode = _pParameterMgrPlatformConnector->createSelectionCriterion("FmMode", _pFmModeType);
-    _pSelectedRouteStage = _pParameterMgrPlatformConnector->createSelectionCriterion("RoutageState", _pRoutingModeType);
-    _pCurrentEnabledRoutes[INPUT] = _pParameterMgrPlatformConnector->createSelectionCriterion("CurrentRouteCapture", _pRouteType);
-    _pCurrentEnabledRoutes[OUTPUT] = _pParameterMgrPlatformConnector->createSelectionCriterion("CurrentRoutePlayback", _pRouteType);
-    _pPreviousEnabledRoutes[INPUT] = _pParameterMgrPlatformConnector->createSelectionCriterion("PreviousRouteCapture", _pRouteType);
-    _pPreviousEnabledRoutes[OUTPUT] = _pParameterMgrPlatformConnector->createSelectionCriterion("PreviousRoutePlayback", _pRouteType);
+    for (int i = 0; i < ENbCriteria; i++) {
 
-    _pSelectedAudioSource = _pParameterMgrPlatformConnector->createSelectionCriterion("AudioSource", _pAudioSourceType);
+        _apSelectedCriteria[i] = _pParameterMgrPlatformConnector->createSelectionCriterion(_apCriteriaInterface[i].pcName,
+                                                                  _apCriteriaTypeInterface[_apCriteriaInterface[i].eCriteriaType]);
+    }
 
-    _pSelectedTTYMode = _pParameterMgrPlatformConnector->createSelectionCriterion("TTYMode", _pmTTYModeType);
-
-    _pSelectedBandRinging = _pParameterMgrPlatformConnector->createSelectionCriterion("BandRinging", _pBandRingingType);
-
-    _pSelectedDevice[INPUT] = _pParameterMgrPlatformConnector->createSelectionCriterion("SelectedInputDevice", _pInputDeviceType);
-    _pSelectedDevice[OUTPUT] = _pParameterMgrPlatformConnector->createSelectionCriterion("SelectedOutputDevice", _pOutputDeviceType);
-
-    // Client Mutex
-    bzero(&_clientMutex, sizeof(_clientMutex));
-    pthread_mutex_init(&_clientMutex, NULL);
+    createAudioHardwarePlatform();
 
     // Client wait semaphore
     bzero(&_clientWaitSemaphore, sizeof(_clientWaitSemaphore));
@@ -304,25 +380,35 @@ void CAudioRouteManager::start()
     std::string strError;
     if (!_pParameterMgrPlatformConnector->start(strError)) {
 
-        LOGE("parameter-framework start error: %s", strError.c_str());
+        ALOGE("parameter-framework start error: %s", strError.c_str());
     } else {
 
-        LOGI("parameter-framework successfully started!");
+        ALOGI("parameter-framework successfully started!");
     }
 }
 
 // From AudioHardwareALSA, set FM mode
 // must be called with AudioHardwareALSA::mLock held
-void CAudioRouteManager::setFmMode(int fmMode)
+void CAudioRouteManager::setFmRxMode(int fmMode)
 {
+    AutoW lock(mLock);
+
     // Update the platform state: fmmode
-    _pPlatformState->setFmMode(fmMode);
+    _pPlatformState->setFmRxMode(fmMode);
+
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    ALOGD("%s: Reconsider Routing due to FM Mode change", __FUNCTION__);
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    //
+    // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
+    //
+    reconsiderRouting();
 }
 
 // From AudioHardwareALSA, set TTY mode
-void CAudioRouteManager::setTtyMode(ETty iTtyMode)
+void CAudioRouteManager::setTtyDirection(int iTtyDirection)
 {
-    _pPlatformState->setTtyMode(iTtyMode);
+    _pPlatformState->setTtyDirection(iTtyDirection);
 }
 
 // From AudioHardwareALSA, set HAC mode
@@ -334,7 +420,7 @@ void CAudioRouteManager::setHacMode(bool bEnabled)
 // From AudioHardwareALSA, set BT_NREC
 void CAudioRouteManager::setBtNrEc(bool bIsAcousticSupportedOnBT)
 {
-    _pPlatformState->setBtNrEc(bIsAcousticSupportedOnBT);
+    _pPlatformState->setBtHeadsetNrEc(bIsAcousticSupportedOnBT);
 }
 
 // From AudioHardwareALSA, set BT_NREC
@@ -347,9 +433,6 @@ CAudioRouteManager::~CAudioRouteManager()
 {
     // Semaphores
     sem_destroy(&_clientWaitSemaphore);
-
-    // Mutex
-    pthread_mutex_destroy(&_clientMutex);
 
     // Delete Modem Audio Manager
     delete _pModemAudioManager;
@@ -368,21 +451,20 @@ CAudioRouteManager::~CAudioRouteManager()
     delete _pParameterMgrPlatformConnectorLogger;
     // Remove connector
     delete _pParameterMgrPlatformConnector;
+    // Remove parameter handler
+    delete _pAudioParameterHandler;
 }
 
 //
-// Must be called from Locked context
+// Must be called from WLocked context
 //
 status_t CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
 {
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     assert(_bStarted && !_pEventThread->inThreadContext());
 
     status_t eStatus = NO_ERROR;
-
-    // Block {
-    pthread_mutex_lock(&_clientMutex);
 
     if (_bClientWaiting) {
 
@@ -400,9 +482,6 @@ status_t CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
     // Trig the processing of the list
     _pEventThread->trig();
 
-    // } Block
-    pthread_mutex_unlock(&_clientMutex);
-
     if (!bIsSynchronous) {
 
         return eStatus;
@@ -411,18 +490,12 @@ status_t CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
     // Wait
     sem_wait(&_clientWaitSemaphore);
 
-    // Block {
-    pthread_mutex_lock(&_clientMutex);
-
-
     // Consume
     _bClientWaiting = false;
 
 end:
-    // } Block
-    pthread_mutex_unlock(&_clientMutex);
 
-    LOGD("%s: DONE", __FUNCTION__);
+    ALOGD("%s: DONE", __FUNCTION__);
     return eStatus;
 }
 
@@ -434,68 +507,126 @@ end:
 //
 void CAudioRouteManager::doReconsiderRouting()
 {
-    LOGD("%s: following conditions:", __FUNCTION__);
-    LOGD("%s:          -Modem Alive=%d", __FUNCTION__, _pPlatformState->isModemAlive());
-    LOGD("%s:          -Modem Call Active=%d", __FUNCTION__, _pPlatformState->isModemAudioAvailable());
-    LOGD("%s:          -Android Telephony Mode = %s", __FUNCTION__,
-         print_criteria(_pPlatformState->getMode(), _stModeValuePairs, _uiNbModeValuePairs).c_str());
-    LOGD("%s:          -RTE MGR HW Mode = %s", __FUNCTION__,
-         print_criteria(_pPlatformState->getHwMode(), _stModeValuePairs, _uiNbModeValuePairs).c_str());
-    LOGD("%s:          -Android FM Mode = %s", __FUNCTION__,
-         print_criteria(_pPlatformState->getFmMode(), _stFmModeValuePairs, _uiNbFmModeValuePairs).c_str());
-    LOGD("%s:          -Platform output device = %s", __FUNCTION__,
-        print_criteria(_pPlatformState->getDevices(true), _stSelectedOutputDeviceValuePairs, _uiNbSelectedOutputDeviceValuePairs, true).c_str());
-    LOGD("%s:          -Platform input device = %s", __FUNCTION__,
-        print_criteria(_pPlatformState->getDevices(false), _stSelectedInputDeviceValuePairs, _uiNbSelectedInputDeviceValuePairs, true).c_str());
-    LOGD("%s:          -Platform input source = %s", __FUNCTION__,
-        print_criteria(_pPlatformState->getInputSource(), _stAudioSourceValuePairs, _uiNbAudioSourceValuePairs).c_str());
-
-
+    ALOGD("%s: following conditions:", __FUNCTION__);
+    ALOGD("%s:          -Modem Alive = %d %s", __FUNCTION__,
+          _pPlatformState->isModemAlive(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange)? "[has changed]" : "");
+    ALOGD("%s:          -Modem Call Active = %d %s", __FUNCTION__,
+          _pPlatformState->isModemAudioAvailable(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange)? "[has changed]" : "");
+    ALOGD("%s:          -Android Telephony Mode = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getMode(), EModeCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EAndroidModeChange)? "[has changed]" : "");
+    ALOGD("%s:          -RTE MGR HW Mode = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getHwMode(), EModeCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange)? "[has changed]" : "");
+    ALOGD("%s:          -Android FM Mode = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getFmRxHwMode(), EFmModeCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange)? "[has changed]" : "");
+    ALOGD("%s:          -RTE MGR FM HW Mode = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getFmRxMode(), EFmModeCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange)? "[has changed]" : "");
+    ALOGD("%s:          -BT Enabled = %d %s", __FUNCTION__, _pPlatformState->isBtEnabled(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange)? "[has changed]" : "");
+    ALOGD("%s:          -Platform output device = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getDevices(true), EOutputDeviceCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)? "[has changed]" : "");
+    ALOGD("%s:          -Platform input device = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getDevices(false), EInputDeviceCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange)? "[has changed]" : "");
+    ALOGD("%s:          -Platform input source = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getInputSource(), EInputSourceCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange)? "[has changed]" : "");
+    ALOGD("%s:          -Platform Band type = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getBandType(), EBandCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange)? "[has changed]" : "");
+    ALOGD("%s:          -Platform Direct Stream Event = %s", __FUNCTION__,
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent)? "yes" : "no");
+    ALOGD("%s:          -Platform TTY direction = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->getTtyDirection(), ETtyDirectionCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange)? "[has changed]" : "");
+    ALOGD("%s:          -Platform Direct HAC Mode = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->isHacEnabled(), ETtyDirectionCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange)? "[has changed]" : "");
 
 
     // Reset availability of all route (All routes to be available)
     resetAvailability();
 
     // Parse all streams and affect route to it according to applicability of the route
-    virtuallyConnectRoutes();
+    bool bRoutesHaveChanged = virtuallyConnectRoutes();
 
-    LOGD("%s:          -Previously Enabled Route in Input = %s", __FUNCTION__,
-         print_criteria(_uiPreviousEnabledRoutes[INPUT], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
-    LOGD("%s:          -Previously Enabled Route in Output = %s", __FUNCTION__,
-         print_criteria(_uiPreviousEnabledRoutes[OUTPUT], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
-    LOGD("%s:          -To be Enabled Route in Input = %s", __FUNCTION__,
-         print_criteria(_uiEnabledRoutes[INPUT], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
-    LOGD("%s:          -To be Enabled Route in Output = %s", __FUNCTION__,
-         print_criteria(_uiEnabledRoutes[OUTPUT], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
-    LOGD("%s:          -Route that need reconfiguration in Input = %s", __FUNCTION__,
-         print_criteria(_uiNeedToReconfigureRoutes[INPUT], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
-    LOGD("%s:          -Route that need reconfiguration in Output = %s", __FUNCTION__,
-         print_criteria(_uiNeedToReconfigureRoutes[OUTPUT], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+    ALOGD("%s:          -Previously Enabled Route in Input = %s", __FUNCTION__,
+          print_criteria(_uiPreviousEnabledRoutes[INPUT], ERouteCriteriaType).c_str());
+    ALOGD("%s:          -Previously Enabled Route in Output = %s", __FUNCTION__,
+          print_criteria(_uiPreviousEnabledRoutes[OUTPUT], ERouteCriteriaType).c_str());
+    ALOGD("%s:          -To be Enabled Route in Input = %s", __FUNCTION__,
+          print_criteria(_uiEnabledRoutes[INPUT], ERouteCriteriaType).c_str());
+    ALOGD("%s:          -To be Enabled Route in Output = %s", __FUNCTION__,
+          print_criteria(_uiEnabledRoutes[OUTPUT], ERouteCriteriaType).c_str());
+    ALOGD("%s:          -Route that need reconfiguration in Input = %s", __FUNCTION__,
+          print_criteria(_uiNeedToReconfigureRoutes[INPUT], ERouteCriteriaType).c_str());
+    ALOGD("%s:          -Route that need reconfiguration in Output = %s", __FUNCTION__,
+          print_criteria(_uiNeedToReconfigureRoutes[OUTPUT], ERouteCriteriaType).c_str());
 
-    // Mute Routes
-    muteRoutes();
 
-    // Disconnect all streams that need to be disconnected (ie, their route and or device and or mode changed)
-    // starting from input streams
-    disableRoutes();
+    if (bRoutesHaveChanged) {
 
-    // Configure route through PFW
-    configureRoutes();
+        for (int iRouteStage = 0; iRouteStage < ENbRoutingStage; iRouteStage++) {
 
-    // Connect all streams that need to be connected (starting from output streams)
-    enableRoutes();
-
-    // Unmute Routes
-    unmuteRoutes();
+            ALOGD("---------------------------------------------------------------------------------------");
+            ALOGD("\t\t Routing Stage = %s",
+                  print_criteria(iRouteStage, ERoutingStageCriteriaType).c_str());
+            ALOGD("---------------------------------------------------------------------------------------");
+            executeRoutingStage(iRouteStage);
+        }
+    }
 
     // Clear Platform State flag
-    _pPlatformState->clearPlatformState();
+    _pPlatformState->clearPlatformStateEvents();
 
     // Is a client waiting for routing reconsideration?
     if (_bClientWaiting) {
 
         // Warn client
         sem_post(&_clientWaitSemaphore);
+    }
+
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    ALOGD("%s: End of Routing Reconsideration", __FUNCTION__);
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+}
+
+void CAudioRouteManager::executeRoutingStage(int iRouteStage)
+{
+    //
+    // Set the routing stage criteria - Do not apply the configuration now...
+    //
+    if (_pParameterMgrPlatformConnector->isStarted()) {
+
+        // Warn PFW
+        _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(iRouteStage);
+    }
+
+    switch(iRouteStage) {
+
+    case EMute:
+        muteRoutingStage();
+        break;
+    case EDisable:
+        disableRoutingStage();
+        break;
+    case EConfigure:
+        configureRoutingStage();
+        break;
+    case EEnable:
+        enableRoutingStage();
+        break;
+    case EUnmute:
+        unmuteRoutingStage();
+        break;
+    default:
+        break;
     }
 }
 
@@ -506,79 +637,89 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
 {
     AutoW lock(mLock);
 
-    LOGD("%s", __FUNCTION__);
     AudioParameter param = AudioParameter(keyValuePairs);
-    String8 key = String8(AudioParameter::keyRouting);
     status_t status;
-    int devices;
     bool bForOutput = pStream->isOut();
 
-    // Get concerned devices
+    /// Devices (ie routing key)
+    int devices;
+    String8 key = String8(AudioParameter::keyRouting);
     status = param.getInt(key, devices);
 
-    if (status != NO_ERROR) {
-        // Note: this is the only place where we should bail out with an error
-        // since all processing are unrelated to each other, any other error occuring here should be logged
-        // and should not prevent subsequent processings to take place
-        return status;
+    if (status == NO_ERROR) {
+
+        // Remove parameter
+        param.remove(key);
+
+        // Ask the route manager to update the stream devices
+        setDevices(pStream, devices);
+
+        // Retrieve if provide, the input source for an input stream
+        if (!bForOutput) {
+
+            key = String8(AudioParameter::keyInputSource);
+
+            /// Get concerned input source
+            int inputSource;
+            status = param.getInt(key, inputSource);
+
+            if (status == NO_ERROR) {
+
+                // Remove parameter
+                param.remove(key);
+
+                // Found the input source
+                setInputSource(pStream, inputSource);
+            }
+            if (devices == 0) {
+
+                // When this function is called with a null device, considers it as
+                // an unrouting request, restore source to default within route manager
+                setInputSource(pStream, AUDIO_SOURCE_DEFAULT);
+            }
+        } else {
+
+            // For output streams, latch Android Mode
+            _pPlatformState->setMode(iMode);
+        }
     }
-    // Remove parameter
-    param.remove(key);
 
-    // Retrieve if provide, the input source for an input stream
-    if (!bForOutput) {
+    /// Process pending platform changes
+    if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange | CAudioPlatformState::EInputDevicesChange |
+                                                 CAudioPlatformState::EStreamEvent | CAudioPlatformState::EInputSourceChange |
+                                                 CAudioPlatformState::EAndroidModeChange | CAudioPlatformState::EHwModeChange |
+                                                 CAudioPlatformState::EFmModeChange | CAudioPlatformState::EFmHwModeChange)) {
 
-        String8 keyIn = String8(AudioParameter::keyInputSource);
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        ALOGD("%s: Reconsider Routing due to %s stream parameter change",
+              __FUNCTION__,
+              pStream->isOut()? "output": "input");
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        // Reconsider the routing now
+        //
+        // ASYNCHRONOUSLY RECONSIDERATION of the routing now.
+        // A change of device can be performed without locking the stream
+        // on MRFLD.
+        //
+        status = reconsiderRouting(false);
+        if (status != NO_ERROR) {
 
-        // Get concerned input source
-        int inputSource;
-        status = param.getInt(keyIn, inputSource);
-
-        if (status == NO_ERROR) {
-
-            // Found the input source
-            setInputSource(inputSource);
-            // Remove parameter
-            param.remove(keyIn);
+            // Just log!
+            ALOGE("alsa route error: %d", status);
         }
-        if (devices == 0) {
 
-            // When this function is called with a null device, considers it as
-            // an unrouting request, restore source to default within route manager
-            setInputSource(AUDIO_SOURCE_DEFAULT);
-        }
     } else {
 
-        // For output streams, latch Android Mode
-        _pPlatformState->setMode(iMode);
-    }
-
-    ALOGW("AudioHardwareALSA::setStreamParameters() for %s devices: %s",
-         bForOutput ? "output": "input",
-         bForOutput ?\
-             print_criteria(devices, _stSelectedInputDeviceValuePairs, _uiNbSelectedInputDeviceValuePairs).c_str() :\
-             print_criteria(devices, _stSelectedOutputDeviceValuePairs, _uiNbSelectedOutputDeviceValuePairs).c_str());
-
-    // Ask the route manager to update the stream devices
-    setDevices(pStream, devices);
-
-    //
-    // ASYNCHRONOUSLY RECONSIDERATION of the routing now.
-    // A change of device can be performed without locking the stream
-    // on MRFLD.
-    //
-    status = reconsiderRouting(false);
-    if (status != NO_ERROR) {
-
-        // Just log!
-        LOGE("alsa route error: %d", status);
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        ALOGD("%s: Nothing to do, identical Platform State, bailing out", __FUNCTION__);
+        ALOGD("-------------------------------------------------------------------------------------------------------");
     }
 
     // No more?
     if (param.size()) {
 
         // Just log!
-        LOGW("Unhandled argument.");
+        ALOGW("Unhandled argument.");
     }
 
     return status;
@@ -596,9 +737,13 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
         // bailing out
         return NO_ERROR;
     }
-    LOGD("%s: %s", __FUNCTION__, pStream->isOut()? "OUTPUT" : "INPUT");
     pStream->setStarted(true);
 
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    ALOGD("%s: Reconsider Routing due to %s stream start event",
+          __FUNCTION__,
+          pStream->isOut()? "output" : "input");
+    ALOGD("-------------------------------------------------------------------------------------------------------");
     //
     // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
     //
@@ -617,9 +762,13 @@ status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
         // bailing out
         return NO_ERROR;
     }
-    LOGD("%s: %s", __FUNCTION__, pStream->isOut()? "OUTPUT" : "INPUT");
     pStream->setStarted(false);
 
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    ALOGD("%s: Reconsider Routing due to %s stream stop event",
+          __FUNCTION__,
+          pStream->isOut()? "output" : "input");
+    ALOGD("-------------------------------------------------------------------------------------------------------");
     //
     // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
     //
@@ -633,7 +782,44 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
 {
     AutoW lock(mLock);
 
-    LOGD("%s: key value pair %s", __FUNCTION__, keyValuePairs.string());
+    AudioParameter param = AudioParameter(keyValuePairs);
+    status_t status;
+    String8 strRst;
+
+    String8 key = String8("restarting");
+    status = param.get(key, strRst);
+    if (status == NO_ERROR) {
+
+        if (strRst == "true") {
+
+            // Restore the audio parameters when mediaserver is restarted in case of crash.
+            ALOGI("Restore audio parameters as mediaserver is restarted param=%s", _pAudioParameterHandler->getParameters().string());
+            doSetParameters(_pAudioParameterHandler->getParameters());
+        }
+        param.remove(key);
+    } else {
+
+        // Set the audio parameters
+        status = doSetParameters(keyValuePairs);
+        if (status == NO_ERROR) {
+
+            ALOGD("%s: saving %s", __FUNCTION__, keyValuePairs.string());
+            // Save the audio parameters for recovering audio parameters in case of crash.
+            _pAudioParameterHandler->saveParameters(keyValuePairs);
+        } else {
+
+            return status;
+        }
+    }
+    return NO_ERROR;
+}
+
+
+status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
+{
+    AutoW lock(mLock);
+
+    ALOGD("%s: key value pair %s", __FUNCTION__, keyValuePairs.string());
 
     AudioParameter param = AudioParameter(keyValuePairs);
     status_t status;
@@ -643,7 +829,7 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
     // Search TTY mode
     //
     String8 strTtyDevice;
-    ETty iTtyDevice = TTY_OFF;
+    int iTtyDirection = 0;
     String8 key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
 
     // Get concerned devices
@@ -652,24 +838,24 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
     if (status == NO_ERROR) {
 
         if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
-            LOGV("tty full\n");
-            iTtyDevice = TTY_FULL;
+            ALOGV("tty full\n");
+            iTtyDirection = TTY_DOWNLINK | TTY_UPLINK;
         }
         else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
-            LOGV("tty hco\n");
-            iTtyDevice = TTY_HCO;
+            ALOGV("tty hco\n");
+            iTtyDirection = TTY_UPLINK;
         }
         else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
-            LOGV("tty vco\n");
-            iTtyDevice = TTY_VCO;
+            ALOGV("tty vco\n");
+            iTtyDirection = TTY_DOWNLINK;
         }
         else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_OFF) {
-            LOGV("tty off\n");
-            iTtyDevice = TTY_OFF;
+            ALOGV("tty off\n");
+            iTtyDirection = 0;
 
         }
 
-        setTtyMode(iTtyDevice);
+        setTtyDirection(iTtyDirection);
         bReconsiderRouting = true;
 
         // Remove parameter
@@ -718,10 +904,10 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
         else if(strBTnRecSetting == AUDIO_PARAMETER_VALUE_OFF) {
             LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
             isBtNRecAvailable = true;
-            // We reconsider routing as VPC_BT_NREC_ON intent is sent first, then setStreamParameters and finally
-            // VPC_BT_NREC_OFF when the SCO link is enabled. But only VPC_BT_NREC_ON setting is applied in that
+            // We reconsider routing as BT_NREC_ON intent is sent first, then setStreamParameters and finally
+            // BT_NREC_OFF when the SCO link is enabled. But only BT_NREC_ON setting is applied in that
             // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
-            // becomes necessary, to be aligned with VPC_BT_NREC_OFF to process the correct Audience profile.
+            // becomes necessary, to be aligned with BT_NREC_OFF to process the correct Audience profile.
             bReconsiderRouting = true;
         }
 
@@ -764,6 +950,10 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
         //
         // ASYNCHRONOUSLY RECONSIDERATION of the routing in case of a parameter change
         //
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        ALOGD("%s: Reconsider Routing due to External parameter change",
+              __FUNCTION__);
+        ALOGD("-------------------------------------------------------------------------------------------------------");
         reconsiderRouting(false);
     }
 
@@ -786,15 +976,12 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 
     ALOGD("%s: set device = %s to %s stream", __FUNCTION__,
          bIsOut ?\
-             print_criteria(devices, _stSelectedInputDeviceValuePairs, _uiNbSelectedInputDeviceValuePairs).c_str() :\
-             print_criteria(devices, _stSelectedOutputDeviceValuePairs, _uiNbSelectedOutputDeviceValuePairs).c_str(),
+             print_criteria(devices, EOutputDeviceCriteriaType).c_str() :\
+             print_criteria(devices, EInputDeviceCriteriaType).c_str(),
         bIsOut ? "output": "input");
 
     // set the new device for this stream
     pStream->setNewDevice(devices);
-
-    // Set the mode to the stream (still necessary for ring buffer period according to the mode)
-    pStream->setNewMode(_pPlatformState->getHwMode());
 }
 
 //
@@ -802,34 +989,36 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 // Assumption: only one active input source at one time.
 // Does it make sense to keep it in the platform state???
 //
-void CAudioRouteManager::setInputSource(uint32_t uiInputSource)
+void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource)
 {
     AutoW lock(mLock);
 
-    LOGD("%s: inputSource = %s", __FUNCTION__,
-         print_criteria(_pPlatformState->getInputSource(), _stAudioSourceValuePairs, _uiNbAudioSourceValuePairs).c_str());
-    _pPlatformState->setInputSource(uiInputSource);
+    pStream->setInputSource(iInputSource);
+
+    ALOGD("%s: inputSource = %s", __FUNCTION__,
+         print_criteria(iInputSource, EInputSourceCriteriaType).c_str());
+    _pPlatformState->setInputSource(iInputSource);
 }
 
-void CAudioRouteManager::addRoute(uint32_t routeId)
+void CAudioRouteManager::createAudioHardwarePlatform()
 {
     AutoW lock(mLock);
 
-    LOGD("%s: add routeId %d to route manager", __FUNCTION__, routeId);
+    ALOGD("%s", __FUNCTION__);
 
-    CAudioRouteFactory* pRouteFactory = new CAudioRouteFactory();
+    for (uint32_t i = 0; i < CAudioPlatformHardware::getNbRoutes(); i++) {
 
-    CAudioRoute* pRoute = pRouteFactory->getRoute(routeId, _pPlatformState);
+        CAudioRoute* pRoute = CAudioPlatformHardware::createAudioRoute(i, _pPlatformState);
 
-    if (!pRoute) {
+        if (!pRoute) {
 
-        LOGE("%s: could not find routeId %d", __FUNCTION__, routeId);
-        return ;
+            ALOGE("%s: could not find routeId %d", __FUNCTION__, CAudioPlatformHardware::getRouteId(i));
+            return ;
+        }
+        ALOGD("%s: add %s (Id %d) to route manager", __FUNCTION__, pRoute->getName().c_str(), CAudioPlatformHardware::getRouteId(i));
+
+        _routeList.push_back(pRoute);
     }
-
-    _routeList.push_back(pRoute);
-
-    delete pRouteFactory;
 }
 
 //
@@ -838,10 +1027,9 @@ void CAudioRouteManager::addRoute(uint32_t routeId)
 //
 void CAudioRouteManager::resetAvailability()
 {
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     CAudioRoute *aRoute =  NULL;
-    CAudioStreamRoute* aStreamRoute = NULL;
     RouteListIterator it;
 
     // Find the applicable route for this route request
@@ -861,7 +1049,7 @@ void CAudioRouteManager::addStream(ALSAStreamOps* pStream)
 
     bool isOut = pStream->isOut();
 
-    LOGD("%s: add %s stream to route manager", __FUNCTION__, isOut? "output" : "input");
+    ALOGD("%s: add %s stream to route manager", __FUNCTION__, isOut? "output" : "input");
 
     // Add Stream Out to the list
     _streamsList[isOut].push_back(pStream);
@@ -874,7 +1062,7 @@ void CAudioRouteManager::removeStream(ALSAStreamOps* pStream)
 {
     AutoW lock(mLock);
 
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     ALSAStreamOpsListIterator it;
 
@@ -895,10 +1083,17 @@ void CAudioRouteManager::removeStream(ALSAStreamOps* pStream)
     }
 }
 
-void CAudioRouteManager::virtuallyConnectRoutes()
+//
+// Returns true if the routing scheme has changed, false otherwise
+//
+bool CAudioRouteManager::virtuallyConnectRoutes()
 {
-    virtuallyConnectRoutes(OUTPUT);
-    virtuallyConnectRoutes(INPUT);
+    ALOGD("---------------------------------------------------------------------------------------");
+    ALOGD("\t\t %s", __FUNCTION__);
+    ALOGD("---------------------------------------------------------------------------------------");
+
+    // Return true if any changes observed routes (input or output direction)
+    return virtuallyConnectRoutes(OUTPUT) | virtuallyConnectRoutes(INPUT);
 }
 
 //
@@ -907,12 +1102,15 @@ void CAudioRouteManager::virtuallyConnectRoutes()
 //     -applicability of the route
 //     -availability of the route
 //
-void CAudioRouteManager::virtuallyConnectRoutes(bool bIsOut)
+// Returns true if previous enabled route is different from current enabled route
+//              or if any route needs to be reconfigured.
+//         false otherwise (the list of enabled route did not change, no route
+//              needs to be reconfigured)
+//
+bool CAudioRouteManager::virtuallyConnectRoutes(bool bIsOut)
 {
-    LOGD("%s", __FUNCTION__);
-
-    uint32_t uiDevices = _pPlatformState->getDevices(bIsOut);
-    int iMode = _pPlatformState->getHwMode();
+    ALOGD("%s for %s", __FUNCTION__,
+          bIsOut? "output" : "input");
 
     // Save Enabled routes bit field
     _uiPreviousEnabledRoutes[bIsOut] = _uiEnabledRoutes[bIsOut];
@@ -931,52 +1129,90 @@ void CAudioRouteManager::virtuallyConnectRoutes(bool bIsOut)
 
         CAudioRoute *pRoute =  *it;
 
-        if (pRoute->getRouteType() == CAudioRoute::EExternalRoute) {
+        virtuallyConnectRoute(pRoute, bIsOut);
 
-            if (pRoute->isApplicable(uiDevices, iMode, bIsOut)) {
+    }
+    if ((_uiPreviousEnabledRoutes[bIsOut] == _uiEnabledRoutes[bIsOut]) && !_uiNeedToReconfigureRoutes[bIsOut]) {
 
-                ALOGD("%s: route %s is applicable [mode = %s devices= %s]", __FUNCTION__,
-                     pRoute->getName().c_str(),
-                     print_criteria(iMode, _stModeValuePairs, _uiNbModeValuePairs).c_str(),
-                     bIsOut ?\
-                         print_criteria(uiDevices, _stSelectedInputDeviceValuePairs, _uiNbSelectedInputDeviceValuePairs, true).c_str() :\
-                         print_criteria(uiDevices, _stSelectedOutputDeviceValuePairs, _uiNbSelectedOutputDeviceValuePairs, true).c_str());
-                pRoute->setBorrowed(bIsOut);
+        return false;
+    }
+    return true;
+}
 
-                // Add route to enabled route bit field
-                _uiEnabledRoutes[bIsOut] |= pRoute->getRouteId();
+void CAudioRouteManager::virtuallyConnectRoute(CAudioRoute* pRoute, bool bIsOut)
+{
+    uint32_t uiDevices = _pPlatformState->getDevices(bIsOut);
+    int iMode = _pPlatformState->getHwMode();
 
-                continue;
-            }
+    //
+    // First check if the route has slaves routes to evaluate
+    // slave routes first
+    //
+    uint32_t uiSlaveRoutes = pRoute->getSlaveRoute();
+    if (uiSlaveRoutes) {
 
-        } else if (pRoute->getRouteType() == CAudioRoute::EStreamRoute) {
+        // Go through the list of routes
+        RouteListIterator it;
+        int iOneSlaveAtLeastEnabled = 0;
 
-            CAudioStreamRoute* pStreamRoute = NULL;
-            ALSAStreamOps* pStreamOps;
+        // Find the applicable route for this route request
+        for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
-            pStreamRoute = static_cast<CAudioStreamRoute*>(pRoute);
+            CAudioRoute *pSlaveRoute =  *it;
+            uint32_t uiRouteId = pSlaveRoute->getRouteId();
 
-            // Check if an output stream is applicable for this stream
-            pStreamOps = findApplicableStreamForRoute(bIsOut, pStreamRoute);
+            if (uiSlaveRoutes & uiRouteId) {
 
-            if (pStreamOps) {
-
-                pStreamRoute->setStream(pStreamOps);
-
-                // Add route to enabled route bit field
-                _uiEnabledRoutes[bIsOut] |= pRoute->getRouteId();
+                virtuallyConnectRoute(pSlaveRoute, bIsOut);
+                iOneSlaveAtLeastEnabled += pSlaveRoute->willBeBorrowed(bIsOut);
             }
         }
+        if (!iOneSlaveAtLeastEnabled) {
 
-        if (pRoute->needReconfiguration(bIsOut)) {
-
-            // Add route to NeedToReconfigureRoute bit field
-            _uiNeedToReconfigureRoutes[bIsOut] |= pRoute->getRouteId();
+            return ;
         }
+    }
+
+    if (pRoute->getRouteType() == CAudioRoute::EExternalRoute) {
+
+        if (pRoute->isApplicable(uiDevices, iMode, bIsOut)) {
+
+            ALOGD("%s: route %s is applicable [mode = %s devices= %s]", __FUNCTION__,
+                  pRoute->getName().c_str(),
+                  print_criteria(iMode, EModeCriteriaType).c_str(),
+                  bIsOut ?\
+                      print_criteria(uiDevices, EOutputDeviceCriteriaType).c_str() :\
+                      print_criteria(uiDevices, EInputDeviceCriteriaType).c_str());
+            pRoute->setBorrowed(bIsOut);
+            // Add route to enabled route bit field
+            _uiEnabledRoutes[bIsOut] |= pRoute->getRouteId();
+        }
+
+    } else if (pRoute->getRouteType() == CAudioRoute::EStreamRoute) {
+
+        ALSAStreamOps* pStreamOps;
+
+        // Check if a stream route is applicable for this stream
+        pStreamOps = findApplicableStreamForRoute(bIsOut, pRoute);
+
+        if (pStreamOps) {
+
+            CAudioStreamRoute* pStreamRoute = static_cast<CAudioStreamRoute*>(pRoute);
+            pStreamRoute->setStream(pStreamOps);
+
+            // Add route to enabled route bit field
+            _uiEnabledRoutes[bIsOut] |= pRoute->getRouteId();
+        }
+    }
+
+    if (pRoute->needReconfiguration(bIsOut)) {
+
+        // Add route to NeedToReconfigureRoute bit field
+        _uiNeedToReconfigureRoutes[bIsOut] |= pRoute->getRouteId();
     }
 }
 
-ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, CAudioStreamRoute* pStreamRoute)
+ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, CAudioRoute* pRoute)
 {
     ALSAStreamOpsListIterator it;
 
@@ -995,9 +1231,10 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, CAu
 
         // Check if the route is applicable
         // Applicability will also check if this route is already borrowed or not.
-        if (pStreamRoute->isApplicable(pOps->getNewDevice(), _pPlatformState->getHwMode(), bIsOut)) {
+        uint32_t uiFlags = (bIsOut? pOps->getFlags() : pOps->getInputSource());
+        if (pRoute->isApplicable(pOps->getNewDevice(), _pPlatformState->getHwMode(), bIsOut, uiFlags)) {
 
-            LOGD("%s: route %s is applicable", __FUNCTION__, pStreamRoute->getName().c_str());
+            ALOGD("%s: route %s is applicable", __FUNCTION__, pRoute->getName().c_str());
 
             // Got it! Bailing out
             return pOps;
@@ -1006,7 +1243,7 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, CAu
     return NULL;
 }
 
-void CAudioRouteManager::muteRoutes()
+void CAudioRouteManager::muteRoutingStage()
 {
     // Mute Routes that
     //      -are disabled
@@ -1017,51 +1254,51 @@ void CAudioRouteManager::muteRoutes()
 
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
-        // Warn PFW
-        _pSelectedRouteStage->setCriterionState(EMute);
-
         std::string strError;
         if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
 
-            LOGE("%s", strError.c_str());
+            ALOGE("%s", strError.c_str());
         }
     }
 }
 
 void CAudioRouteManager::muteRoutes(bool bIsOut)
 {
-
-    uint32_t uiRoutesToMute = (_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]) |
-            _uiNeedToReconfigureRoutes[bIsOut];
+    ALOGD("%s for %s:", __FUNCTION__,
+          bIsOut? "output" : "input");
 
     //
     // CurrentEnabledRoute: Eclipse the route that need to reconfigure
     //                      so that the PFW mutes the route that need reconfiguration
+    // The logic should be explained as:
+    //      RoutesToMute = (PreviousEnabledRoutes[bIsOut] & ~EnabledRoutes[bIsOut]) |
+    //                      NeedToReconfigureRoutes[bIsOut];
     //
     uint32_t uiEnabledRoutes = _uiEnabledRoutes[bIsOut] & ~_uiNeedToReconfigureRoutes[bIsOut];
 
-    LOGD("%s:          -Previously enabled routes in %s = %s", __FUNCTION__,
+    ALOGD("%s \t -Previously enabled routes in %s = %s", __FUNCTION__,
              bIsOut? "Output" : "Input",
-             print_criteria(_uiPreviousEnabledRoutes[bIsOut], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+             print_criteria(_uiPreviousEnabledRoutes[bIsOut], ERouteCriteriaType).c_str());
 
-    LOGD("%s:          -Enabled routes [eclipsing route that need reconfiguration] in %s = %s", __FUNCTION__,
+    ALOGD("%s \t -Enabled routes [eclipsing route that need reconfiguration] in %s = %s", __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(uiEnabledRoutes, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria(uiEnabledRoutes, ERouteCriteriaType).c_str());
 
-    LOGD("%s:          --------------------------------------------------------------------------", __FUNCTION__);
-    LOGD("%s:           Routes to be muted in %s = %s", __FUNCTION__,
+    ALOGD("%s \t --------------------------------------------------------------------------", __FUNCTION__);
+    ALOGD("%s \t Expected Routes to be muted in %s = %s", __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(uiRoutesToMute, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria(((_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut]),
+                        ERouteCriteriaType).c_str());
 
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
         // Warn PFW
-        _pPreviousEnabledRoutes[bIsOut]->setCriterionState(_uiPreviousEnabledRoutes[bIsOut]);
-        _pCurrentEnabledRoutes[bIsOut]->setCriterionState(uiEnabledRoutes);
+         selectedPreviousRoute(bIsOut)->setCriterionState(_uiPreviousEnabledRoutes[bIsOut]);
+         selectedRoute(bIsOut)->setCriterionState(uiEnabledRoutes);
     }
 }
 
-void CAudioRouteManager::unmuteRoutes()
+void CAudioRouteManager::unmuteRoutingStage()
 {
     // Unmute Routes that
     //      -were not enabled but will be enabled
@@ -1072,55 +1309,51 @@ void CAudioRouteManager::unmuteRoutes()
 
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
-        // Warn PFW
-        _pSelectedRouteStage->setCriterionState(EUnmute);
-
         std::string strError;
         if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
 
-            LOGE("%s", strError.c_str());
+            ALOGE("%s", strError.c_str());
         }
     }
 }
 void CAudioRouteManager::unmuteRoutes(bool bIsOut)
 {
+    ALOGD("%s for %s:", __FUNCTION__,
+          bIsOut? "output" : "input");
+
     // Unmute Routes that
     //      -were not enabled but will be enabled
     //      -were previously enabled, will be enabled but need reconfiguration
     // Routing order criterion = Unmute
+    // From a logic point of view:
+    //          RoutesToUnmute = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]) |
+    //                               NeedToReconfigureRoutes[bIsOut];
 
-    uint32_t uiRoutesToUnmute = (_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) |
-                                    _uiNeedToReconfigureRoutes[bIsOut];
-
-    //
-    // PrevousEnabledRoute: eclipse the route that need to reconfigure so that
-    // they can be unmuted
-    //
-//    uint32_t uiPreviousEnabledRoutes = _uiPreviousEnabledRoutes[bIsOut] & ~_uiNeedToReconfigureRoutes[bIsOut];
-
-    LOGD("%s:          -Previously enabled routes [eclipsing route that need reconfiguration] in %s = %s", __FUNCTION__,
+    ALOGD("%s \t -Previously enabled routes in %s = %s", __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(_uiPreviousEnabledRoutes[bIsOut], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria(_uiPreviousEnabledRoutes[bIsOut], ERouteCriteriaType).c_str());
 
-    LOGD("%s:          -Enabled routes  in %s = %s", __FUNCTION__,
+    ALOGD("%s \t -Enabled routes  in %s = %s", __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(_uiEnabledRoutes[bIsOut], _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria(_uiEnabledRoutes[bIsOut], ERouteCriteriaType).c_str());
 
-    LOGD("%s:          --------------------------------------------------------------------------", __FUNCTION__);
-    LOGD("%s:           Routes to be unmuted in %s = %s", __FUNCTION__,
+    ALOGD("%s \t --------------------------------------------------------------------------", __FUNCTION__);
+    ALOGD("%s \t Expected Routes to be unmuted in %s = %s", __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(uiRoutesToUnmute, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria(((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) |_uiNeedToReconfigureRoutes[bIsOut]),
+                        ERouteCriteriaType).c_str());
 
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
         // Warn PFW
-        _pPreviousEnabledRoutes[bIsOut]->setCriterionState(_uiPreviousEnabledRoutes[bIsOut]);
+        selectedPreviousRoute(bIsOut)->setCriterionState(_uiPreviousEnabledRoutes[bIsOut]);
     }
 }
 
-void CAudioRouteManager::configureRoutes()
+void CAudioRouteManager::configureRoutingStage()
 {
-    // RENAUD
+    // LPE centric arch requires to enable the route (from stream point of view, ie 
+    // opening the audio device) before configuring the LPE
     enableRoutes(OUTPUT);
     enableRoutes(INPUT);
 
@@ -1133,30 +1366,38 @@ void CAudioRouteManager::configureRoutes()
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
         // Warn PFW
-        _pSelectedMode->setCriterionState(_pPlatformState->getHwMode());
-        _pSelectedTTYMode->setCriterionState(_pPlatformState->getTtyMode());
-        _pSelectedRouteStage->setCriterionState(EConfigure);
+        _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
+        _apSelectedCriteria[ESelectedFmMode]->setCriterionState(_pPlatformState->getFmRxHwMode());
+        _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(_pPlatformState->getTtyDirection());
+        _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
+        _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
+        _apSelectedCriteria[ESelectedHacMode]->setCriterionState(_pPlatformState->isHacEnabled());
 
         std::string strError;
         if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
 
-            LOGE("%s", strError.c_str());
+            ALOGE("%s", strError.c_str());
         }
     }
 }
 
 void CAudioRouteManager::configureRoutes(bool bIsOut)
 {
+    ALOGD("%s for %s:", __FUNCTION__,
+          bIsOut? "output" : "input");
+
     // Configure Routes that
     //      -were not enabled but will be enabled
     //      -were previously enabled, will be enabled but need reconfiguration
     // Routing order criterion = Configure
-    uint32_t uiRoutesToConfigure = (_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) |
-                                    _uiNeedToReconfigureRoutes[bIsOut];
+    // From a logic point of view:
+    //      RoutesToConfigure = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]) |
+    //                                NeedToReconfigureRoutes[bIsOut];
 
-    LOGD("%s:          -Routes to be configured in %s = %s", __FUNCTION__,
+    ALOGD("%s:          -Routes to be configured in %s = %s", __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(uiRoutesToConfigure, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria(((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut]),
+                        ERouteCriteriaType).c_str());
 
     // PFW: Routing criterion = configure
     // Change here the devices, the mode, ... all the criteria
@@ -1164,15 +1405,15 @@ void CAudioRouteManager::configureRoutes(bool bIsOut)
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
         // Warn PFW
-        _pSelectedDevice[bIsOut]->setCriterionState(_pPlatformState->getDevices(bIsOut));
+        selectedDevice(bIsOut)->setCriterionState(_pPlatformState->getDevices(bIsOut));
         if (!bIsOut) {
 
-            _pSelectedAudioSource->setCriterionState(_pPlatformState->getInputSource());
+            _apSelectedCriteria[ESelectedInputSource]->setCriterionState(_pPlatformState->getInputSource());
         }
     }
 }
 
-void CAudioRouteManager::disableRoutes()
+void CAudioRouteManager::disableRoutingStage()
 {
     // Disable Routes that
     //      -are disabled
@@ -1188,28 +1429,30 @@ void CAudioRouteManager::disableRoutes()
     //
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
-        _pSelectedRouteStage->setCriterionState(EDisable);
-
         std::string strError;
         if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
 
-            LOGE("%s", strError.c_str());
+            ALOGE("%s", strError.c_str());
         }
     }
 }
 
 void CAudioRouteManager::disableRoutes(bool bIsOut)
 {
+    ALOGD("%s for %s:", __FUNCTION__,
+          bIsOut? "output" : "input");
+
     // Disable Routes that
     //      -are disabled
     //      -need reconfiguration
     // Routing order criterion = Disable
-    uint32_t uiRoutesToDisable = (_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]) |
-            _uiNeedToReconfigureRoutes[bIsOut];
+    // From a logic point of view:
+    //          RoutesToDisable = (PreviousEnabledRoutes[bIsOut] & ~EnabledRoutes[bIsOut]);
 
-    LOGD("%s:          -Routes to be disabled in %s = %s", __FUNCTION__,
+    ALOGD("%s \t -Routes to be disabled(unrouted) in %s = %s",  __FUNCTION__,
          bIsOut? "Output" : "Input",
-         print_criteria(uiRoutesToDisable, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
+         print_criteria((_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]),
+                        ERouteCriteriaType).c_str());
 
     CAudioRoute *aRoute =  NULL;
     RouteListIterator it;
@@ -1227,7 +1470,6 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
         //
         if (aRoute->currentlyBorrowed(bIsOut) && !aRoute->willBeBorrowed(bIsOut)) {
 
-            LOGD("%s: route %s in %s to be unrouted", __FUNCTION__, aRoute->getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE");
             aRoute->unRoute(bIsOut);
         }
     }
@@ -1238,49 +1480,46 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
     //
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
-        _pCurrentEnabledRoutes[bIsOut]->setCriterionState(_uiEnabledRoutes[bIsOut]);
+        selectedRoute(bIsOut)->setCriterionState(_uiEnabledRoutes[bIsOut]);
     }
 }
 
-void CAudioRouteManager::enableRoutes()
+void CAudioRouteManager::enableRoutingStage()
 {
     //
     // Enable routes through PFW
     //
     if (_pParameterMgrPlatformConnector->isStarted()) {
 
-        // Update:
-        // Routing stage criterion = Enable
-        _pSelectedRouteStage->setCriterionState(EEnable);
-
         std::string strError;
         if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
 
-            LOGE("%s", strError.c_str());
+            ALOGE("%s", strError.c_str());
         }
     }
-
-    // Connect all streams that need to be connected (starting from output streams)
-//    enableRoutes(OUTPUT);
-//    enableRoutes(INPUT);
 }
 
 void CAudioRouteManager::enableRoutes(bool bIsOut)
 {
+    ALOGD("%s for %s:", __FUNCTION__,
+          bIsOut? "output" : "input");
+
     CAudioRoute *aRoute =  NULL;
     RouteListIterator it;
-
-    uint32_t uiRoutesToEnable = (_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]);
-
-    LOGD("%s:          -Routes to be enabled in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
-         print_criteria(uiRoutesToEnable, _stSelectedRouteValuePairs, _uiNbSelectedRouteValuePairs, true).c_str());
 
     //
     // Performs the routing on the routes:
     // Enable Routes that were not enabled but will be enabled
     // (ie a stream will now be running on this route)
     //
+    // From logic point of view:
+    //          RoutesToEnable = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut])
+    //
+    ALOGD("%s \t -Routes to be enabled(routed) in %s = %s", __FUNCTION__,
+         bIsOut? "Output" : "Input",
+         print_criteria((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]),
+                        ERouteCriteriaType).c_str());
+
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
         aRoute = *it;
@@ -1288,19 +1527,18 @@ void CAudioRouteManager::enableRoutes(bool bIsOut)
         // If the route is external and was set borrowed -> it needs to be routed
         if (!aRoute->currentlyBorrowed(bIsOut) && aRoute->willBeBorrowed(bIsOut)) {
 
-            LOGD("%s: route %s in %s to be routed", __FUNCTION__, aRoute->getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE");
             if (aRoute->route(bIsOut) != NO_ERROR) {
 
                 // Just logging
-                LOGE("%s: error while routing %s", __FUNCTION__, aRoute->getName().c_str());
+                ALOGE("\t error while routing %s", aRoute->getName().c_str());
             }
         }
     }
 }
 
-CAudioRoute* CAudioRouteManager::findRouteByName(const string& strName)
+CAudioRoute* CAudioRouteManager::findRouteById(uint32_t uiRouteId)
 {
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     CAudioRoute* pFoundRoute =  NULL;
     RouteListIterator it;
@@ -1309,7 +1547,7 @@ CAudioRoute* CAudioRouteManager::findRouteByName(const string& strName)
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
         CAudioRoute* pRoute = *it;
-        if (strName == pRoute->getName()) {
+        if (uiRouteId == pRoute->getRouteId()) {
 
             pFoundRoute = pRoute;
             break;
@@ -1323,10 +1561,10 @@ void CAudioRouteManager::startATManager()
     // Starts the ModemAudioManager
     if(_pModemAudioManager->start()) {
 
-        LOGE("%s: could not start ModemAudioManager", __FUNCTION__);
+        ALOGE("%s: could not start ModemAudioManager", __FUNCTION__);
         return ;
     }
-    LOGE("%s: success", __FUNCTION__);
+    ALOGE("%s: success", __FUNCTION__);
 }
 
 //
@@ -1337,7 +1575,7 @@ void CAudioRouteManager::onModemAudioStatusChanged()
 {
     AutoW lock(mLock);
 
-    LOGD("%s: IN", __FUNCTION__);
+    ALOGD("%s: IN", __FUNCTION__);
 
     // Check if Modem Audio Path is available
     // According to network, some can receive XCALLSTAT, some can receive XPROGRESS
@@ -1356,27 +1594,31 @@ void CAudioRouteManager::onModemAudioStatusChanged()
         // Reconsider the routing now only if the platform state has changed
         if (_pPlatformState->hasPlatformStateChanged()) {
 
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            ALOGD("%s: Reconsider Routing due to Modem Audio Status change",
+                  __FUNCTION__);
+            ALOGD("-------------------------------------------------------------------------------------------------------");
             status_t status = reconsiderRouting(false);
             if (status != NO_ERROR) {
 
                 // Just log!
-                LOGE("alsa route error: %d", status);
+                ALOGE("alsa route error: %d", status);
             }
         }
     }
-    LOGD("%s: OUT", __FUNCTION__);
+    ALOGD("%s: OUT", __FUNCTION__);
 }
 
 //
 // From IModemStatusNotifier
-// Called on Modem State change reported by STMD
+// Called on Modem State change reported by ModemAudioManager
 // Need to hold AudioHardwareALSA::mLock
 //
 void  CAudioRouteManager::onModemStateChanged()
 {
     AutoW lock(mLock);
 
-    LOGD("%s: IN: ModemStatus", __FUNCTION__);
+    ALOGD("%s: IN: ModemStatus", __FUNCTION__);
 
     _bModemAvailable = _pModemAudioManager->isModemAlive();
 
@@ -1389,14 +1631,18 @@ void  CAudioRouteManager::onModemStateChanged()
     // Reconsider the routing now only if the platform state has changed
     if (_pPlatformState->hasPlatformStateChanged()) {
 
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        ALOGD("%s: Reconsider Routing due to Modem State change",
+              __FUNCTION__);
+        ALOGD("-------------------------------------------------------------------------------------------------------");
         status_t status = reconsiderRouting(false);
         if (status != NO_ERROR) {
 
             // Just log!
-            LOGE("alsa route error: %d", status);
+            ALOGE("alsa route error: %d", status);
         }
     }
-    LOGD("%s: OUT", __FUNCTION__);
+    ALOGD("%s: OUT", __FUNCTION__);
 }
 
 //
@@ -1406,18 +1652,31 @@ void  CAudioRouteManager::onModemStateChanged()
 void  CAudioRouteManager::onModemAudioPCMChanged() {
 
     MODEM_CODEC modemCodec;
-    vpc_band_t band;
+    CAudioPlatformState::BandType_t band;
 
     AutoW lock(mLock);
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     modemCodec = _pModemAudioManager->getModemCodec();
     if (modemCodec == CODEC_TYPE_WB_AMR_SPEECH)
-        band = VPC_BAND_WIDE;
+        band = CAudioPlatformState::EWideBand;
     else
-        band = VPC_BAND_NARROW;
+        band = CAudioPlatformState::ENarrowBand;
 
-    LOGD("%s: out", __FUNCTION__);
+    _pPlatformState->setBandType(band);
+
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    ALOGD("%s: Reconsider Routing due to Modem Band change",
+          __FUNCTION__);
+    ALOGD("-------------------------------------------------------------------------------------------------------");
+    status_t status = reconsiderRouting(false);
+    if (status != NO_ERROR) {
+
+        // Just log!
+        ALOGE("%s error: %d", __FUNCTION__, status);
+    }
+
+    ALOGD("%s: out", __FUNCTION__);
 }
 
 //
@@ -1450,14 +1709,7 @@ bool CAudioRouteManager::onHangup(int iFd)
 //
 void CAudioRouteManager::onTimeout()
 {
-    LOGD("%s", __FUNCTION__);
-
-    // Block {
-    pthread_mutex_lock(&_clientMutex);
-
-
-    // } Block
-    pthread_mutex_unlock(&_clientMutex);
+    ALOGD("%s", __FUNCTION__);
 }
 
 //
@@ -1473,11 +1725,6 @@ void CAudioRouteManager::onPollError()
 //
 void CAudioRouteManager::onProcess()
 {
-    LOGD("%s", __FUNCTION__);
-
-    // Block {
-    pthread_mutex_lock(&_clientMutex);
-
     //
     // Take the lock only in case of asynchronous request
     // as already handled by client thread if synchronous request
@@ -1493,9 +1740,6 @@ void CAudioRouteManager::onProcess()
 
         mLock.unlock();
     }
-
-    // } Block
-    pthread_mutex_unlock(&_clientMutex);
 }
 
 void CAudioRouteManager::lock()
@@ -1509,21 +1753,27 @@ void CAudioRouteManager::unlock()
 }
 
 // Used to fill types for PFW
-void CAudioRouteManager::fillSelectionCriterionType(ISelectionCriterionTypeInterface* pSelectionCriterionType, const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs, uint32_t uiNbEntries) const
+ISelectionCriterionTypeInterface* CAudioRouteManager::createAndFillSelectionCriterionType(CriteriaType eCriteriaType) const
 {
     uint32_t uiIndex;
+
+    const SSelectionCriterionTypeValuePair* pSelectionCriterionTypeValuePairs = _asCriteriaType[eCriteriaType]._pCriterionTypeValuePairs;
+    uint32_t uiNbEntries = _asCriteriaType[eCriteriaType]._uiNbValuePairs;
+    bool bIsInclusive = _asCriteriaType[eCriteriaType]._bIsInclusive;
+
+    ISelectionCriterionTypeInterface* pSelectionCriterionType = _pParameterMgrPlatformConnector->createSelectionCriterionType(bIsInclusive);
 
     for (uiIndex = 0; uiIndex < uiNbEntries; uiIndex++) {
 
         const SSelectionCriterionTypeValuePair* pValuePair = &pSelectionCriterionTypeValuePairs[uiIndex];
-
         pSelectionCriterionType->addValuePair(pValuePair->iNumerical, pValuePair->pcLiteral);
     }
+    return pSelectionCriterionType;
 }
 
-uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const
+uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameterPath, uint32_t uiDefaultValue) const
 {
-    LOGD("%s in", __FUNCTION__);
+    ALOGD("%s in", __FUNCTION__);
 
     if (!_pParameterMgrPlatformConnector->isStarted()) {
 
@@ -1539,9 +1789,9 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
         strError = strParameterPath.c_str();
         strError += " not found!";
 
-        LOGE("Unable to get parameter handle: %s", strError.c_str());
+        ALOGE("Unable to get parameter handle: %s", strError.c_str());
 
-        LOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
+        ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
         return uiDefaultValue;
     }
@@ -1549,11 +1799,11 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
     // Retrieve value
     uint32_t uiValue;
 
-    if ((!bSigned && !pParameterHandle->getAsInteger(uiValue, strError)) || (bSigned && !pParameterHandle->getAsSignedInteger((int32_t&)uiValue, strError))) {
+    if (!pParameterHandle->getAsInteger(uiValue, strError)) {
 
-        LOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
+        ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
 
-        LOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
+        ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
 
         // Remove handle
         delete pParameterHandle;
@@ -1564,18 +1814,18 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
     // Remove handle
     delete pParameterHandle;
 
-    LOGD("%s returning %d", __FUNCTION__, uiValue);
+    ALOGD("%s returning %d", __FUNCTION__, uiValue);
 
     return uiValue;
 }
 
-status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiValue)
+status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameterPath, uint32_t uiValue)
 {
-    LOGD("%s in", __FUNCTION__);
+    ALOGD("%s in", __FUNCTION__);
 
     if (!_pParameterMgrPlatformConnector->isStarted()) {
 
-        return NAME_NOT_FOUND;
+        return INVALID_OPERATION;
     }
 
     string strError;
@@ -1587,15 +1837,15 @@ status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameter
         strError = strParameterPath.c_str();
         strError += " not found!";
 
-        LOGE("%s: Unable to set parameter handle: %s", __FUNCTION__, strError.c_str());
+        ALOGE("%s: Unable to set parameter handle: %s", __FUNCTION__, strError.c_str());
 
         return NAME_NOT_FOUND;
     }
 
     // set value
-    if ((!bSigned && !pParameterHandle->setAsInteger(uiValue, strError)) || (bSigned && !pParameterHandle->setAsSignedInteger((int32_t)uiValue, strError))) {
+    if (!pParameterHandle->setAsInteger(uiValue, strError)) {
 
-        LOGE("%s: Unable to set value: %s, from parameter path: %s", __FUNCTION__, strError.c_str(), strParameterPath.c_str());
+        ALOGE("%s: Unable to set value: %s, from parameter path: %s", __FUNCTION__, strError.c_str(), strParameterPath.c_str());
 
         // Remove handle
         delete pParameterHandle;
@@ -1606,28 +1856,58 @@ status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameter
     // Remove handle
     delete pParameterHandle;
 
-    LOGD("%s returning %d", __FUNCTION__, uiValue);
+    ALOGD("%s returning %d", __FUNCTION__, uiValue);
 
     return NO_ERROR;
 }
 
-//
-// this function checks if at least one stream in bIsOut direction
-// has been already started
-//
-bool CAudioRouteManager::hasActiveStream(bool bIsOut)
+status_t CAudioRouteManager::setIntegerArrayParameterValue(const string& strParameterPath, std::vector<uint32_t>& uiArray) const
 {
-    ALSAStreamOpsListIterator it;
+    ALOGD("%s in", __FUNCTION__);
 
-    for (it = _streamsList[bIsOut].begin(); it != _streamsList[bIsOut].end(); ++it) {
+    if (!_pParameterMgrPlatformConnector->isStarted()) {
 
-        ALSAStreamOps* pOps = *it;
-        if (pOps->isStarted()) {
-
-            return true;
-        }
+        return INVALID_OPERATION;
     }
-    return false;
+
+    string strError;
+    // Get handle
+    CParameterHandle* pParameterHandle = _pParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
+
+    if (!pParameterHandle) {
+
+        strError = strParameterPath.c_str();
+        strError += " not found!";
+
+        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+
+        return NAME_NOT_FOUND;
+    }
+
+    // set value
+    if (!pParameterHandle->setAsIntegerArray(uiArray, strError)) {
+
+        ALOGE("Unable to set value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
+
+        // Remove handle
+        delete pParameterHandle;
+
+        return INVALID_OPERATION;
+    }
+
+    // Remove handle
+    delete pParameterHandle;
+
+    return NO_ERROR;
 }
 
+status_t CAudioRouteManager::setVoiceVolume(int gain)
+{
+    return setIntegerParameterValue(gpcVoiceVolume, gain);
+}
+
+status_t CAudioRouteManager::setFmRxVolume(float volume)
+{
+    return NO_ERROR;
+}
 }       // namespace android

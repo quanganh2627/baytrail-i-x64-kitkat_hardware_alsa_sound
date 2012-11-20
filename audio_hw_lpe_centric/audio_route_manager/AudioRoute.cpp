@@ -22,20 +22,31 @@
 
 #include "AudioRoute.h"
 
+#include "AudioPlatformHardware.h"
+
+
 namespace android_audio_legacy
 {
 
-CAudioRoute::CAudioRoute(uint32_t uiRouteId, const string& strName, CAudioPlatformState* pPlatformState) :
-    _strName(strName),
-    _uiRouteId(uiRouteId),
+CAudioRoute::CAudioRoute(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
     _pPlatformState(pPlatformState)
 {
-    LOGD("%s: %s", __FUNCTION__, _strName.c_str());
+    _strName = CAudioPlatformHardware::getRouteName(uiRouteIndex);
+    _uiRouteId = CAudioPlatformHardware::getRouteId(uiRouteIndex);
 
-    _bCurrentlyBorrowed[0] = false;
-    _bCurrentlyBorrowed[1] = false;
-    _bWillBeBorrowed[0] = false;
-    _bWillBeBorrowed[1] = false;
+    _uiApplicableDevices[OUTPUT] = CAudioPlatformHardware::getRouteApplicableDevices(uiRouteIndex, OUTPUT);
+    _uiApplicableModes[OUTPUT] = CAudioPlatformHardware::getRouteApplicableModes(uiRouteIndex, OUTPUT);
+    _uiApplicableDevices[INPUT] = CAudioPlatformHardware::getRouteApplicableDevices(uiRouteIndex, INPUT);
+    _uiApplicableModes[INPUT] = CAudioPlatformHardware::getRouteApplicableModes(uiRouteIndex, INPUT);
+    _uiApplicableFlags[INPUT] = CAudioPlatformHardware::getRouteApplicableFlags(uiRouteIndex, INPUT);
+    _uiApplicableFlags[OUTPUT] = CAudioPlatformHardware::getRouteApplicableFlags(uiRouteIndex, OUTPUT);
+    _uiSlaveRoutes = CAudioPlatformHardware::getSlaveRoutes(uiRouteIndex);
+
+    _bCurrentlyBorrowed[OUTPUT] = false;
+    _bCurrentlyBorrowed[INPUT] = false;
+    _bWillBeBorrowed[OUTPUT] = false;
+    _bWillBeBorrowed[INPUT] = false;
+
 }
 
 CAudioRoute::~CAudioRoute()
@@ -45,7 +56,7 @@ CAudioRoute::~CAudioRoute()
 
 status_t CAudioRoute::route(bool bIsOut)
 {
-    LOGD("%s: %s", __FUNCTION__, getName().c_str());
+    ALOGD("%s: %s", __FUNCTION__, getName().c_str());
 
     _bCurrentlyBorrowed[bIsOut] = true;
 
@@ -54,7 +65,7 @@ status_t CAudioRoute::route(bool bIsOut)
 
 void CAudioRoute::unRoute(bool bIsOut)
 {
-    LOGD("%s: %s", __FUNCTION__, getName().c_str());
+    ALOGD("%s: %s", __FUNCTION__, getName().c_str());
 
     _bCurrentlyBorrowed[bIsOut] = false;
 }
@@ -67,6 +78,25 @@ void CAudioRoute::resetAvailability()
     _bWillBeBorrowed[1] = false;
 }
 
+bool CAudioRoute::isApplicable(uint32_t uiDevices, int iMode, bool bIsOut, uint32_t) const
+{
+    ALOGI("%s: is Route %s applicable?", __FUNCTION__, getName().c_str());
+    ALOGI("%s: \t\t\t willBeBorrowed(%s)=%d) && ", __FUNCTION__,
+          bIsOut? "output" : "input", willBeBorrowed(bIsOut));
+    ALOGI("%s: \t\t\t ((1 << iMode)=0x%X & uiApplicableModes[%s]=0x%X) && ", __FUNCTION__,
+          (1 << iMode), bIsOut? "output" : "input", _uiApplicableModes[bIsOut]);
+    ALOGI("%s: \t\t\t (uiDevices=0x%X & _uiApplicableDevices[%s]=0x%X)", __FUNCTION__,
+          uiDevices, bIsOut? "output" : "input", _uiApplicableDevices[bIsOut]);
+    if (!(willBeBorrowed(bIsOut)) &&
+            ((1 << iMode) & _uiApplicableModes[bIsOut]) &&
+            (uiDevices & _uiApplicableDevices[bIsOut])) {
+
+        ALOGD("%s: Route %s is applicable", __FUNCTION__, getName().c_str());
+        return true;
+    }
+    return false;
+}
+
 void CAudioRoute::setBorrowed(bool bIsOut)
 {
     if (_bWillBeBorrowed[bIsOut]) {
@@ -76,13 +106,17 @@ void CAudioRoute::setBorrowed(bool bIsOut)
         return ;
     }
 
-    LOGD("%s: route %s is now borrowed in %s", __FUNCTION__, getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE");
+    ALOGD("%s: route %s is now borrowed in %s", __FUNCTION__, getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE");
 
     _bWillBeBorrowed[bIsOut] = true;
 }
 
-bool CAudioRoute::needReconfiguration(bool bIsOut)
+bool CAudioRoute::needReconfiguration(bool bIsOut) const
 {
+    //
+    // Base class just check at least that the route is used currently
+    // and will remain borrowed after routing
+    //
     if (currentlyBorrowed(bIsOut) && willBeBorrowed(bIsOut)) {
 
         return true;
@@ -90,15 +124,13 @@ bool CAudioRoute::needReconfiguration(bool bIsOut)
     return false;
 }
 
-bool CAudioRoute::currentlyBorrowed(bool bIsOut)
+bool CAudioRoute::currentlyBorrowed(bool bIsOut) const
 {
-//    LOGD("%s: route %s %s currently borrowed", __FUNCTION__, getName().c_str(), _bCurrentlyBorrowed[bIsOut]? "is": "isn't");
     return _bCurrentlyBorrowed[bIsOut];
 }
 
-bool CAudioRoute::willBeBorrowed(bool bIsOut)
+bool CAudioRoute::willBeBorrowed(bool bIsOut) const
 {
-//    LOGD("%s: route %s %s be borrowed", __FUNCTION__, getName().c_str(), _bWillBeBorrowed[bIsOut]? "will": "will not");
     return _bWillBeBorrowed[bIsOut];
 }
 

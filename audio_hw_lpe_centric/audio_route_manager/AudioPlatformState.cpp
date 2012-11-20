@@ -31,14 +31,17 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bModemAudioAvailable(false),
     _bModemAlive(false),
     _iAndroidMode(AudioSystem::MODE_NORMAL),
-    _iFmMode(0),
-    _iTtyMode(TTY_OFF),
+    _iFmRxMode(0),
+    _iFmRxHwMode(0),
+    _iTtyDirection(0),
     _bIsHacModeEnabled(false),
-    _bIsAcousticOnBTEnabled(false),
+    _bBtHeadsetNrEcEnabled(false),
     _bIsBtEnabled(false),
     _uiInputSource(0),
     _iHwMode(AudioSystem::MODE_NORMAL),
-    _bPlatformStateHasChanged(false),
+    _eBandType(ENarrowBand),
+    _uiPlatformEventChanged(false),
+    _iVolumeKeysRefCount(0),
     _pAudioRouteManager(pAudioRouteManager)
 {
     _uiDevices[INPUT] = 0;
@@ -48,6 +51,16 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
 CAudioPlatformState::~CAudioPlatformState()
 {
 
+}
+
+bool CAudioPlatformState::hasPlatformStateChanged(int iEvents) const
+{
+    return !!(_uiPlatformEventChanged & iEvents);
+}
+
+void CAudioPlatformState::setPlatformStateEvent(int iEvent)
+{
+    _uiPlatformEventChanged |= iEvent;
 }
 
 // Set the modem status
@@ -60,8 +73,14 @@ void CAudioPlatformState::setModemAlive(bool bIsAlive)
 
     _bModemAlive = bIsAlive;
 
+    if (!_bModemAlive) {
+
+        // Modem is down, the audio link as well...
+        _bModemAudioAvailable = false;
+    }
+
     // Any state change of the modem will require the changed flag to be set
-    _bPlatformStateHasChanged = true;
+    setPlatformStateEvent(EModemStateChange);
 
     updateHwMode();
 }
@@ -74,6 +93,7 @@ void CAudioPlatformState::setModemAudioAvailable(bool bIsAudioAvailable)
         return ;
     }
     _bModemAudioAvailable = bIsAudioAvailable;
+    setPlatformStateEvent(EModemAudioStatusChange);
 
     // Do not force the platform state change flag.
     // let the update Hw mode raise the flag or not
@@ -88,30 +108,67 @@ void CAudioPlatformState::setMode(int iMode)
         return ;
     }
     _iAndroidMode = iMode;
+    setPlatformStateEvent(EAndroidModeChange);
 
     updateHwMode();
+
+    checkAndSetFmRxHwMode();
 }
 
 // Set FM mode
-void CAudioPlatformState::setFmMode(int fmMode)
+void CAudioPlatformState::setFmRxMode(int iFmRxMode)
 {
-    if (fmMode == _iFmMode) {
+    if (_iFmRxMode == iFmRxMode) {
 
         return ;
     }
-    _bPlatformStateHasChanged = true;
-    _iFmMode = fmMode;
+    _iFmRxMode = iFmRxMode;
+    setPlatformStateEvent(EFmModeChange);
+
+    checkAndSetFmRxHwMode();
+}
+
+//
+// This function checks if the FM RX HW mode can be changed
+// (upon the Mode requested by the user and Android Mode),
+// changes it and returns true if it has changed.
+// Note that all request to switch off the radio must be considered
+// whatever the android mode whereas request to set the FM on will
+// only be granted in NORMAL android mode.
+//
+void CAudioPlatformState::checkAndSetFmRxHwMode()
+{
+    int bNewFmRxHwMode = AudioSystem::MODE_FM_OFF;
+
+    if (getFmRxMode() == AudioSystem::MODE_FM_ON) {
+
+        if (getMode() == AudioSystem::MODE_NORMAL) {
+
+            // Set FmRxHw mode only in NORMAL android mode
+            bNewFmRxHwMode = AudioSystem::MODE_FM_ON;
+        }
+    }
+
+    if (getFmRxHwMode() != bNewFmRxHwMode) {
+
+        ALOGD("%s: changed to %d", __FUNCTION__, bNewFmRxHwMode);
+        // The mode has changed, force the rerouting flag
+        // and request to reset PMDOWN time during the routing
+        // process to avoid glitches
+        _iFmRxHwMode = bNewFmRxHwMode;
+        setPlatformStateEvent(EFmHwModeChange);
+    }
 }
 
 // Set TTY mode
-void CAudioPlatformState::setTtyMode(ETty iTtyMode)
+void CAudioPlatformState::setTtyDirection(int iTtyDirection)
 {
-    if (iTtyMode == _iTtyMode) {
+    if (iTtyDirection == _iTtyDirection) {
 
         return ;
     }
-    _bPlatformStateHasChanged = true;
-    _iTtyMode = iTtyMode;
+    setPlatformStateEvent(ETtyDirectionChange);
+    _iTtyDirection = iTtyDirection;
 }
 
 // Set HAC mode
@@ -121,7 +178,7 @@ void CAudioPlatformState::setHacMode(bool bEnabled)
 
         return ;
     }
-    _bPlatformStateHasChanged = true;
+    setPlatformStateEvent(EHacModeChange);
     _bIsHacModeEnabled = bEnabled;
 }
 
@@ -131,19 +188,19 @@ void CAudioPlatformState::setBtEnabled(bool bIsBTEnabled)
 
         return ;
     }
-    _bPlatformStateHasChanged = true;
+    setPlatformStateEvent(EBtEnableChange);
     _bIsBtEnabled = bIsBTEnabled;
 }
 
 // Set BT_NREC
-void CAudioPlatformState::setBtNrEc(bool bIsAcousticSupportedOnBT)
+void CAudioPlatformState::setBtHeadsetNrEc(bool bIsAcousticSupportedOnBT)
 {
-    if (bIsAcousticSupportedOnBT == _bIsAcousticOnBTEnabled) {
+    if (bIsAcousticSupportedOnBT == _bBtHeadsetNrEcEnabled) {
 
         return ;
     }
-    _bPlatformStateHasChanged = true;
-    _bIsAcousticOnBTEnabled = bIsAcousticSupportedOnBT;
+    setPlatformStateEvent(EBtHeadsetNrEcChange);
+    _bBtHeadsetNrEcEnabled = bIsAcousticSupportedOnBT;
 }
 
 // Set devices
@@ -153,7 +210,11 @@ void CAudioPlatformState::setDevices(uint32_t devices, bool bIsOut)
 
         return ;
     }
-    _bPlatformStateHasChanged = true;
+    if (bIsOut)
+        setPlatformStateEvent(EOutputDevicesChange);
+    else
+        setPlatformStateEvent(EInputDevicesChange);
+
     _uiDevices[bIsOut] = devices;
 }
 
@@ -165,17 +226,28 @@ void CAudioPlatformState::setInputSource(uint32_t inputSource)
         return ;
     }
     _uiInputSource = inputSource;
+    setPlatformStateEvent(EInputSourceChange);
 
     updateHwMode();
+}
+
+void CAudioPlatformState::setBandType(BandType_t eBandType)
+{
+    if (_eBandType == eBandType) {
+
+        return ;
+    }
+    _eBandType = eBandType;
+    setPlatformStateEvent(EBandTypeChange);
 }
 
 void CAudioPlatformState::updateHwMode()
 {
     if (checkHwMode()) {
 
-        LOGD("%s: mode has changed to hwMode=%d", __FUNCTION__, getHwMode());
+        ALOGD("%s: mode has changed to hwMode=%d", __FUNCTION__, getHwMode());
 
-        _bPlatformStateHasChanged = true;
+        setPlatformStateEvent(EHwModeChange);
     }
 }
 
@@ -189,9 +261,10 @@ void CAudioPlatformState::updateHwMode()
 //
 bool CAudioPlatformState::checkHwMode()
 {
-    LOGD("%s", __FUNCTION__);
+    ALOGD("%s", __FUNCTION__);
 
     int tmpHwMode = _iAndroidMode;
+    bool bHwModeHasChanged = false;
 
     switch(_iAndroidMode) {
 
@@ -200,10 +273,6 @@ bool CAudioPlatformState::checkHwMode()
 
     case AudioSystem::MODE_RINGTONE:
 
-        //            if (isModemAudioAvailable()) {
-
-        //                tmpHwMode = AudioSystem::MODE_NORMAL;
-        //            }
         break;
 
     case AudioSystem::MODE_IN_CALL:
@@ -237,19 +306,35 @@ bool CAudioPlatformState::checkHwMode()
        //     CVolumeKeys::wakeupDisable();
         }
 
-        return true;
+        bHwModeHasChanged = true;
     }
-    return false;
+    return bHwModeHasChanged;
 }
 
-void CAudioPlatformState::clearPlatformState()
+void CAudioPlatformState::clearPlatformStateEvents()
 {
-    _bPlatformStateHasChanged = false;
+    _uiPlatformEventChanged = 0;
 }
 
-bool CAudioPlatformState::hasActiveStream(bool bIsOut)
+void CAudioPlatformState::enableVolumeKeys(bool bEnable)
 {
-    return _pAudioRouteManager->hasActiveStream(bIsOut);
+    if (bEnable) {
+
+        _iVolumeKeysRefCount += 1;
+    } else {
+
+        _iVolumeKeysRefCount -= 1;
+    }
+    assert(_iVolumeKeysRefCount >= 0);
+
+    if (!_iVolumeKeysRefCount == 1) {
+
+        CVolumeKeys::wakeupDisable();
+
+    } else if (_iVolumeKeysRefCount == 1) {
+
+        CVolumeKeys::wakeupEnable();
+    }
 }
 
 }       // namespace android

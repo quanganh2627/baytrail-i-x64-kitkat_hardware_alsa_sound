@@ -17,23 +17,67 @@
 
 #pragma once
 
-// TBR
-#include "vpc_hardware.h"
-// End of TBR
-
 #define INPUT        false
 #define OUTPUT       true
+#define ADD_EVENT(eventName) E##eventName = 1 << eventName
 
 namespace android_audio_legacy
 {
 
-enum ETty { TTY_OFF, TTY_FULL, TTY_VCO, TTY_HCO };
+#define TTY_DOWNLINK    0x1
+#define TTY_UPLINK      0x2
 
 class CAudioRouteManager;
 
 class CAudioPlatformState
 {
 public:
+    enum EventName_t {
+        AndroidModeChange,
+        HwModeChange,
+        FmModeChange,
+        FmHwModeChange,
+        ModemStateChange,
+        ModemAudioStatusChange,
+        HacModeChange,
+        TtyDirectionChange,
+        BtEnableChange,
+        BtHeadsetNrEcChange,
+        BandTypeChange,
+        InputDevicesChange,
+        OutputDevicesChange,
+        InputSourceChange,
+        StreamEvent,
+
+        NbEvents
+    };
+
+
+    enum EventType_t {
+        EAllEvents                  = -1,
+        ADD_EVENT(AndroidModeChange),
+        ADD_EVENT(HwModeChange),
+        ADD_EVENT(FmModeChange),
+        ADD_EVENT(FmHwModeChange),
+        ADD_EVENT(ModemStateChange),
+        ADD_EVENT(ModemAudioStatusChange),
+        ADD_EVENT(HacModeChange),
+        ADD_EVENT(TtyDirectionChange),
+        ADD_EVENT(BtEnableChange),
+        ADD_EVENT(BtHeadsetNrEcChange),
+        ADD_EVENT(BandTypeChange),
+        ADD_EVENT(InputDevicesChange),
+        ADD_EVENT(OutputDevicesChange),
+        ADD_EVENT(InputSourceChange),
+        ADD_EVENT(StreamEvent)
+    };
+
+    enum BandType_t {
+        ENarrowBand,
+        EWideBand,
+
+        ENbBandType
+    };
 
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
     virtual           ~CAudioPlatformState();
@@ -57,19 +101,22 @@ public:
     int getMode() const { return _iAndroidMode; }
 
     // Set FM mode
-    void setFmMode(int fmMode);
+    void setFmRxMode(int fmMode);
 
     // Get FM mode
-    int getFmMode() const { return _iFmMode; }
+    int getFmRxMode() const { return _iFmRxMode; }
+
+    // Get FM HW mode
+    int getFmRxHwMode() const { return _iFmRxHwMode; }
 
     // Get the HW mode
     int getHwMode() const { return _iHwMode; }
 
     // Set TTY mode
-    void setTtyMode(ETty iTtyMode);
+    void setTtyDirection(int iTtyDirection);
 
     // Get TTY mode
-    int getTtyMode() const { return _iTtyMode; }
+    int getTtyDirection() const { return _iTtyDirection; }
 
     // Set HAC mode
     void setHacMode(bool bEnabled);
@@ -78,10 +125,10 @@ public:
     bool isHacEnabled() const { return _bIsHacModeEnabled; }
 
     // Set BT_NREC
-    void setBtNrEc(bool bIsAcousticSupportedOnBT);
+    void setBtHeadsetNrEc(bool bIsAcousticSupportedOnBT);
 
     // Get BT NREC
-    bool isAcousticSupportedOnBT() const { return _bIsAcousticOnBTEnabled; }
+    bool isBtHeadsetNrEcEnabled() const { return _bBtHeadsetNrEcEnabled; }
 
     // Set BT Enabled flag
     void setBtEnabled(bool bIsBTEnabled);
@@ -101,19 +148,27 @@ public:
     // Set devices
     void setInputSource(uint32_t inputSource);
 
-    void clearPlatformState();
+    void setBandType(BandType_t eBandType);
 
-    bool hasPlatformStateChanged() const { return _bPlatformStateHasChanged; }
+    BandType_t getBandType() { return _eBandType; }
+
+    void setPlatformStateEvent(int iEvent);
+
+    void clearPlatformStateEvents();
+
+    bool hasPlatformStateChanged(int iEvents = EAllEvents) const;
 
     // update the HW mode
     void updateHwMode();
 
-    bool hasActiveStream(bool bIsOut);
+    void enableVolumeKeys(bool bEnable);
 
 private:
-
     // Check if the Hw mode has changed
     bool checkHwMode();
+
+    // Check if Fm Hw mode has changed
+    void checkAndSetFmRxHwMode();
 
     static inline uint32_t popCount(uint32_t u)
     {
@@ -134,16 +189,17 @@ private:
     int _iAndroidMode;
 
     // FM mode
-    int _iFmMode;
+    int _iFmRxMode;
+    int _iFmRxHwMode;
 
     // TTY Mode
-    int _iTtyMode;
+    int _iTtyDirection;
 
     // HAC mode set
     bool _bIsHacModeEnabled;
 
     // BTNREC set
-    bool _bIsAcousticOnBTEnabled;
+    bool _bBtHeadsetNrEcEnabled;
 
     // BT Enabled flag
     bool _bIsBtEnabled;
@@ -158,7 +214,11 @@ private:
     // Hw Mode: translate the use case, indeed it implies the audio route to follow
     int32_t _iHwMode;
 
-    bool _bPlatformStateHasChanged;
+    BandType_t _eBandType;
+
+    uint32_t _uiPlatformEventChanged;
+
+    int _iVolumeKeysRefCount;
 
     CAudioRouteManager* _pAudioRouteManager;
 };

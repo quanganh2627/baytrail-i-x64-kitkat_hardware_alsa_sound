@@ -1,9 +1,38 @@
 ifeq ($(BOARD_USES_ALSA_AUDIO),true)
+ifeq ($(BOARD_USES_AUDIO_HAL_LEGACY),true)
 
 #AUDIO_POLICY_TEST := true
 #ENABLE_AUDIO_DUMP := true
 
 LOCAL_PATH := $(call my-dir)
+
+
+#PHONY PACKAGE DEFINITION#############################################
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := audio_hal_legacy
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_REQUIRED_MODULES := \
+    audio.primary.$(TARGET_DEVICE) \
+    audio_policy.$(TARGET_DEVICE) \
+    libmodem-audio-manager \
+    alsa.$(TARGET_DEVICE) \
+    vpc.$(TARGET_DEVICE) \
+    lpe.$(TARGET_DEVICE) \
+    libbluetooth-audio \
+    mediabtservice \
+
+include $(BUILD_PHONY_PACKAGE)
+
+#######################################################################
+
+include $(CLEAR_VARS)
+LOCAL_COPY_HEADERS_TO := alsa-sound
+LOCAL_COPY_HEADERS := \
+    AudioHardwareALSACommon.h
+include $(BUILD_COPY_HEADERS)
+
 include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += \
@@ -143,4 +172,5 @@ endif
 
 include $(BUILD_SHARED_LIBRARY)
 
+endif
 endif

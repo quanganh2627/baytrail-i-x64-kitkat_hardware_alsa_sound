@@ -42,6 +42,9 @@ extern "C" void destroyAudioPolicyManager(AudioPolicyInterface *interface)
     delete interface;
 }
 
+const char* const AudioPolicyManagerALSA::mFmRxAnalogSupportedPropName = "Audiocomms.FM.IsAnalog";
+const bool AudioPolicyManagerALSA::mFmRxAnalogSupportedDefaultValue = false;
+
 status_t AudioPolicyManagerALSA::setDeviceConnectionState(AudioSystem::audio_devices device,
                                                           AudioSystem::device_connection_state state,
                                                           const char *device_address)
@@ -84,6 +87,20 @@ status_t AudioPolicyManagerALSA::startOutput(audio_io_handle_t output,
     return baseClass::startOutput(output, stream, session);
 }
 
+audio_devices_t AudioPolicyManagerALSA::getDeviceForInputSource(int inputSource)
+{
+    audio_devices_t device;
+    //  We should be able to use Skype during a CSV call
+    if ((inputSource == AUDIO_SOURCE_MIC) && (mPhoneState == AudioSystem::MODE_IN_CALL)) {
+        LOGV("getDeviceForInputSource() change device from mic to uplink voice in CSV call");
+        device = AUDIO_DEVICE_IN_VOICE_CALL;
+    } else {
+        device = baseClass::getDeviceForInputSource(inputSource);
+    }
+    LOGV("getDeviceForInputSource()input source %d, device %08x", inputSource, device);
+    return device;
+}
+
 audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                                                    uint32_t samplingRate,
                                                    uint32_t format,
@@ -103,7 +120,8 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
         AudioInputDescriptor *inputDesc = mInputs.valueFor(activeInput);
 
         uint32_t deviceMediaRecMic = (AudioSystem::DEVICE_IN_BUILTIN_MIC | AudioSystem::DEVICE_IN_BACK_MIC |
-                                      AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET);
+                                      AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET |
+                                      AudioSystem::DEVICE_IN_FM_RECORD);
 
         // If an application uses already an input and the requested input is from a VoIP call
         // or a CSV call record, stop the current active input to enable requested input start.
@@ -113,6 +131,30 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
             (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION))) {
               LOGI("Stop current active input %d because of higher priority input %d !", inputDesc->mInputSource, inputSource);
               baseClass::stopInput(activeInput);
+        }
+        else if ((AUDIO_SOURCE_CAMCORDER == inputDesc->mInputSource) &&
+                 (AUDIO_SOURCE_MIC == inputSource)) {
+            // Create a concurrent input and let upper layers close the active camcorder input
+            LOGI("Grant request for input %d creation while current camcorder input", inputSource);
+        }
+        else if ((inputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                 (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
+            LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
+        }
+        else if ((inputDesc->mInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                 (inputSource == AUDIO_SOURCE_VOICE_RECOGNITION)){
+            LOGI("Voice recognition requested during VoIP call");
+        }
+        else if ((inputDesc->mInputSource == AUDIO_SOURCE_MIC) &&
+                 (inputSource == AUDIO_SOURCE_VOICE_RECOGNITION)){
+            LOGI("Voice recognition requested while current MIC input source");
+        }
+        // Force use of built-in mic in case of force use of the speaker in VoIP and wsHS connected
+        else if ((inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                 (inputDesc->mDevice & AudioSystem::DEVICE_IN_WIRED_HEADSET) &&
+                 (getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_SPEAKER)) {
+            device = AUDIO_DEVICE_IN_BUILTIN_MIC;
+            LOGI("%s: Changing input device to built-in mic as force use to speaker requested with wsHS connected", __FUNCTION__);
         }
         else {
             LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
@@ -178,6 +220,50 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     return input;
 }
 
+status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
+{
+    ALOGV("startInput() input %d", input);
+    ssize_t index = mInputs.indexOfKey(input);
+    if (index < 0) {
+        ALOGW("startInput() unknow input %d", input);
+        return BAD_VALUE;
+    }
+    AudioInputDescriptor *inputDesc = mInputs.valueAt(index);
+
+#ifdef AUDIO_POLICY_TEST
+    if (mTestInput == 0)
+#endif //AUDIO_POLICY_TEST
+    {
+        // refuse 2 active AudioRecord clients at the same time
+        // except in the case of incoming VOIP call during voice call recording
+        audio_io_handle_t activeInput = getActiveInput();
+        if (activeInput != 0) {
+            AudioInputDescriptor *activeInputDesc = mInputs.valueFor(activeInput);
+            if ((inputDesc->mInputSource & AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                (activeInputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                ((activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_UPLINK) ||
+                 (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_DOWNLINK) ||
+                 (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_CALL))){
+                ALOGI("startInput() input %d: VCR input %d already started", input, activeInput);
+            } else {
+                ALOGI("startInput() input %d failed: other input already started", input);
+                return INVALID_OPERATION;
+            }
+        }
+    }
+
+    AudioParameter param = AudioParameter();
+    param.addInt(String8(AudioParameter::keyRouting), (int)inputDesc->mDevice);
+
+    param.addInt(String8(AudioParameter::keyInputSource), (int)inputDesc->mInputSource);
+    ALOGV("startInput() input source = %d", inputDesc->mInputSource);
+
+    mpClientInterface->setParameters(input, param.toString());
+
+    inputDesc->mRefCount = 1;
+    return NO_ERROR;
+}
+
 float AudioPolicyManagerALSA::computeVolume(int stream,
                                             int index,
                                             audio_io_handle_t output,
@@ -199,19 +285,48 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
 }
 
 
+status_t AudioPolicyManagerALSA::checkAndSetVolume(int stream,
+                                                   int index,
+                                                   audio_io_handle_t output,
+                                                   audio_devices_t device,
+                                                   int delayMs,
+                                                   bool force)
+{
+    if (mFmRxAnalogSupported){
+        //if FM is on, update FM Rx Volume
+        if(stream == AudioSystem::FM_RX){
+            float volume = computeVolume(stream, index, output, device);
+            if (volume != mOutputs.valueFor(output)->mCurVolume[stream] ||
+                    force) {
+                mOutputs.valueFor(output)->mCurVolume[stream] = volume;
+                ALOGV("checkAndSetVolume() for output %d stream %d (FM RX), volume %f, delay %d", output, stream, volume, delayMs);
+                return mpClientInterface->setFmRxVolume(volume, delayMs);
+            }
+            return NO_ERROR;
+        }
+    }
+    return baseClass::checkAndSetVolume(stream, index, output, device, delayMs, force);
+}
+
+
 audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
 {
 
     uint32_t device = 0;
 
     device = baseClass::getDeviceForStrategy(strategy, fromCache);
+    AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
+    uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
 
     switch (strategy) {
         case STRATEGY_PHONE:
             // in voice call, the ouput device can not be DGTL_DOCK_HEADSET, AUX_DIGITAL (i.e. HDMI) or  ANLG_DOCK_HEADSET
-            if ( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL) ||
+            if ( ( device == AudioSystem::DEVICE_OUT_AUX_DIGITAL)       ||
                  ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
-                 ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ) {
+                 ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ||
+                 ( device == AudioSystem::DEVICE_OUT_WIDI)              ||
+                 ( device == AUDIO_DEVICE_OUT_USB_ACCESSORY)            ||
+                 ( device == AUDIO_DEVICE_OUT_USB_DEVICE) ) {
                 uint32_t forceUseInComm =  getForceUse(AudioSystem::FOR_COMMUNICATION);
                 switch (forceUseInComm) {
 
@@ -236,6 +351,35 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                 }
             }
             break;
+        case STRATEGY_MEDIA:
+            // We want to supersede the default policy when we are in call, so that we can change the volume
+            // settings for MEDIA streams when in call, on BT SCO, SPEAKER or EARPIECE.
+            if (isInCall()){
+                // Retrieve the device in use for the call
+                AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
+                uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
+                if ((currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
+                    || (currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET)
+                    || (currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO)
+                    || (currentDevice == AudioSystem::DEVICE_OUT_SPEAKER)
+                    || (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE)){
+                    ALOGV("%s- superseding STRATEGY_MEDIA policy while in call from device 0x%x to 0x%x", __FUNCTION__, device, currentDevice);
+                    device = currentDevice;
+                }
+            }
+            break;
+        case STRATEGY_ENFORCED_AUDIBLE:
+                if ( isInCall() && !mStreams[AUDIO_STREAM_ENFORCED_AUDIBLE].mCanBeMuted
+                     && ((getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_BT_SCO)
+                         || (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE)) ) {
+                        // Set 2 devices for ALSA module : so the mode will be set as normal
+                        //  - the BT SCO will be unrouted for instance during a shutter sound
+                        //  during CSV call.
+                        //  - the earpiece is not handled by the base class on MEDIA fall through case.
+                        ALOGD("%s- current device(0x%x) and ihf are concerned by Enforced Audible strategy", __FUNCTION__, currentDevice);
+                        device = (mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER) | currentDevice;
+                }
+            break;
 
        default:
          // do nothing
@@ -250,6 +394,7 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
 AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface)
     : baseClass(clientInterface)
 {
+    mFmRxAnalogSupported = TProperty<bool>(mFmRxAnalogSupportedPropName, mFmRxAnalogSupportedDefaultValue);
     // check if earpiece device is supported
 //    updateDeviceSupport("audiocomms.dev.earpiece.present", AUDIO_DEVICE_OUT_EARPIECE);
 //    // check if back mic device is supported

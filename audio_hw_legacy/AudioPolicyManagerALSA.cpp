@@ -149,6 +149,13 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                  (inputSource == AUDIO_SOURCE_VOICE_RECOGNITION)){
             LOGI("Voice recognition requested while current MIC input source");
         }
+        // Force use of built-in mic in case of force use of the speaker in VoIP and wsHS connected
+        else if ((inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                 (inputDesc->mDevice & AudioSystem::DEVICE_IN_WIRED_HEADSET) &&
+                 (getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_SPEAKER)) {
+            device = (audio_devices_t)(AudioSystem::DEVICE_IN_BUILTIN_MIC);
+            LOGI("Changing input device to built-in mic as force use to speaker requested with wsHS connected");
+        }
         else {
             LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
             return 0;

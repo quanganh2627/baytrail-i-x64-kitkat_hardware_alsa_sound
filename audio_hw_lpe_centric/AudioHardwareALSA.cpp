@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <string>
+#include <cutils/properties.h>
+
 
 #ifdef USE_FRAMEWORK_GTI
 #include "gtiservice/GtiService.h"
@@ -41,14 +44,17 @@
 #include "AudioStreamInALSA.h"
 #include "AudioStreamOutALSA.h"
 #include "ALSAStreamOps.h"
-#include "AudioPlatformHardware.h"
 
 #include "AudioRouteManager.h"
-#include "AudioRoute.h"
 #include "AudioAutoRoutingLock.h"
 #include "AudioConversion.h"
 
 #define DEFAULTGAIN "1.0"
+
+#define VOICE_GAIN_MAX      (88)
+#define VOICE_GAIN_MIN      (40)
+#define VOICE_GAIN_OFFSET   (40)
+#define VOICE_GAIN_SLOPE    (48)
 
 namespace android_audio_legacy
 {
@@ -62,28 +68,24 @@ AudioHardwareInterface *createAudioHardware(void) {
 }
 }         // extern "C"
 
-const char* AudioHardwareALSA::gpcVoiceVolume = "/Audio/IMC/SOUND_CARD/PORTS/I2S1/TX/VOLUME/LEVEL"; // Type = unsigned integer
-
 // Default sampling rate in case the value is not found in xml file
 const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 48000;
 const uint32_t AudioHardwareALSA::DEFAULT_CHANNEL_COUNT = 2;
 const uint32_t AudioHardwareALSA::DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT;
 
-// Default clock selection
-const uint32_t AudioHardwareALSA::DEFAULT_IFX_CLK_SELECT = -1;
-
 // HAL modules table
 const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardwareALSA::NB_HW_DEV]= {
     { TINYALSA_HARDWARE_MODULE_ID, TINYALSA_HARDWARE_NAME },
-//    { ACOUSTICS_HARDWARE_MODULE_ID, ACOUSTICS_HARDWARE_NAME },
-//    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_MODULE_ID },
+    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_NAME },
 };
 
 /// Android Properties
 
-// Property name indicating if platform embeds a modem chip
-const char* const AudioHardwareALSA::mModemEmbeddedPropName = "Audiocomms.Modem.IsPresent";
-const bool AudioHardwareALSA::mModemEmbeddedDefaultValue = true;
+const char* const AudioHardwareALSA::mFmSupportedPropName = "Audiocomms.FM.Supported";
+const bool AudioHardwareALSA::mFmSupportedDefaultValue = false;
+
+const char* const AudioHardwareALSA::mFmIsAnalogPropName = "Audiocomms.FM.IsAnalog";
+const bool AudioHardwareALSA::mFmIsAnalogDefaultValue = false;
 
 // ----------------------------------------------------------------------------
 
@@ -131,12 +133,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
     GtiService::Start();
 #endif
 
-    /// Creates the routes and adds them to the route mgr
-    for (int rte = 0; rte < NB_ROUTE; rte++) {
-
-        mRouteMgr->addRoute(audio_routes[rte]);
-    }
-
     // HW Modules initialisation
     hw_module_t* module;
     hw_device_t* device;
@@ -163,13 +159,17 @@ AudioHardwareALSA::AudioHardwareALSA() :
         getAlsaHwDevice()->init(getAlsaHwDevice());
     }
 
-#ifdef WITH_FM_SUPPORT
-    if (getFmHwDevice()) {
-        getFmHwDevice()->init();
-    } else {
-        LOGE("Cannot load FM HW Module");
+    bool bFmSupported = TProperty<bool>(mFmSupportedPropName, mFmSupportedDefaultValue);
+    bool bFmIsAnalog = TProperty<bool>(mFmIsAnalogPropName, mFmIsAnalogDefaultValue);
+    if (bFmSupported) {
+        if (!bFmIsAnalog) {
+            if (getFmHwDevice()) {
+                getFmHwDevice()->init();
+            } else {
+                ALOGE("Cannot load FM HW Module");
+            }
+        }
     }
-#endif
 
     // Start the route manager service
     mRouteMgr->start();
@@ -184,16 +184,9 @@ alsa_device_t* AudioHardwareALSA::getAlsaHwDevice() const
 
 fm_device_t* AudioHardwareALSA::getFmHwDevice() const
 {
-//    assert(mHwDeviceArray.size() > FM_HW_DEV);
+    assert(mHwDeviceArray.size() > FM_HW_DEV);
 
-    return NULL; //(fm_device_t *)mHwDeviceArray[FM_HW_DEV];
-}
-
-acoustic_device_t* AudioHardwareALSA::getAcousticHwDevice() const
-{
-//    assert(mHwDeviceArray.size() > ACOUSTIC_HW_DEV);
-
-    return NULL; //(acoustic_device_t *)mHwDeviceArray[ACOUSTIC_HW_DEV];
+    return (fm_device_t *)mHwDeviceArray[FM_HW_DEV];
 }
 
 AudioHardwareALSA::~AudioHardwareALSA()
@@ -221,75 +214,27 @@ status_t AudioHardwareALSA::initCheck()
         return NO_INIT;
 }
 
-
-// Default Alsa sample rate discovery
-uint32_t AudioHardwareALSA::getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const
-{
-    ALOGD("%s in", __FUNCTION__);
-
-    CParameterMgrPlatformConnector* pParameterMgrPlatformConnector = mRouteMgr->getParameterMgrPlatformConnector();
-
-    if (!pParameterMgrPlatformConnector->isStarted()) {
-
-        return uiDefaultValue;
-    }
-
-    string strError;
-    // Get handle
-    CParameterHandle* pParameterHandle = pParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
-
-    if (!pParameterHandle) {
-
-        strError = strParameterPath.c_str();
-        strError += " not found!";
-
-        ALOGE("Unable to get parameter handle: %s", strError.c_str());
-
-        ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
-
-        return uiDefaultValue;
-    }
-
-    // Retrieve value
-    uint32_t uiValue;
-
-    if ((!bSigned && !pParameterHandle->getAsInteger(uiValue, strError)) || (bSigned && !pParameterHandle->getAsSignedInteger((int32_t&)uiValue, strError))) {
-
-        ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
-
-        ALOGD("%s returning %d", __FUNCTION__, uiDefaultValue);
-
-        // Remove handle
-        delete pParameterHandle;
-
-        return uiDefaultValue;
-    }
-
-    // Remove handle
-    delete pParameterHandle;
-
-    ALOGD("%s returning %d", __FUNCTION__, uiValue);
-
-    return uiValue;
-}
-
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
     // The voice volume is used by the VOICE_CALL audio stream.
     CAudioAutoRoutingLock lock(this);
 
     int gain = 0;
-    int range = 48;
+    int range = VOICE_GAIN_SLOPE;
 
-    gain = volume * range + 40;
-    gain = (gain >= 88) ? 88 : gain;
-    gain = (gain <= 40) ? 40 : gain;
+    gain = volume * range + VOICE_GAIN_OFFSET;
+    gain = (gain >= VOICE_GAIN_MAX) ? VOICE_GAIN_MAX : gain;
+    gain = (gain <= VOICE_GAIN_MIN) ? VOICE_GAIN_MIN : gain;
 
-    return mRouteMgr->setIntegerParameterValue(gpcVoiceVolume, false, gain);
+    return mRouteMgr->setVoiceVolume(gain);
 }
 
 status_t AudioHardwareALSA::setFmRxVolume(float volume)
 {
+    ALOGD("%s", __FUNCTION__);
+
+    mRouteMgr->setFmRxVolume(volume);
+
     return NO_ERROR;
 }
 
@@ -297,23 +242,18 @@ status_t AudioHardwareALSA::setMasterVolume(float volume)
 {
     CAudioAutoRoutingLock lock(this);
 
-    // Through PFW ?
+    ALOGW("%s: missing implementation", __FUNCTION__);
 
-    return INVALID_OPERATION;
+    return NO_ERROR;
 }
 
 status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
 {
-    CAudioAutoRoutingLock lock(this);
-//    AutoW lock(mLock);
-
-    LOGD("%s: in", __FUNCTION__);
+    ALOGD("%s: in", __FUNCTION__);
 
     if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS) {
 
-        mRouteMgr->reconsiderRouting();
-
-        getFmHwDevice()->set_state(fm_mode);
+        mRouteMgr->setFmRxMode(fm_mode);
     }
 
     return NO_ERROR;
@@ -334,34 +274,32 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     if ((devices & (devices - 1)) || (!(devices & AudioSystem::DEVICE_OUT_ALL))) {
 
         ALOGD("%s: called with bad devices", __FUNCTION__);
-        goto finish;
+        if (status) *status = err;
+        return out;
     }
 
     if (!getAlsaHwDevice()) {
 
         ALOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
         err = DEAD_OBJECT;
-        goto finish;
+        if (status) *status = DEAD_OBJECT;
+        return out;
     }
 
     out = new AudioStreamOutALSA(this);
 
     err = out->set(format, channels, sampleRate);
-    if (err) {
+    if (err != NO_ERROR) {
 
         ALOGE("%s: set error.", __FUNCTION__);
-        goto finish;
-    }
-
-    // Informs the route manager of stream creation
-    mRouteMgr->addStream(out);
-
-finish:
-    if (err) {
-
         delete out;
         out = NULL;
+    } else {
+
+        // Informs the route manager of stream creation
+        mRouteMgr->addStream(out);
     }
+
     if (status) *status = err;
 
     ALOGD("%s: OUT", __FUNCTION__);
@@ -375,6 +313,7 @@ AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
     mRouteMgr->removeStream((AudioStreamOutALSA* )out);
 
     delete out;
+    out = NULL;
 }
 
 AudioStreamIn *
@@ -389,48 +328,36 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t err = BAD_VALUE;
     AudioStreamInALSA* in = NULL;
-    float fDefaultGain = 0.0;
 
     mMicMuteState = false;
-//    fDefaultGain = TProperty<float>(mDefaultGainPropName, mDefaultGainValue);
 
     if ((devices & (devices - 1)) || (!(devices & AudioSystem::DEVICE_IN_ALL))) {
 
-        goto finish;
+        if (status) *status = err;
+        return in;
     }
 
     if (!getAlsaHwDevice()) {
 
         ALOGE("%s: Open error, alsa hw device not valid", __FUNCTION__);
-        err = DEAD_OBJECT;
-        goto finish;
+        if (status) *status = DEAD_OBJECT;
+        return in;
     }
 
     in = new AudioStreamInALSA(this, acoustics);
-
-//    err = in->setGain(fDefaultGain);
-//    if (err != NO_ERROR) {
-
-//        ALOGE("%s: setGain", __FUNCTION__);
-//        goto finish;
-//    }
 
     err = in->set(format, channels, sampleRate);
     if (err != NO_ERROR) {
 
         ALOGE("%s: Set err", __FUNCTION__);
-        goto finish;
-    }
-
-    // Informs the route manager of stream creation
-    mRouteMgr->addStream(in);
-
-finish:
-    if (err) {
-
         delete in;
         in = NULL;
+    } else {
+
+        // Informs the route manager of stream creation
+        mRouteMgr->addStream(in);
     }
+
     if (status) *status = err;
 
     ALOGD("%s: OUT", __FUNCTION__);
@@ -443,6 +370,9 @@ AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
     mMicMuteState = false;
     // Informs the route manager of stream destruction
     mRouteMgr->removeStream((AudioStreamInALSA* )in);
+
+    delete in;
+    in = NULL;
 }
 
 status_t AudioHardwareALSA::setMicMute(bool state)

@@ -21,8 +21,10 @@
 
 using namespace std;
 
+#define INPUT        false
+#define OUTPUT       true
+
 #include <hardware_legacy/AudioHardwareBase.h>
-#include "AudioPlatformState.h"
 
 namespace android_audio_legacy
 {
@@ -36,13 +38,16 @@ public:
 
     enum RouteType {
         EStreamRoute,
-        EExternalRoute
+        EExternalRoute,
+
+        ENbRouteType
     };
 
-    CAudioRoute(uint32_t routeId, const string &strName, CAudioPlatformState *pPlatformState);
+    CAudioRoute(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState);
     virtual           ~CAudioRoute();
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut) = 0;
+    // From AudioRouteManager
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const;
 
     // From RouteManager
     virtual void resetAvailability();
@@ -51,11 +56,13 @@ public:
     virtual void setBorrowed(bool bIsOut);
 
     // From RouteManager
-    virtual bool currentlyBorrowed(bool bIsOut);
+    virtual bool currentlyBorrowed(bool bIsOut) const;
 
-    virtual bool willBeBorrowed(bool bIsOut);
+    virtual bool willBeBorrowed(bool bIsOut) const;
 
     const string& getName() const { return _strName; }
+
+    uint32_t getSlaveRoute() const { return _uiSlaveRoutes; }
 
     virtual RouteType getRouteType() const = 0;
 
@@ -70,7 +77,7 @@ public:
     // Filters the unroute/route
     // Returns true if a route is currently borrowed, will be borrowed
     // after reconsiderRouting but needs to be reconfigured
-    virtual bool needReconfiguration(bool bIsOut);
+    virtual bool needReconfiguration(bool bIsOut) const;
 
 protected:
     CAudioRoute(const CAudioRoute &);
@@ -87,6 +94,16 @@ protected:
     bool _bWillBeBorrowed[2];
 
 public:
+    uint32_t _uiApplicableDevices[2];
+
+    uint32_t _uiApplicableModes[2];
+
+    uint32_t _uiApplicableFlags[2];
+
+    uint32_t _uiApplicableStreamType[2];
+
+    uint32_t _uiSlaveRoutes;
+
     CAudioPlatformState* _pPlatformState;
 };
 // ----------------------------------------------------------------------------

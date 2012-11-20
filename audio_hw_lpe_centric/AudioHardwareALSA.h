@@ -27,7 +27,6 @@
 #include <tinyalsa/asoundlib.h>
 
 #include <hardware/hardware.h>
-#include <vpc_hardware.h>
 #include <fm_module.h>
 
 #include <utils/threads.h>
@@ -148,7 +147,6 @@ protected:
 
     // Cast Hw device from mHwDeviceArray to the corresponding hw device type
     alsa_device_t* getAlsaHwDevice() const;
-
     fm_device_t* getFmHwDevice() const;
     acoustic_device_t* getAcousticHwDevice() const;
 
@@ -172,15 +170,11 @@ private:
     // Unlock the routing
     void unlockRouting();
 
-    // unsigned integer parameter value retrieval
-    uint32_t getIntegerParameterValue(const string& strParameterPath, bool bSigned, uint32_t uiDefaultValue) const;
-
     bool mMicMuteState;
 
     enum HW_DEVICE {
         ALSA_HW_DEV = 0,
-//        ACOUSTIC_HW_DEV,
-//        FM_HW_DEV,
+        FM_HW_DEV,
         NB_HW_DEV
     };
 
@@ -191,36 +185,18 @@ private:
 
     static const hw_module hw_module_list[NB_HW_DEV];
 
-        // Defines tuning parameters in PFW XML config files and default values
-        // ALSA PLATFORM CONFIGURATION
-        enum ALSA_CONF_DIRECTION {
-                ALSA_CONF_DIRECTION_IN,
-                ALSA_CONF_DIRECTION_OUT,
-
-                ALSA_CONF_NB_DIRECTIONS
-        };
-    static const char* const gapcDefaultSampleRates[ALSA_CONF_NB_DIRECTIONS];
-    static const char* gpcVoiceVolume;
     static const uint32_t DEFAULT_SAMPLE_RATE;
     static const uint32_t DEFAULT_CHANNEL_COUNT;
     static const uint32_t DEFAULT_FORMAT;
-
-        // MODEM I2S PORTS
-        enum IFX_IS2S_PORT {
-                IFX_I2S1_PORT,
-                IFX_I2S2_PORT,
-
-                IFX_NB_I2S_PORT
-        };
-    static const char* const gapcModemPortClockSelection[IFX_NB_I2S_PORT];
-    static const uint32_t DEFAULT_IFX_CLK_SELECT;
 
     static const char* const mDefaultGainPropName;
     static const float mDefaultGainValue;
     static const char* const mAudienceIsPresentPropName;
     static const bool mAudienceIsPresentDefaultValue;
-    static const char* const mModemEmbeddedPropName;
-    static const bool mModemEmbeddedDefaultValue;
+    static const char* const mFmSupportedPropName;
+    static const bool mFmSupportedDefaultValue;
+    static const char* const mFmIsAnalogPropName;
+    static const bool mFmIsAnalogDefaultValue;
 
 private:
     CAudioRouteManager* mRouteMgr;

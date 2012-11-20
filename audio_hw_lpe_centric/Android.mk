@@ -1,9 +1,32 @@
 ifeq ($(BOARD_USES_ALSA_AUDIO),true)
+ifeq ($(BOARD_USES_AUDIO_HAL_LPE_CENTRIC),true)
 
 #AUDIO_POLICY_TEST := true
 #ENABLE_AUDIO_DUMP := true
-
 LOCAL_PATH := $(call my-dir)
+
+#PHONY PACKAGE DEFINITION#############################################
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := audio_hal_lpe_centric
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_REQUIRED_MODULES := \
+    audio.primary.$(TARGET_DEVICE) \
+    audio_policy.$(TARGET_DEVICE) \
+    tinyalsa.$(TARGET_DEVICE)
+
+include $(BUILD_PHONY_PACKAGE)
+
+#######################################################################
+
+include $(CLEAR_VARS)
+LOCAL_COPY_HEADERS_TO := alsa-sound
+LOCAL_COPY_HEADERS := \
+    AudioHardwareALSACommon.h
+include $(BUILD_COPY_HEADERS)
+
+
 include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += \
@@ -51,23 +74,13 @@ LOCAL_C_INCLUDES += \
     audio_route_manager/AudioPlatformState.cpp \
     audio_route_manager/AudioRouteManager.cpp \
     audio_route_manager/AudioRoute.cpp \
-    audio_route_manager/AudioRouteFactory.cpp \
     audio_route_manager/AudioStreamRoute.cpp \
-    audio_route_manager/AudioStreamRouteMedia.cpp \
-    audio_route_manager/AudioStreamRouteVoice.cpp \
     audio_route_manager/AudioExternalRoute.cpp \
-    audio_route_manager/AudioExternalRouteModemIA.cpp \
-    audio_route_manager/AudioExternalRouteBtIA.cpp \
-    audio_route_manager/AudioExternalRouteFMIA.cpp \
-    audio_route_manager/AudioExternalRouteHwCodec0IA.cpp \
-    audio_route_manager/AudioExternalRouteHwCodec1IA.cpp \
+    audio_route_manager/AudioPlatformHardware_$(TARGET_DEVICE).cpp \
+    audio_route_manager/AudioParameterHandler.cpp \
     audio_route_manager/VolumeKeys.cpp
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
-
-ifeq ($(BOARD_HAVE_AUDIENCE),true)
-    LOCAL_CFLAGS += -DCUSTOM_BOARD_WITH_AUDIENCE
-endif
 
 ifeq ($(ENABLE_AUDIO_DUMP),true)
   LOCAL_CFLAGS += -DENABLE_AUDIO_DUMP
@@ -76,14 +89,6 @@ endif
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
   LOCAL_CFLAGS += -DWITH_A2DP
-endif
-
-ifeq ($(BUILD_FM_RADIO),true)
-  LOCAL_CFLAGS += -DWITH_FM_SUPPORT
-endif
-
-ifeq ($(FM_RADIO_RX_ANALOG),true)
-  LOCAL_CFLAGS += -DFM_RX_ANALOG
 endif
 
 LOCAL_MODULE := audio.primary.$(TARGET_DEVICE)
@@ -107,10 +112,6 @@ LOCAL_SHARED_LIBRARIES := \
     libaudioresample \
     libaudioutils \
     libproperty
-
-ifeq ($(BOARD_HAVE_BLUETOOTH),true)
-#  LOCAL_SHARED_LIBRARIES += liba2dp
-endif
 
 ifeq ($(BOARD_USES_GTI_FRAMEWORK),true)
 LOCAL_C_INCLUDES += \
@@ -169,4 +170,5 @@ endif
 
 include $(BUILD_SHARED_LIBRARY)
 
+endif
 endif

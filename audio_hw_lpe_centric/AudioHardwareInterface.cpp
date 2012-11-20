@@ -161,9 +161,9 @@ status_t AudioHardwareBase::dumpState(int fd, const Vector<String16>& args)
     const size_t SIZE = 256;
     char buffer[SIZE];
     String8 result;
-    snprintf(buffer, SIZE, "AudioHardwareBase::dumpState\n");
+    snprintf(buffer, sizeof(buffer), "AudioHardwareBase::dumpState\n");
     result.append(buffer);
-    snprintf(buffer, SIZE, "\tmMode: %d\n", mMode);
+    snprintf(buffer, sizeof(buffer), "\tmMode: %d\n", mMode);
     result.append(buffer);
     ::write(fd, result.string(), result.size());
     dump(fd, args);  // Dump the state of the concrete child.

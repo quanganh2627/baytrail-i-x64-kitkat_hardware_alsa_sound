@@ -64,9 +64,12 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
     mHandle(new alsa_handle_t),
     mStandby(true),
     mDevices(0),
+    mFlags(AUDIO_OUTPUT_FLAG_NONE),
     isResetted(false),
     mCurrentRoute(NULL),
     mNewRoute(NULL),
+    mCurrentDevices(0),
+    mNewDevices(0),
     mPowerLock(false),
     mPowerLockTag(pcLockTag),
     mAudioConversion(new CAudioConversion)
@@ -87,7 +90,7 @@ ALSAStreamOps::~ALSAStreamOps()
 
 acoustic_device_t *ALSAStreamOps::acoustics()
 {
-    return mParent->getAcousticHwDevice();
+    return NULL;
 }
 
 status_t ALSAStreamOps::set(int      *format,
@@ -99,7 +102,11 @@ status_t ALSAStreamOps::set(int      *format,
     bool bad_format = false;
 
     ALOGD("%s(format:%d channels:0x%x (popCount returns %d) rate:%d)",
-         __FUNCTION__, *format, *channels, CAudioUtils::popCount(*channels), *rate);
+          __FUNCTION__,
+          (format? *format : 0),
+          (channels? *channels : 0),
+          (*channels? CAudioUtils::popCount(*channels) : 0),
+          (*rate? *rate : 0));
 
     if (channels) {
 
@@ -207,7 +214,7 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
     String8 key = String8(AudioParameter::keyRouting);
 
     if (param.get(key, value) == NO_ERROR) {
-        param.addInt(key, (int)mHandle->curDev);
+        param.addInt(key, (int)getCurrentDevice());
     }
 
     LOGV("getParameters() %s", param.toString().string());
@@ -244,27 +251,29 @@ uint32_t ALSAStreamOps::latency() const
 
 status_t ALSAStreamOps::setStandby(bool bIsSet)
 {
+    status_t status = NO_ERROR;
+
     if (bIsSet) {
         if (isStarted()) {
 
             mParent->getAlsaHwDevice()->stop(mHandle);
-            return mParent->stopStream(this);
+            status = mParent->stopStream(this);
         }
     } else {
         if (!isStarted()) {
 
             ALOGD("%s start the stream now", __FUNCTION__);
-            return mParent->startStream(this);
+            status = mParent->startStream(this);
         }
     }
-    return NO_ERROR;
+    return status;
 }
 
 //
 // Route availability for a stream means a route has been
 // associate with this stream...
 //
-bool ALSAStreamOps::routeAvailable()
+bool ALSAStreamOps::isRouteAvailable()
 {
     return !!mCurrentRoute;
 }
@@ -286,13 +295,13 @@ status_t ALSAStreamOps::doOpen()
 
     err = mParent->getAlsaHwDevice()->open(mHandle,
                                            mNewRoute->getCardId(),
-                                           mNewRoute->getPcmDevice(isOut()),
+                                           mNewRoute->getPcmDeviceId(isOut()),
                                            mNewRoute->getPcmConfig(isOut()));
     if (err != NO_ERROR) {
 
         ALOGE("%s: Cannot open tinyalsa (%d,%d) device for %s stream", __FUNCTION__,
                                                                        mNewRoute->getCardId(),
-                                                                       mNewRoute->getPcmDevice(isOut()),
+                                                                       mNewRoute->getPcmDeviceId(isOut()),
                                                                        isOut()? "output" : "input");
 
         goto fail_open;
@@ -311,7 +320,7 @@ status_t ALSAStreamOps::doOpen()
     err = configureAudioConversion(ssSrc, ssDst);
     if (err != NO_ERROR) {
 
-        ALOGE("%s: could not initialiase suitable audio conversion chain (err=%d)", __FUNCTION__, err);
+        ALOGE("%s: could not initialize suitable audio conversion chain (err=%d)", __FUNCTION__, err);
         goto fail_open;
     }
 
@@ -484,29 +493,19 @@ void ALSAStreamOps::resetRoute()
     mNewRoute = NULL;
 }
 
-uint32_t ALSAStreamOps::getNewDevice()
+void ALSAStreamOps::setNewDevice(uint32_t uiNewDevice)
 {
-    return mHandle->devices;
+    mNewDevices = uiNewDevice;
 }
 
-void ALSAStreamOps::setNewDevice(uint32_t newDevice)
+void ALSAStreamOps::setCurrentDevice(uint32_t uiCurrentDevice)
 {
-    mHandle->devices = newDevice;
+    mCurrentDevices = uiCurrentDevice;
 }
 
-uint32_t ALSAStreamOps::getCurrentDevice()
+void ALSAStreamOps::setFlags(audio_output_flags_t uiFlags)
 {
-    return mHandle->curDev;
-}
-
-int ALSAStreamOps::getNewMode()
-{
-    return mHandle->curMode;
-}
-
-void ALSAStreamOps::setNewMode(int newMode)
-{
-    mHandle->curMode = newMode;
+    mFlags = uiFlags;
 }
 
 //

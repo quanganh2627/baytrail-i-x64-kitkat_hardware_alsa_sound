@@ -28,6 +28,8 @@ public:
         return u;
     }
 
+    static inline uint32_t convertUsecToMsec(uint32_t uiTimeInUsec) { return ((uiTimeInUsec + 999) / 1000); }
+
     static uint32_t alignOn16(uint32_t u);
 
     static ssize_t convertSrcToDstInBytes(ssize_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst);

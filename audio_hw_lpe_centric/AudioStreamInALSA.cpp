@@ -64,14 +64,12 @@ AudioStreamInALSA::~AudioStreamInALSA()
 
 status_t AudioStreamInALSA::setGain(float gain)
 {
-//    return mixer() ? mixer()->setMasterGain(gain) : (status_t)NO_INIT;
-    return NO_INIT;
+    return NO_ERROR;
 }
 
 size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
 {
-    // Simulate audio input timing and send zeroed buffer
-    usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
+    // Send zeroed buffer
     memset(buffer, 0, bytes);
     mStandby = false;
     return bytes;
@@ -114,7 +112,7 @@ ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
         // TODO: Shall we try some recover procedure???
         //
         ALOGE("%s: read error: requested %ld (bytes=%ld)frames %s", __FUNCTION__, frames, mHwSampleSpec.convertFramesToBytes(frames), pcm_get_error(mHandle->handle));
-        return frames;//ret;
+        return ret;
     }
 
     return frames;
@@ -143,18 +141,15 @@ ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
 
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
-//    AutoR lock(mParent->mLock);
-
     acquirePowerLock();
 
     ALSAStreamOps::setStandby(false);
 
     // DONOT take routing lock anymore on MRFLD.
     // TODO: shall we need a lock within streams?
-    // CAudioAutoRoutingLock lock(mParent);
 
     // Check if the audio route is available for this stream
-    if (!routeAvailable())
+    if (!isRouteAvailable())
     {
         return generateSilence(buffer, bytes);
     }
@@ -242,21 +237,9 @@ status_t AudioStreamInALSA::setAcousticParams(void *params)
 
 status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
 {
-    AudioParameter param = AudioParameter(keyValuePairs);
-    String8 key = String8(AudioParameter::keyInputSource);
-    int inputSource;
-    uint32_t sampleRate;
     status_t status;
-    vpc_band_t band;
 
     ALOGD("%s in.\n", __FUNCTION__);
-    status = param.getInt(key, inputSource);
-    if (status == NO_ERROR) {
-
-        ALOGD("%s inputSource=%d\n", __FUNCTION__, inputSource);
-        mInputSource = inputSource;
-        param.remove(key);
-    }
 
     // Give a chance to parent to handle the change
     status = mParent->setStreamParameters(this, keyValuePairs);
@@ -322,12 +305,7 @@ status_t AudioStreamInALSA::doClose()
     return base::doClose();
 }
 
-uint32_t AudioStreamInALSA::getInputSource()
-{
-    return mInputSource;
-}
-
-void AudioStreamInALSA::setInputSource(uint32_t inputSource)
+void AudioStreamInALSA::setInputSource(int inputSource)
 {
     mInputSource = inputSource;
 }

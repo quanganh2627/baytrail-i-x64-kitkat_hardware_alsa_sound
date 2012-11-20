@@ -66,13 +66,12 @@ uint32_t AudioStreamOutALSA::channels() const
 
 status_t AudioStreamOutALSA::setVolume(float left, float right)
 {
-//    return mixer()->setVolume (mHandle->curDev, left, right);
     return NO_ERROR;
 }
 
 size_t AudioStreamOutALSA::generateSilence(size_t bytes)
 {
-    ALOGD("%s: on alsa device(0x%x) in mode(0x%x)", __FUNCTION__, mHandle->curDev, mHandle->curMode);
+    ALOGD("%s: on alsa device(0x%x)", __FUNCTION__, getCurrentDevice());
 
     usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
     mStandby = false;
@@ -81,18 +80,15 @@ size_t AudioStreamOutALSA::generateSilence(size_t bytes)
 
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
-    status_t err = NO_ERROR;
-
     acquirePowerLock();
 
     ALSAStreamOps::setStandby(false);
 
     // DONOT take routing lock anymore on MRFLD.
     // TODO: shall we need a lock within streams?
-    // CAudioAutoRoutingLock lock(mParent);
 
     // Check if the audio route is available for this stream
-    if (!routeAvailable()) {
+    if (!isRouteAvailable()) {
 
         return generateSilence(bytes);
     }
@@ -151,9 +147,6 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
 
     if (ret) {
 
-        //
-        // TODO: Shall we try some recover procedure???
-        //
         ALOGE("%s: write error: %s", __FUNCTION__, pcm_get_error(mHandle->handle));
         return ret;
     }
@@ -168,36 +161,18 @@ status_t AudioStreamOutALSA::dump(int , const Vector<String16>& )
 
 status_t AudioStreamOutALSA::open(int mode)
 {
-//    AutoW lock(mParent->mLock);
-
-//    return ALSAStreamOps::open(NULL, mode);
     return ALSAStreamOps::setStandby(false);
 }
 
 status_t AudioStreamOutALSA::close()
 {
     return ALSAStreamOps::setStandby(true);
-#if 0
-    AutoW lock(mParent->mLock);
-
-    if(!mHandle->handle) {
-        ALOGD("null\n");
-    }
-    if(mHandle->handle)
-        snd_pcm_drain (mHandle->handle);
-    ALSAStreamOps::close();
-
-    releasePowerLock();
-
-    return NO_ERROR;
-#endif
 }
 
 status_t AudioStreamOutALSA::standby()
 {
     LOGD("%s", __FUNCTION__);
 
-//    status_t status = ALSAStreamOps::standby();
     status_t status = ALSAStreamOps::setStandby(true);
 
     mFrameCount = 0;
@@ -205,12 +180,9 @@ status_t AudioStreamOutALSA::standby()
     return status;
 }
 
-#define USEC_TO_MSEC(x) ((x + 999) / 1000)
-
 uint32_t AudioStreamOutALSA::latency() const
 {
     // Android wants latency in milliseconds.
-//    return USEC_TO_MSEC (mHandle->latency);
     return base::latency();
 }
 
