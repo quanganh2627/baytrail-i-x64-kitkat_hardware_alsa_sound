@@ -46,6 +46,8 @@
 
 #include "stmd.h"
 
+#define MASK_32_BITS_MSB 0x7FFFFFFF
+
 namespace android_audio_legacy
 {
 extern "C"
@@ -131,14 +133,14 @@ const uint32_t AudioHardwareALSA::mNbModeValuePairs = sizeof(AudioHardwareALSA::
 
 // Selected Input Device type
 const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSelectedInputDeviceValuePairs[] = {
-    { AudioSystem::DEVICE_IN_COMMUNICATION, "Communication" },
-    { AudioSystem::DEVICE_IN_AMBIENT, "Ambient" },
-    { AudioSystem::DEVICE_IN_BUILTIN_MIC, "Main" },
-    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET, "SCO_Headset" },
-    { AudioSystem::DEVICE_IN_WIRED_HEADSET, "Headset" },
-    { AudioSystem::DEVICE_IN_AUX_DIGITAL, "AuxDigital" },
-    { AudioSystem::DEVICE_IN_VOICE_CALL, "VoiceCall" },
-    { AudioSystem::DEVICE_IN_BACK_MIC, "Back" }
+    { AudioSystem::DEVICE_IN_COMMUNICATION & MASK_32_BITS_MSB, "Communication" },
+    { AudioSystem::DEVICE_IN_AMBIENT & MASK_32_BITS_MSB, "Ambient" },
+    { AudioSystem::DEVICE_IN_BUILTIN_MIC & MASK_32_BITS_MSB, "Main" },
+    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET & MASK_32_BITS_MSB, "SCO_Headset" },
+    { AudioSystem::DEVICE_IN_WIRED_HEADSET & MASK_32_BITS_MSB, "Headset" },
+    { AudioSystem::DEVICE_IN_AUX_DIGITAL & MASK_32_BITS_MSB, "AuxDigital" },
+    { AudioSystem::DEVICE_IN_VOICE_CALL & MASK_32_BITS_MSB, "VoiceCall" },
+    { AudioSystem::DEVICE_IN_BACK_MIC & MASK_32_BITS_MSB, "Back" }
 };
 const uint32_t AudioHardwareALSA::mNbSelectedInputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs[0]);
 
@@ -1245,7 +1247,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
             // Input devices changed
 
             // Warn PFW
-            mSelectedInputDevice->setCriterionState(devices);
+            mSelectedInputDevice->setCriterionState(devices & MASK_32_BITS_MSB);
         }
 
         std::string strError;

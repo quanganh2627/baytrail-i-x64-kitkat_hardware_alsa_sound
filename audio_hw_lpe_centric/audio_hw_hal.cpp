@@ -575,7 +575,7 @@ static int legacy_adev_open(const hw_module_t* module, const char* name,
         return -ENOMEM;
 
     ladev->device.common.tag = HARDWARE_DEVICE_TAG;
-    ladev->device.common.version = AUDIO_DEVICE_API_VERSION_1_0;
+    ladev->device.common.version = AUDIO_DEVICE_API_VERSION_2_0;
     ladev->device.common.module = const_cast<hw_module_t*>(module);
     ladev->device.common.close = legacy_adev_close;
 
