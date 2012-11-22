@@ -130,6 +130,11 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
               LOGI("Stop current active input %d because of higher priority input %d !", inputDesc->mInputSource, inputSource);
               baseClass::stopInput(activeInput);
         }
+        else if ((AUDIO_SOURCE_CAMCORDER == inputDesc->mInputSource) &&
+                 (AUDIO_SOURCE_MIC == inputSource)) {
+            // Create a concurrent input and let upper layers close the active camcorder input
+            LOGI("Grant request for input %d creation while current camcorder input", inputSource);
+        }
         else if ((inputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
                  (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
             LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
