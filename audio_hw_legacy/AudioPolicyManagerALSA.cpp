@@ -42,7 +42,7 @@ extern "C" void destroyAudioPolicyManager(AudioPolicyInterface *interface)
     delete interface;
 }
 
-const char* const AudioPolicyManagerALSA::mFmRxAnalogSupportedPropName = "Audiocomms.FM.Analog.Supported";
+const char* const AudioPolicyManagerALSA::mFmRxAnalogSupportedPropName = "Audiocomms.FM.IsAnalog";
 const bool AudioPolicyManagerALSA::mFmRxAnalogSupportedDefaultValue = false;
 
 status_t AudioPolicyManagerALSA::setDeviceConnectionState(AudioSystem::audio_devices device,
