@@ -341,19 +341,23 @@ void ALSAStreamOps::vpcRoute(uint32_t devices, int mode)
     if (mParent->getHaveAudience()) {
         // On board with Audience, both CSV and VoIP call are routed through VPC
         if (((mode == AudioSystem::MODE_IN_COMMUNICATION) || (mode == AudioSystem::MODE_IN_CALL)) &&
-                (isOut()) && mParent->getVpcHwDevice()) {
+                isOut() &&
+                mParent->getVpcHwDevice()) {
             ALOGD("%s: With Audience. current mode: MODE_IN_COMMUNICATION|MODE_IN_CALL ", __FUNCTION__);
             mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
         }
     } else {
         // On board without Audience, CSV on all accessories and VoIP on BT SCO are
         // routed through VPC
-        if ((AudioSystem::MODE_IN_CALL) && (isOut()) && mParent->getVpcHwDevice()) {
+        if ((mode == AudioSystem::MODE_IN_CALL) &&
+                isOut() &&
+                mParent->getVpcHwDevice()) {
             ALOGD("%s: No audience: Current mode MODE_IN_CALL", __FUNCTION__);
             mParent->getVpcHwDevice()->route(VPC_ROUTE_OPEN);
         } else if ((mode == AudioSystem::MODE_IN_COMMUNICATION) &&
-                  (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
-                  mParent->getVpcHwDevice()){
+                   (devices & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
+                   isOut() &&
+                   mParent->getVpcHwDevice()){
             ALOGD("%s: No audience. Current mode MODE_IN_COMMUNICATION, current device: BT", __FUNCTION__);
             mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_OPEN);
         }
@@ -365,18 +369,22 @@ void ALSAStreamOps::vpcUnroute(uint32_t curDev, int curMode)
     if (mParent->getHaveAudience()) {
         // On board with Audience, both CSV and VoIP call are unrouted through VPC
         if (((curMode == AudioSystem::MODE_IN_COMMUNICATION) || (curMode == AudioSystem::MODE_IN_CALL)) &&
-                (isOut()) && mParent->getVpcHwDevice()) {
+                isOut() &&
+                mParent->getVpcHwDevice()) {
             ALOGD("%s: With Audience. current mode: MODE_IN_COMMUNICATION|MODE_IN_CALL ", __FUNCTION__);
             mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
         }
     } else {
         // On board without Audience, CSV on all accessories and VoIP on BT SCO are
         // routed unthrough VPC
-        if ((AudioSystem::MODE_IN_CALL) && (isOut()) && mParent->getVpcHwDevice()) {
-             ALOGD("%s: No audience: Current mode MODE_IN_CALL", __FUNCTION__);
+        if ((curMode == AudioSystem::MODE_IN_CALL) &&
+                isOut() &&
+                mParent->getVpcHwDevice()) {
+            ALOGD("%s: No audience: Current mode MODE_IN_CALL", __FUNCTION__);
             mParent->getVpcHwDevice()->route(VPC_ROUTE_CLOSE);
         } else if ((curMode == AudioSystem::MODE_IN_COMMUNICATION) &&
                    (curDev & DEVICE_OUT_BLUETOOTH_SCO_ALL) &&
+                   isOut() &&
                    mParent->getVpcHwDevice()){
             ALOGD("%s: No audience. Current mode MODE_IN_COMMUNICATION, current device: BT", __FUNCTION__);
             mParent->getVpcHwDevice()->set_bt_sco_path(VPC_ROUTE_CLOSE);
