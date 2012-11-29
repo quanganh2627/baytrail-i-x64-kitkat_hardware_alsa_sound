@@ -48,8 +48,6 @@
 
 #include "stmd.h"
 
-#define MASK_32_BITS_MSB 0x7FFFFFFF
-
 namespace android_audio_legacy
 {
 extern "C"
@@ -146,14 +144,14 @@ const uint32_t AudioHardwareALSA::mNbModeValuePairs = sizeof(AudioHardwareALSA::
 
 // Selected Input Device type
 const AudioHardwareALSA::SSelectionCriterionTypeValuePair AudioHardwareALSA::mSelectedInputDeviceValuePairs[] = {
-    { AudioSystem::DEVICE_IN_COMMUNICATION & MASK_32_BITS_MSB, "Communication" },
-    { AudioSystem::DEVICE_IN_AMBIENT & MASK_32_BITS_MSB, "Ambient" },
-    { AudioSystem::DEVICE_IN_BUILTIN_MIC & MASK_32_BITS_MSB, "Main" },
-    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET & MASK_32_BITS_MSB, "SCO_Headset" },
-    { AudioSystem::DEVICE_IN_WIRED_HEADSET & MASK_32_BITS_MSB, "Headset" },
-    { AudioSystem::DEVICE_IN_AUX_DIGITAL & MASK_32_BITS_MSB, "AuxDigital" },
-    { AudioSystem::DEVICE_IN_VOICE_CALL & MASK_32_BITS_MSB, "VoiceCall" },
-    { AudioSystem::DEVICE_IN_BACK_MIC & MASK_32_BITS_MSB, "Back" }
+    { AudioSystem::DEVICE_IN_COMMUNICATION & ~AUDIO_DEVICE_BIT_IN, "Communication" },
+    { AudioSystem::DEVICE_IN_AMBIENT & ~AUDIO_DEVICE_BIT_IN, "Ambient" },
+    { AudioSystem::DEVICE_IN_BUILTIN_MIC & ~AUDIO_DEVICE_BIT_IN, "Main" },
+    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET & ~AUDIO_DEVICE_BIT_IN, "SCO_Headset" },
+    { AudioSystem::DEVICE_IN_WIRED_HEADSET & ~AUDIO_DEVICE_BIT_IN, "Headset" },
+    { AudioSystem::DEVICE_IN_AUX_DIGITAL & ~AUDIO_DEVICE_BIT_IN, "AuxDigital" },
+    { AudioSystem::DEVICE_IN_VOICE_CALL & ~AUDIO_DEVICE_BIT_IN, "VoiceCall" },
+    { AudioSystem::DEVICE_IN_BACK_MIC & ~AUDIO_DEVICE_BIT_IN, "Back" }
 };
 const uint32_t AudioHardwareALSA::mNbSelectedInputDeviceValuePairs = sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs)/sizeof(AudioHardwareALSA::mSelectedInputDeviceValuePairs[0]);
 
@@ -740,7 +738,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     AudioStreamOutALSA* out = 0;
     alsa_handle_t* pHandle = NULL;
 
-    if ((devices & (devices - 1)) || (!devices & AudioSystem::DEVICE_OUT_ALL)) {
+    if (!audio_is_output_device(devices)) {
 
         ALOGD("%s: called with bad devices", __FUNCTION__);
         goto finish;
@@ -847,7 +845,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
     mMicMuteState = false;
     fDefaultGain = TProperty<float>(mDefaultGainPropName, mDefaultGainValue);
 
-    if ((devices & (devices - 1)) || (!devices & AudioSystem::DEVICE_IN_ALL)) {
+    if (!audio_is_input_device(devices)) {
 
         goto finish;
     }
@@ -1278,7 +1276,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
             // Input devices changed
 
             // Warn PFW
-            mSelectedInputDevice->setCriterionState(devices & MASK_32_BITS_MSB);
+            mSelectedInputDevice->setCriterionState(devices & ~AUDIO_DEVICE_BIT_IN);
         }
 
         std::string strError;
