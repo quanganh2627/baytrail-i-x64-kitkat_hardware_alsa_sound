@@ -2138,36 +2138,41 @@ status_t CAudioRouteManager::setFmRxVolume(float volume)
     float volumeLevels[FM_RX_STREAM_MAX_VOLUME]={0.001, 0.003, 0.005, 0.011, 0.015, 0.024, 0.04, 0.06, 0.09, 0.15, 0.2, 0.3, 0.4, 0.6, 0.8};
     uint32_t integerVolume = 0;
 
-    while ((integerVolume < FM_RX_STREAM_MAX_VOLUME) && (volume > volumeLevels[integerVolume]))
-    {
-        integerVolume++;
-    }
-
     AutoW lock(mLock);
-    // update volumes only if FM is ON (else apply 0)
-    if (_pPlatformState->getFmRxHwMode() == AudioSystem::MODE_FM_ON) {
-        //if framework forces device on speaker
+
+    // Update volume only if FM is ON and analog
+    if ((_pPlatformState->getFmRxHwMode() == AudioSystem::MODE_FM_ON) && (_bFmIsAnalog)) {
+
+        while ((integerVolume < FM_RX_STREAM_MAX_VOLUME) && (volume > volumeLevels[integerVolume]))
+        {
+            integerVolume++;
+        }
+
+        // Framework forces speaker use
         if (_pPlatformState->getDevices(OUTPUT) == AudioSystem::DEVICE_OUT_SPEAKER) {
             headsetVolume = (uint32_t) (0);
             speakerVolume = (uint32_t) (integerVolume * _uiFmRxSpeakerMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
         }
-        //else: use wired accessory for FM
+        // Else use wired accessory for FM
         else if ((_pPlatformState->getDevices(OUTPUT) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) || (_pPlatformState->getDevices(OUTPUT) & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)) {
             headsetVolume = (uint32_t) (integerVolume * _uiFmRxHeadsetMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
             speakerVolume = (uint32_t) 0;
         }
+
+        ALOGV("%s: FM Rx volume applied on speaker %d and on headset %d", __FUNCTION__, speakerVolume, headsetVolume);
+        //apply calculated volumes into audio codec
+        //left and right channels of stereo headset - only one value for speaker (mono speaker)
+        pfwVolumeArray.push_back(headsetVolume);
+        pfwVolumeArray.push_back(headsetVolume);
+
+        if((setIntegerArrayParameterValue(gapcLineInToHeadsetLineVolume, pfwVolumeArray) != NO_ERROR) ||
+           (setIntegerParameterValue(gapcLineInToSpeakerLineVolume, (uint32_t)speakerVolume) != NO_ERROR) ||
+           (setIntegerParameterValue(gapcLineInToEarSpeakerLineVolume, (uint32_t)speakerVolume)!= NO_ERROR)) {
+            return INVALID_OPERATION;
+        }
     }
-    ALOGV("%s: FM Rx volume applied on speaker %d and on headset %d", __FUNCTION__, speakerVolume, headsetVolume);
-    //apply calculated volumes into audio codec
-    //left and right channels of stereo headset - only one value for speaker (mono speaker)
-    pfwVolumeArray.push_back(headsetVolume);
-    pfwVolumeArray.push_back(headsetVolume);
-    if((setIntegerArrayParameterValue(gapcLineInToHeadsetLineVolume, pfwVolumeArray) != NO_ERROR) ||
-            (setIntegerParameterValue(gapcLineInToSpeakerLineVolume, (uint32_t)speakerVolume) != NO_ERROR) ||
-            (setIntegerParameterValue(gapcLineInToEarSpeakerLineVolume, (uint32_t)speakerVolume)!= NO_ERROR))
-        return INVALID_OPERATION;
-    else
-        return NO_ERROR;
+
+    return NO_ERROR;
 }
 
 
