@@ -122,6 +122,12 @@ LOCAL_SHARED_LIBRARIES := \
     libmodem-audio-manager \
     libproperty
 
+# Private audiocomms components
+LOCAL_SHARED_LIBRARIES += \
+    libtty-handler \
+    libat-parser \
+    libaudio-at-manager
+
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 #  LOCAL_SHARED_LIBRARIES += liba2dp
 endif
