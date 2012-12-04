@@ -527,6 +527,9 @@ protected:
     ALSAHandleList      mDeviceList;
     int getFmRxMode() { return mFmRxMode; }
     int getPrevFmRxMode() { return mPrevFmRxMode; }
+    void setPrevFmRxMode(int mode) {
+        mPrevFmRxMode = mode;
+    }
 
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);

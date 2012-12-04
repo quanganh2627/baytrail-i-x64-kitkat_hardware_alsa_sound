@@ -411,6 +411,8 @@ status_t ALSAStreamOps::setRoute(AudioRoute *audioRoute, uint32_t devices, int m
         storeAndResetPmDownDelay();
         restore_needed = true;
     }
+    // Reset PrevFmRxMode
+    mParent->setPrevFmRxMode(mParent->getFmRxMode());
 
     // unset stream from previous route (if any)
     if(mAudioRoute != NULL) {
