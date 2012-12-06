@@ -37,7 +37,6 @@
 
 #include "AudioHardwareALSA.h"
 
-#define MAX_AGAIN_RETRY     5
 #define WAIT_TIME_MS        20
 #define WAIT_BEFORE_RETRY 10000 //10ms
 
@@ -151,7 +150,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     ssize_t ret = writeFrames(dstBuf, dstFrames);
 
     if (ret < 0) {
-
+        ALOGE("%s:error when writing frames: %ld", __FUNCTION__, ret);
         return ret;
     }
 
@@ -175,33 +174,28 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
     ssize_t sentFrames = 0;
     snd_pcm_sframes_t n;
     int it = 0;
+    int BytesNum = 0;
     status_t err = NO_ERROR;
 
     do {
-        n = snd_pcm_writei(mHandle->handle,
-                           (char *)buffer + mHwSampleSpec.convertFramesToBytes(sentFrames),
-                           frames - sentFrames);
+        BytesNum = mHwSampleSpec.convertFramesToBytes(sentFrames);
+        n = snd_pcm_writei(mHandle->handle, (char *)buffer + BytesNum, frames - sentFrames);
 
-        if( (n == -EAGAIN) || ((n >= 0) && (n + sentFrames) < frames)) {
-
+        if ( (-EAGAIN == n) || ((n >= 0) && (n + sentFrames) < frames) ) {
+            // set a wait with timeout to let hardware digest the last frames
             int wait_status = mParent->getAlsaHwDevice()->wait_pcm(mHandle);
 
-            if (wait_status == 0) {
-                int remaining_frames;
-                // Need to differentiate timeout after having failed to receive some sample and having received
-                // some samples but less than the required number
-                if (n < 0) {
-                    n = 0;
-                }
-
-                remaining_frames = frames - sentFrames - n;
-
-                LOGW("%s: remaining frames = %d", __FUNCTION__, remaining_frames);
-                LOGW("%s: wait_pcm timeout! Generating %fms of silence.", __FUNCTION__, mHwSampleSpec.framesToMs(sentFrames));
-
-                // Timeout due to a potential hardware failure. We need to generate silence in this case.
-                n += remaining_frames;
+            // check for timeout, if so, hardware is still not ready to accept new frames.
+            // In this case returned error depends on value returned by snd_pcm_writei:
+            // if n < 0 EAGAIN was returned by alsa function, if n >= 0 it means that
+            // writing was not completed and we return also with error
+            if (wait_status == 0){
+                ALOGE("%s : timeout while waiting for hw availability. returned value : %ld", __FUNCTION__, n);
+                return ( (n < 0) ? n : -EIO );
             }
+
+            // standard case. Hardware is ready to accept more frames.
+
         }else if (n == -EBADFD) {
             ALOGE("write err: %s, TRY REOPEN...", snd_strerror(n));
             err = mHandle->module->open(mHandle, mHandle->curDev, mHandle->curMode, mParent->getFmRxMode());
