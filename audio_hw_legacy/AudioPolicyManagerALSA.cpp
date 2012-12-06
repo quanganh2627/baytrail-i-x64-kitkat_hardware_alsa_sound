@@ -267,6 +267,53 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
     return NO_ERROR;
 }
 
+status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type stream,
+                                                      int index,
+                                                      audio_devices_t device)
+{
+
+    //check that stream is not negative to avoid out of bounds index
+    if (stream == AudioSystem::DEFAULT) {
+        return BAD_VALUE;
+    }
+
+    if ((index < mStreams[stream].mIndexMin) || (index > mStreams[stream].mIndexMax)) {
+        return BAD_VALUE;
+    }
+    if (!audio_is_output_device(device)) {
+        return BAD_VALUE;
+    }
+
+    // In case of ENFORCE_AUDIBLE stream, force max volume if it cannot be muted
+    if(stream == AudioSystem::ENFORCED_AUDIBLE) {
+        if (!mStreams[stream].mCanBeMuted) index = mStreams[stream].mIndexMax;
+    }
+
+    ALOGV("setStreamVolumeIndex() stream %d, device %04x, index %d",
+          stream, device, index);
+
+    // if device is AUDIO_DEVICE_OUT_DEFAULT set default value and
+    // clear all device specific values
+    if (device == AUDIO_DEVICE_OUT_DEFAULT) {
+        mStreams[stream].mIndexCur.clear();
+    }
+    mStreams[stream].mIndexCur.add(device, index);
+
+    // compute and apply stream volume on all outputs according to connected device
+    status_t status = NO_ERROR;
+    for (size_t i = 0; i < mOutputs.size(); i++) {
+        audio_devices_t curDevice =
+                getDeviceForVolume((audio_devices_t)mOutputs.valueAt(i)->device());
+        if (device == curDevice) {
+            status_t volStatus = checkAndSetVolume(stream, index, mOutputs.keyAt(i), curDevice);
+            if (volStatus != NO_ERROR) {
+                status = volStatus;
+            }
+        }
+    }
+    return status;
+}
+
 float AudioPolicyManagerALSA::computeVolume(int stream,
                                             int index,
                                             audio_io_handle_t output,

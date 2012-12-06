@@ -54,6 +54,10 @@ public:
 
     status_t startInput(audio_io_handle_t input);
 
+    virtual status_t setStreamVolumeIndex(AudioSystem::stream_type stream,
+                                          int index,
+                                          audio_devices_t device);
+
     virtual float computeVolume(int stream,
                                                         int index,
                                                         audio_io_handle_t output,

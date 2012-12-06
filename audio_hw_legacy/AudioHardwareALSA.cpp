@@ -668,9 +668,13 @@ status_t AudioHardwareALSA::setFmRxVolume(float volume)
             speakerVolume = (uint32_t) (integerVolume * mFmRxSpeakerMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
         }
         //else: use wired accessory for FM
-        else if ((mOutputDevices & AudioSystem::DEVICE_OUT_WIRED_HEADSET) || (mOutputDevices & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)) {
+        else if ((mOutputDevices == AudioSystem::DEVICE_OUT_WIRED_HEADSET) || (mOutputDevices == AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)) {
             headsetVolume = (uint32_t) (integerVolume * mFmRxHeadsetMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
             speakerVolume = (uint32_t) 0;
+        }
+        else {
+            ALOGI("do not change FM Rx Volume while an alert is playing on dual route %X", mOutputDevices);
+            return NO_ERROR;
         }
     }
     ALOGV("%s: FM Rx volume applied on speaker %d and on headset %d", __FUNCTION__, speakerVolume, headsetVolume);
@@ -710,9 +714,6 @@ status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
         } else {
             if (!mFmIsAnalog) {
                 getFmHwDevice()->set_state(fm_mode);
-            } else {
-                //set all volumes to 0
-                setFmRxVolume(0);
             }
             reconsiderRouting();
         }
