@@ -342,10 +342,19 @@ const string CAudioRouteManager::print_criteria(int32_t uiValue, CriteriaType eC
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
+#ifdef VB_HAL_AUDIO_TEMP
+    _pModemAudioManager(NULL/*CModemAudioManagerInstance::create(this)*/),
+#else
     _pModemAudioManager(CModemAudioManagerInstance::create(this)),
+#endif
     _pPlatformState(new CAudioPlatformState(this)),
+#ifdef VB_HAL_AUDIO_TEMP
+    _bModemCallActive(true),
+    _bModemAvailable(true),
+#else
     _bModemCallActive(false),
     _bModemAvailable(false),
+#endif
     _pEventThread(new CEventThread(this)),
     _bIsStarted(false),
     _bClientWaiting(false),
@@ -427,11 +436,13 @@ status_t CAudioRouteManager::start()
     // Start Event thread
     _pEventThread->start();
 
+#ifndef VB_HAL_AUDIO_TEMP
     // Start AT Manager
     if(_bHaveModem){
 
         startATManager();
     }
+#endif
 
     // Start PFW
     std::string strError;
@@ -443,6 +454,7 @@ status_t CAudioRouteManager::start()
 
         ALOGI("parameter-framework successfully started!");
     }
+
     return status;
 }
 
@@ -630,9 +642,7 @@ void CAudioRouteManager::doReconsiderRouting()
     ALOGD("%s:          -Route that need reconfiguration in Output = %s", __FUNCTION__,
           print_criteria(_uiNeedToReconfigureRoutes[OUTPUT], ERouteCriteriaType).c_str());
 
-
     if (bRoutesHaveChanged) {
-
         for (int iRouteStage = 0; iRouteStage < ENbRoutingStage; iRouteStage++) {
 
             ALOGD("---------------------------------------------------------------------------------------");

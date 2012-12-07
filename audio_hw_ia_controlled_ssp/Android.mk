@@ -17,6 +17,10 @@ LOCAL_REQUIRED_MODULES := \
     tinyalsa.$(TARGET_DEVICE) \
     libmodem-audio-manager
 
+ifeq ($(VB_HAL_AUDIO_TEMP),true)
+  LOCAL_REQUIRED_MODULES += libamhal.so
+endif
+
 include $(BUILD_PHONY_PACKAGE)
 
 #######################################################################
@@ -50,6 +54,11 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/audio-at-manager \
     $(TARGET_OUT_HEADERS)/event-listener \
     $(TARGET_OUT_HEADERS)/property
+
+ifeq ($(VB_HAL_AUDIO_TEMP),true)
+LOCAL_C_INCLUDES += \
+    $(TARGET_OUT_HEADERS)/amhal
+endif
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -87,6 +96,10 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_CFLAGS := -D_POSIX_SOURCE
 
+ifeq ($(VB_HAL_AUDIO_TEMP),true)
+  LOCAL_CFLAGS += -DVB_HAL_AUDIO_TEMP
+endif
+
 ifeq ($(ENABLE_AUDIO_DUMP),true)
   LOCAL_CFLAGS += -DENABLE_AUDIO_DUMP
   LOCAL_SRC_FILES += AudioDumpInterface.cpp
@@ -117,6 +130,10 @@ LOCAL_SHARED_LIBRARIES := \
     libaudioresample \
     libaudioutils \
     libproperty
+
+ifeq ($(VB_HAL_AUDIO_TEMP),true)
+  LOCAL_SHARED_LIBRARIES += libamhal
+endif
 
 include $(BUILD_SHARED_LIBRARY)
 
