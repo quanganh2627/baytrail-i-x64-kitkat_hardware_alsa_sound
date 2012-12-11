@@ -126,6 +126,8 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_SHARED_LIBRARIES += \
     libtty-handler \
     libat-parser \
+    libmmgrcli \
+    libmodem-mgr-wrapper \
     libaudio-at-manager
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)

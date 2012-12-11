@@ -131,6 +131,14 @@ LOCAL_SHARED_LIBRARIES := \
     libaudioutils \
     libproperty
 
+# Private audiocomms components
+LOCAL_SHARED_LIBRARIES += \
+    libtty-handler \
+    libat-parser \
+    libmmgrcli \
+    libmodem-mgr-wrapper \
+    libaudio-at-manager
+
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
   LOCAL_SHARED_LIBRARIES += libamhal
 endif
