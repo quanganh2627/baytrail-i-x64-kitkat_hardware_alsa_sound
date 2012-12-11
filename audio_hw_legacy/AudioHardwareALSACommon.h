@@ -56,6 +56,7 @@ struct alsa_handle_t {
     void *              modPrivate;
     bool                openFlag;        // If handle is opened then openFlag = 1
     int                 curFmRxMode;
+    bool                isOutput;
 };
 
 struct alsa_device_t {

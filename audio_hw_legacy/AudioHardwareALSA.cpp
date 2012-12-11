@@ -1196,6 +1196,8 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         updateHwMode();
 
         applyRouteAccessibilityRules(EAndroidModeChange);
+    } else {
+        devices = devices & ~AUDIO_DEVICE_BIT_IN;
     }
 
     /** VPC params
@@ -1277,7 +1279,7 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
             // Input devices changed
 
             // Warn PFW
-            mSelectedInputDevice->setCriterionState(devices & ~AUDIO_DEVICE_BIT_IN);
+            mSelectedInputDevice->setCriterionState(devices);
         }
 
         std::string strError;
