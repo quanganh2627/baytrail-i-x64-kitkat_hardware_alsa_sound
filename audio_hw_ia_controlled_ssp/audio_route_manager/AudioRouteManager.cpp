@@ -40,6 +40,9 @@
 typedef RWLock::AutoRLock AutoR;
 typedef RWLock::AutoWLock AutoW;
 
+#define MASK_32_BITS_MSB    0x7FFFFFFF
+#define REMOVE_32_BITS_MSB(bitfield) bitfield & MASK_32_BITS_MSB
+
 #define DIRECT_STREAM_FLAGS (AUDIO_OUTPUT_FLAG_DIRECT | AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD)
 namespace android_audio_legacy
 {
@@ -108,15 +111,15 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
 
 // Selected Input Device type
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stInputDeviceValuePairs[] = {
-    { AudioSystem::DEVICE_IN_COMMUNICATION, "Communication" },
-    { AudioSystem::DEVICE_IN_AMBIENT, "Ambient" },
-    { AudioSystem::DEVICE_IN_BUILTIN_MIC, "Main" },
-    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET, "SCO_Headset" },
-    { AudioSystem::DEVICE_IN_WIRED_HEADSET, "Headset" },
-    { AudioSystem::DEVICE_IN_AUX_DIGITAL, "AuxDigital" },
-    { AudioSystem::DEVICE_IN_VOICE_CALL, "VoiceCall" },
-    { AudioSystem::DEVICE_IN_BACK_MIC, "Back" },
-    { AudioSystem::DEVICE_IN_FM_RECORD, "FmRecord" }
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_COMMUNICATION), "Communication" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_AMBIENT), "Ambient" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BUILTIN_MIC), "Main" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET), "SCO_Headset" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_WIRED_HEADSET), "Headset" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_AUX_DIGITAL), "AuxDigital" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_VOICE_CALL), "VoiceCall" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BACK_MIC), "Back" },
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_FM_RECORD), "FmRecord" }
 };
 
 // Selected Output Device type
@@ -1045,6 +1048,11 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
     AutoW lock(mLock);
 
     bool bIsOut = pStream->isOut();
+
+    if (!bIsOut) {
+
+        devices = REMOVE_32_BITS_MSB(devices);
+    }
 
     // Update Platform state: in/out devices
     _pPlatformState->setDevices(devices, bIsOut);

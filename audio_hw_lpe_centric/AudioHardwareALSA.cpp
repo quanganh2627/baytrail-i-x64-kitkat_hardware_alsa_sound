@@ -271,7 +271,7 @@ AudioHardwareALSA::openOutputStream(uint32_t devices,
     status_t err = BAD_VALUE;
     AudioStreamOutALSA* out = NULL;
 
-    if ((devices & (devices - 1)) || (!(devices & AudioSystem::DEVICE_OUT_ALL))) {
+    if (!audio_is_output_device(devices)) {
 
         ALOGD("%s: called with bad devices", __FUNCTION__);
         if (status) *status = err;
@@ -331,7 +331,7 @@ AudioHardwareALSA::openInputStream(uint32_t devices,
 
     mMicMuteState = false;
 
-    if ((devices & (devices - 1)) || (!(devices & AudioSystem::DEVICE_IN_ALL))) {
+    if (!audio_is_input_device(devices)) {
 
         if (status) *status = err;
         return in;

@@ -1,4 +1,4 @@
-x/*
+/*
  * Copyright (C) 2009 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -125,9 +125,9 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
 
         // If an application uses already an input and the requested input is from a VoIP call
         // or a CSV call record, stop the current active input to enable requested input start.
-        if(((inputDesc->mDevice & deviceMediaRecMic) &&
+        if(((inputDesc->mDevice & ~AUDIO_DEVICE_BIT_IN & deviceMediaRecMic) &&
             (inputDesc->mInputSource != AUDIO_SOURCE_VOICE_COMMUNICATION)) &&
-           ((device & AudioSystem::DEVICE_IN_VOICE_CALL) ||
+           ((device & ~AUDIO_DEVICE_BIT_IN & AudioSystem::DEVICE_IN_VOICE_CALL) ||
             (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION))) {
               LOGI("Stop current active input %d because of higher priority input %d !", inputDesc->mInputSource, inputSource);
               baseClass::stopInput(activeInput);
@@ -137,7 +137,7 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
             // Create a concurrent input and let upper layers close the active camcorder input
             LOGI("Grant request for input %d creation while current camcorder input", inputSource);
         }
-        else if ((inputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+        else if ((inputDesc->mDevice & ~AUDIO_DEVICE_BIT_IN & AudioSystem::DEVICE_IN_VOICE_CALL) &&
                  (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
             LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
         }
@@ -151,10 +151,10 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
         }
         // Force use of built-in mic in case of force use of the speaker in VoIP and wsHS connected
         else if ((inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
-                 (inputDesc->mDevice & AudioSystem::DEVICE_IN_WIRED_HEADSET) &&
+                 (inputDesc->mDevice & ~AUDIO_DEVICE_BIT_IN & AudioSystem::DEVICE_IN_WIRED_HEADSET) &&
                  (getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_SPEAKER)) {
             device = (audio_devices_t) (AUDIO_DEVICE_IN_BUILTIN_MIC);
-            ALOGI("%s: Changing input device to built-in mic as force use to speaker is requested with wsHS connected", __FUNCTION__);
+            LOGI("%s: Changing input device to built-in mic as force use to speaker is requested with wsHS connected", __FUNCTION__);
         }
         else {
             LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
@@ -240,7 +240,7 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
         if (activeInput != 0) {
             AudioInputDescriptor *activeInputDesc = mInputs.valueFor(activeInput);
             if ((inputDesc->mInputSource & AUDIO_SOURCE_VOICE_COMMUNICATION) &&
-                (activeInputDesc->mDevice & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                (activeInputDesc->mDevice & ~AUDIO_DEVICE_BIT_IN & AudioSystem::DEVICE_IN_VOICE_CALL) &&
                 ((activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_UPLINK) ||
                  (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_DOWNLINK) ||
                  (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_CALL))){

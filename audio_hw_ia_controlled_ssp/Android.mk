@@ -38,7 +38,7 @@ LOCAL_C_INCLUDES += \
     bionic/libstdc++ \
     bionic/ \
     system/media/audio_utils/include \
-    frameworks/av/services/audioflinger
+    frameworks/av/include/media
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/audio_route_manager \
