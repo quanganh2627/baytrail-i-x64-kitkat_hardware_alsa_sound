@@ -55,7 +55,7 @@ struct alsa_device_t {
 
     // Methods
     status_t (*init)(alsa_device_t *);
-    status_t (*open)(alsa_handle_t *, int, int, const pcm_config&);
+    status_t (*open)(alsa_handle_t *, const char*, int, const pcm_config&);
     status_t (*stop)(alsa_handle_t *);
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);

@@ -288,13 +288,13 @@ status_t ALSAStreamOps::doOpen()
     acquirePowerLock();
 
     err = mParent->getAlsaHwDevice()->open(mHandle,
-                                           mNewRoute->getCardId(),
+                                           mNewRoute->getCardName(),
                                            mNewRoute->getPcmDeviceId(isOut()),
                                            mNewRoute->getPcmConfig(isOut()));
     if (err != NO_ERROR) {
 
-        ALOGE("%s: Cannot open tinyalsa (%d,%d) device for %s stream", __FUNCTION__,
-                                                                       mNewRoute->getCardId(),
+        ALOGE("%s: Cannot open tinyalsa (%s,%d) device for %s stream", __FUNCTION__,
+                                                                       mNewRoute->getCardName(),
                                                                        mNewRoute->getPcmDeviceId(isOut()),
                                                                        isOut()? "output" : "input");
 

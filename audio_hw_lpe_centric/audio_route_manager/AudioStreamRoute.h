@@ -38,7 +38,7 @@ public:
 
     const pcm_config& getPcmConfig(bool bIsOut) const;
 
-    int getCardId() const;
+    const char* getCardName() const;
 
     virtual RouteType getRouteType() const { return CAudioRoute::EStreamRoute; }
 
@@ -78,7 +78,7 @@ protected:
 
 private:
     int _iPcmDeviceId[2];
-    int _iCardId;
+    const char* _pcCardName;
     pcm_config _pcmConfig[2];
 };
 // ----------------------------------------------------------------------------

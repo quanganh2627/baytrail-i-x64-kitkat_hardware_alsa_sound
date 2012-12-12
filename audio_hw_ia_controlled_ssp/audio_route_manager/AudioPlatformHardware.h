@@ -92,19 +92,20 @@ public:
     //
     // Route helpers
     //
-    static const char* getRouteName(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].routeName; }
+    static const char* getRouteName(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].pcRouteName; }
     static uint32_t getRouteId(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiRouteId; }
     static uint32_t getRouteType(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiRouteType; }
     static uint32_t getPortsUsedByRoute(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].port_used; }
     static uint32_t getRouteApplicableDevices(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].auiApplicableDevices[bIsOut]; }
     static uint32_t getRouteApplicableFlags(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].uiApplicableFlags[bIsOut]; }
     static uint32_t getRouteApplicableModes(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].uiApplicableModes[bIsOut]; }
-    static int32_t getRouteCardId(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].iCardId; }
+    static const char* getRouteCardName(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].pcCardName; }
     static int32_t getRouteDeviceId(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].aiDeviceId[bIsOut]; }
     static const pcm_config& getRoutePcmConfig(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].astrPcmConfig[bIsOut]; }
     static uint32_t getSlaveRoutes(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiSlaveRoutes; }
 
 private:
+
     struct s_port_t {
         uint32_t uiPortId;
         const char* acPortName;
@@ -117,7 +118,7 @@ private:
     };
 
     struct s_route_t {
-        const char* routeName;
+        const char* pcRouteName;
         uint32_t uiRouteId;
         CAudioRoute::RouteType uiRouteType;
         uint32_t port_used;                         // bit field
@@ -125,7 +126,7 @@ private:
         uint32_t uiApplicableFlags[2];              // bit field (For Input: InputSource, for output: OutputFlags
         uint32_t uiApplicableModes[2];              // bit field
         uint32_t uiApplicableStates[2];             // bit field
-        int32_t iCardId;
+        const char* pcCardName;
         int32_t aiDeviceId[2];
         pcm_config astrPcmConfig[2];
         uint32_t uiSlaveRoutes;                     // bit field (slave routes used by this route)

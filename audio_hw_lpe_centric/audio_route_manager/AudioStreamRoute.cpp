@@ -33,7 +33,7 @@ CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
                                      CAudioPlatformState *platformState) :
     CAudioRoute(uiRouteIndex, platformState)
 {
-    _iCardId = CAudioPlatformHardware::getRouteCardId(uiRouteIndex);
+    _pcCardName = CAudioPlatformHardware::getRouteCardName(uiRouteIndex);
     _iPcmDeviceId[OUTPUT] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, OUTPUT);
     _iPcmDeviceId[INPUT] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, INPUT);
     _pcmConfig[OUTPUT] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, OUTPUT);
@@ -181,9 +181,9 @@ const pcm_config& CAudioStreamRoute::getPcmConfig(bool bIsOut) const
     return _pcmConfig[bIsOut];
 }
 
-int CAudioStreamRoute::getCardId() const
+const char *CAudioStreamRoute::getCardName() const
 {
-    return _iCardId;
+    return _pcCardName;
 }
 
 }       // namespace android

@@ -30,16 +30,16 @@
 #define NB_RING_BUFFER_INCALL           ((int)4)
 
 
-#define MEDIA_CARD_ID                   ((int)5)
+static const char* MEDIA_CARD_NAME = "cloverviewaudio";
 #define MEDIA_PLAYBACK_DEVICE_ID        ((int)0)
 #define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 
-#define VOICE_MIXING_CARD_ID            ((int)2)
+static const char* VOICE_MIXING_CARD_NAME = "IntelALSAIFX";
 #define VOICE_MIXING_DEVICE_ID          ((int)0)
 #define VOICE_RECORD_DEVICE_ID          ((int)0)
 
-#define VOICE_CARD_ID                       ((int)1)
+static const char* VOICE_CARD_NAME = "IntelALSASSP";
 #define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)2)
 #define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)2)
 #define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)0)
@@ -268,7 +268,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
             NOT_APPLICABLE,
             NOT_APPLICABLE
         },
-        MEDIA_CARD_ID,
+        MEDIA_CARD_NAME,
         {
             MEDIA_CAPTURE_DEVICE_ID,
             MEDIA_PLAYBACK_DEVICE_ID
@@ -338,7 +338,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
             CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
             CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
         },
-        VOICE_MIXING_CARD_ID,
+        VOICE_MIXING_CARD_NAME,
         {
             VOICE_RECORD_DEVICE_ID,
             VOICE_MIXING_DEVICE_ID,
@@ -373,7 +373,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
             CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
             CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState
         },
-        VOICE_CARD_ID,
+        VOICE_CARD_NAME,
         {
             VOICE_HWCODEC_UPLINK_DEVICE_ID,
             VOICE_HWCODEC_DOWNLINK_DEVICE_ID,
@@ -408,7 +408,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
             CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
             CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
         },
-        VOICE_CARD_ID,
+        VOICE_CARD_NAME,
         {
             VOICE_BT_DOWNLINK_DEVICE_ID,
             VOICE_BT_UPLINK_DEVICE_ID

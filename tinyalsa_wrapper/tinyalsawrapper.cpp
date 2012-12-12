@@ -43,13 +43,14 @@ namespace android_audio_legacy
 static int s_device_open(const hw_module_t*, const char*, hw_device_t**);
 static int s_device_close(hw_device_t*);
 static status_t s_init(alsa_device_t *, uint32_t, uint32_t);
-static status_t s_open(alsa_handle_t *handle, int cardId, int deviceId, const pcm_config& pcmConfig);
+static status_t s_open(alsa_handle_t *handle, const char* cardName, int deviceId, const pcm_config& pcmConfig);
 static status_t s_init_stream(alsa_handle_t *handle, bool isOut, uint32_t rate, uint32_t channels, pcm_format format);
 static status_t s_stop(alsa_handle_t *handle);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_close(alsa_handle_t *);
 static status_t s_config(alsa_handle_t *, int);
 static status_t s_volume(alsa_handle_t *, uint32_t, float);
+static int get_card_number_by_name(const char* name);
 
 static hw_module_methods_t s_module_methods = {
     open : s_device_open
@@ -186,15 +187,15 @@ static int s_device_open(const hw_module_t* module, const char* name,
 }
 
 static status_t s_open(alsa_handle_t *handle,
-                       int cardId,
+                       const char* cardName,
                        int deviceId,
                        const pcm_config& pcmConfig)
 {
     handle->config = pcmConfig;
 
-    ALOGD("%s called for card (%d,%d)",
+    ALOGD("%s called for card (%s,%d)",
                                 __FUNCTION__,
-                                cardId,
+                                cardName,
                                 deviceId);
     ALOGD("%s\t\t config=rate(%d), format(%d), channels(%d))",
                                 __FUNCTION__,
@@ -220,7 +221,7 @@ static status_t s_open(alsa_handle_t *handle,
         // guarantee to return a pcm structure, even when failing to open
         // it will return a reference on a "bad pcm" structure
         //
-        handle->handle = pcm_open(cardId, deviceId, handle->flags, &handle->config);
+        handle->handle = pcm_open(get_card_number_by_name(cardName), deviceId, handle->flags, &handle->config);
         if (handle->handle && !pcm_is_ready(handle->handle)) {
 
             ALOGE("cannot open pcm_in driver: %s", pcm_get_error(handle->handle));
@@ -297,6 +298,32 @@ static status_t s_volume(alsa_handle_t *handle, uint32_t devices, float volume)
 static status_t s_config(alsa_handle_t *handle, int mode)
 {
     return NO_ERROR;
+}
+
+// This function return the card number associated with the card ID (name)
+// passed as argument
+static int get_card_number_by_name(const char* name)
+
+{
+    char id_filepath[PATH_MAX] = {0};
+    char number_filepath[PATH_MAX] = {0};
+    ssize_t written;
+
+    snprintf(id_filepath, sizeof(id_filepath), "/proc/asound/%s", name);
+
+    written = readlink(id_filepath, number_filepath, sizeof(number_filepath));
+    if (written < 0) {
+        ALOGE("Sound card %s does not exist", name);
+        return written;
+    } else if (written >= (ssize_t)sizeof(id_filepath)) {
+        // This will probably never happen
+        return -ENAMETOOLONG;
+    }
+
+    // We are assured, because of the check in the previous elseif, that this
+    // buffer is null-terminated.  So this call is safe.
+    // 4 == strlen("card")
+    return atoi(number_filepath + 4);
 }
 
 }; // namespace android_audio_legacy
