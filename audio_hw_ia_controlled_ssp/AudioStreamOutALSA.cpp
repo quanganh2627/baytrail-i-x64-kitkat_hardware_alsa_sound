@@ -82,7 +82,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
     acquirePowerLock();
 
-    ALSAStreamOps::setStandby(false);
+    setStandby(false);
 
     CAudioAutoRoutingLock lock(mParent);
 
@@ -160,19 +160,19 @@ status_t AudioStreamOutALSA::dump(int , const Vector<String16>& )
 
 status_t AudioStreamOutALSA::open(int mode)
 {
-    return ALSAStreamOps::setStandby(false);
+    return setStandby(false);
 }
 
 status_t AudioStreamOutALSA::close()
 {
-    return ALSAStreamOps::setStandby(true);
+    return setStandby(true);
 }
 
 status_t AudioStreamOutALSA::standby()
 {
     LOGD("%s", __FUNCTION__);
 
-    status_t status = ALSAStreamOps::setStandby(true);
+    status_t status = setStandby(true);
 
     mFrameCount = 0;
 

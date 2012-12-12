@@ -21,30 +21,29 @@
 
 
 /// May add a new route, include header here...
-#define SAMPLE_RATE_8000                (8000)
-#define SAMPLE_RATE_48000               (48000)
-#define VOICE_CAPTURE_PERIOD_SIZE       (320) // 20ms @ 16k, mono
-#define PLAYBACK_44100_PERIOD_SIZE      (1024) //(PLAYBACK_44100_PERIOD_TIME_US * 44100 / USEC_PER_SEC)
-#define PLAYBACK_48000_PERIOD_SIZE      (1152) //(24000*2 * 48000 / USEC_PER_SEC)
-#define CAPTURE_48000_PERIOD_SIZE       (1152) //(CAPTURE_48000_PERIOD_SIZE * 48000 / USEC_PER_SEC)
-#define NB_RING_BUFFER_NORMAL           (2)
-#define NB_RING_BUFFER_INCALL           (4)
+#define SAMPLE_RATE_8000                ((int)8000)
+#define SAMPLE_RATE_48000               ((int)48000)
+#define VOICE_8000_PERIOD_SIZE          ((int)160)  // 20ms @ 8k
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)2304) //(24000*2 * 48000 / USEC_PER_SEC)
+#define VOICE_48000_PERIOD_SIZE         ((int)960)  //(20000 * 48000 / USEC_PER_SEC)
+#define NB_RING_BUFFER_NORMAL           ((int)2)
+#define NB_RING_BUFFER_INCALL           ((int)4)
 
 
-#define MEDIA_CARD_ID                   (5)
-#define MEDIA_PLAYBACK_DEVICE_ID        (0)
-#define MEDIA_CAPTURE_DEVICE_ID         (0)
+#define MEDIA_CARD_ID                   ((int)5)
+#define MEDIA_PLAYBACK_DEVICE_ID        ((int)0)
+#define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 
-#define VOICE_MIXING_CARD_ID            (2)
-#define VOICE_MIXING_DEVICE_ID          (0)
-#define VOICE_RECORD_DEVICE_ID          (0)
+#define VOICE_MIXING_CARD_ID            ((int)2)
+#define VOICE_MIXING_DEVICE_ID          ((int)0)
+#define VOICE_RECORD_DEVICE_ID          ((int)0)
 
-#define VOICE_CARD_ID                   (1)
-#define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    (2)
-#define VOICE_HWCODEC_UPLINK_DEVICE_ID      (2)
-#define VOICE_BT_DOWNLINK_DEVICE_ID         (0)
-#define VOICE_BT_UPLINK_DEVICE_ID           (0)
+#define VOICE_CARD_ID                       ((int)1)
+#define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)2)
+#define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)2)
+#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)0)
+#define VOICE_BT_UPLINK_DEVICE_ID           ((int)0)
 
 
 namespace android_audio_legacy
@@ -54,125 +53,100 @@ namespace android_audio_legacy
 // For recording, configure ALSA to start the transfer on the
 // first frame.
 static const pcm_config pcm_config_media_playback = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */PLAYBACK_48000_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_NORMAL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */PLAYBACK_48000_PERIOD_SIZE - 1,
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   /* channels          : */2,
+   /* rate              : */SAMPLE_RATE_48000,
+   /* period_size       : */PLAYBACK_48000_PERIOD_SIZE,
+   /* period_count      : */NB_RING_BUFFER_NORMAL,
+   /* format            : */PCM_FORMAT_S16_LE,
+   /* start_threshold   : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL - 1,
+   /* stop_threshold    : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
    /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE,
+   /* avail_min         : */PLAYBACK_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_media_capture = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */PLAYBACK_48000_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_NORMAL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */1,
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   /* channels          : */2,
+   /* rate              : */SAMPLE_RATE_48000,
+   /* period_size       : */PLAYBACK_48000_PERIOD_SIZE,
+   /* period_count      : */NB_RING_BUFFER_NORMAL,
+   /* format            : */PCM_FORMAT_S16_LE,
+   /* start_threshold   : */1,
+   /* stop_threshold    : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
    /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE,
-};
-
-
-
-static const pcm_config pcm_config_voice_codec_downlink = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */VOICE_CAPTURE_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_INCALL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */PLAYBACK_48000_PERIOD_SIZE,
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-   /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE,
-};
-
-static const pcm_config pcm_config_voice_codec_uplink = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */VOICE_CAPTURE_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_INCALL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */1,
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-   /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE,
+   /* avail_min         : */PLAYBACK_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_bt_downlink = {
-   /* channels        : */1,
-   /* rate            : */SAMPLE_RATE_8000,
-   /* period_size     : */VOICE_CAPTURE_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_INCALL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */PLAYBACK_48000_PERIOD_SIZE,
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   /* channels          : */1,
+   /* rate              : */SAMPLE_RATE_8000,
+   /* period_size       : */VOICE_8000_PERIOD_SIZE,
+   /* period_count      : */NB_RING_BUFFER_INCALL,
+   /* format            : */PCM_FORMAT_S16_LE,
+   /* start_threshold   : */VOICE_8000_PERIOD_SIZE - 1,
+   /* stop_threshold    : */VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
    /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE,
+   /* avail_min         : */VOICE_8000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_bt_uplink = {
-   /* channels        : */1,
-   /* rate            : */SAMPLE_RATE_8000,
-   /* period_size     : */VOICE_CAPTURE_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_INCALL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */0,
-   /* stop_threshold  : */0,
+   /* channels          : */1,
+   /* rate              : */SAMPLE_RATE_8000,
+   /* period_size       : */VOICE_8000_PERIOD_SIZE,
+   /* period_count      : */NB_RING_BUFFER_INCALL,
+   /* format            : */PCM_FORMAT_S16_LE,
+   /* start_threshold   : */0,
+   /* stop_threshold    : */0,
    /* silence_threshold : */0,
-   /* avail_min       : */0,
+   /* avail_min         : */0,
 };
 
 static const pcm_config pcm_config_voice_hwcodec_downlink = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */PLAYBACK_48000_PERIOD_SIZE / 2,
-   /* period_count    : */4,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */(PLAYBACK_48000_PERIOD_SIZE / 2),
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-   /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE / 2,
-};
+    /* channels          : */2,
+    /* rate              : */SAMPLE_RATE_48000,
+    /* period_size       : */VOICE_48000_PERIOD_SIZE,
+    /* period_count      : */NB_RING_BUFFER_INCALL,
+    /* format            : */PCM_FORMAT_S16_LE,
+    /* start_threshold   : */VOICE_48000_PERIOD_SIZE - 1,
+    /* stop_threshold    : */VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    /* silence_threshold : */0,
+    /* avail_min         : */ VOICE_48000_PERIOD_SIZE,
+ };
 
 static const pcm_config pcm_config_voice_hwcodec_uplink = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */PLAYBACK_48000_PERIOD_SIZE / 2,
-   /* period_count    : */4,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */0,
-   /* stop_threshold  : */0,
+   /* channels          : */2,
+   /* rate              : */SAMPLE_RATE_48000,
+   /* period_size       : */VOICE_48000_PERIOD_SIZE,
+   /* period_count      : */NB_RING_BUFFER_INCALL,
+   /* format            : */PCM_FORMAT_S16_LE,
+   /* start_threshold   : */0,
+   /* stop_threshold    : */0,
    /* silence_threshold : */0,
-   /* avail_min       : */0,
+   /* avail_min         : */0,
 };
 
 static const pcm_config pcm_config_voice_mixing_playback = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */PLAYBACK_48000_PERIOD_SIZE,
-   /* period_count    : */NB_RING_BUFFER_NORMAL,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */PLAYBACK_48000_PERIOD_SIZE - 1,
-   /* stop_threshold  : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-   /* silence_threshold : */0,
-   /* avail_min       : */PLAYBACK_48000_PERIOD_SIZE,
-};
+    /* channels          : */2,
+    /* rate              : */SAMPLE_RATE_48000,
+    /* period_size       : */VOICE_48000_PERIOD_SIZE,
+    /* period_count      : */NB_RING_BUFFER_INCALL,
+    /* format            : */PCM_FORMAT_S16_LE,
+    /* start_threshold   : */VOICE_48000_PERIOD_SIZE - 1,
+    /* stop_threshold    : */VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    /* silence_threshold : */0,
+    /* avail_min         : */ VOICE_48000_PERIOD_SIZE,
+ };
+
 
 static const pcm_config pcm_config_voice_mixing_capture = {
-   /* channels        : */2,
-   /* rate            : */SAMPLE_RATE_48000,
-   /* period_size     : */PLAYBACK_48000_PERIOD_SIZE / 2,
-   /* period_count    : */4,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */0,
-   /* stop_threshold  : */0,
+   /* channels          : */2,
+   /* rate              : */SAMPLE_RATE_48000,
+   /* period_size       : */VOICE_48000_PERIOD_SIZE,
+   /* period_count      : */NB_RING_BUFFER_INCALL,
+   /* format            : */PCM_FORMAT_S16_LE,
+   /* start_threshold   : */0,
+   /* stop_threshold    : */0,
    /* silence_threshold : */0,
-   /* avail_min       : */0,
+   /* avail_min         : */0,
 };
 
 typedef enum {

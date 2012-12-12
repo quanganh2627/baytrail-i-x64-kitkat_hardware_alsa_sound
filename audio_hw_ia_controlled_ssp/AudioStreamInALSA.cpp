@@ -143,7 +143,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     acquirePowerLock();
 
-    ALSAStreamOps::setStandby(false);
+    setStandby(false);
 
     CAudioAutoRoutingLock lock(mParent);
 
@@ -194,19 +194,19 @@ status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioStreamInALSA::open(int mode)
 {
-    return ALSAStreamOps::setStandby(false);
+    return setStandby(false);
 }
 
 status_t AudioStreamInALSA::close()
 {
-    return ALSAStreamOps::setStandby(true);
+    return setStandby(true);
 }
 
 status_t AudioStreamInALSA::standby()
 {
     LOGD("StreamInAlsa standby.\n");
 
-    return ALSAStreamOps::setStandby(true);
+    return setStandby(true);
 }
 
 void AudioStreamInALSA::resetFramesLost()

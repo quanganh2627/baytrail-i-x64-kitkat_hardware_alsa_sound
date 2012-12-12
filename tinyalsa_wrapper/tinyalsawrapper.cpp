@@ -196,14 +196,17 @@ static status_t s_open(alsa_handle_t *handle,
                                 __FUNCTION__,
                                 cardId,
                                 deviceId);
-    ALOGD("\t\t config=rate(%d), format(%d), channels(%d))",
+    ALOGD("%s\t\t config=rate(%d), format(%d), channels(%d))",
+                                __FUNCTION__,
                                 handle->config.rate,
                                 handle->config.format,
                                 handle->config.channels);
-    ALOGD("\t\t period_size=%d, period_count=%d",
+    ALOGD("%s\t\t period_size=%d, period_count=%d",
+                                __FUNCTION__,
                                 handle->config.period_size,
                                 handle->config.period_count);
-    ALOGD("\t\t startTh=%d, stop Th=%d silence Th=%d",
+    ALOGD("%s\t\t startTh=%d, stop Th=%d silence Th=%d",
+                                __FUNCTION__,
                                 handle->config.start_threshold,
                                 handle->config.stop_threshold,
                                 handle->config.silence_threshold);

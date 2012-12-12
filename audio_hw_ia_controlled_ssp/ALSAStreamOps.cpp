@@ -254,15 +254,11 @@ status_t ALSAStreamOps::setStandby(bool bIsSet)
     status_t status = NO_ERROR;
 
     if (bIsSet) {
-        if (isStarted()) {
 
-            status = mParent->stopStream(this);
-        }
+        status = mParent->stopStream(this);
     } else {
-        if (!isStarted()) {
 
-            status = mParent->startStream(this);
-        }
+        status = mParent->startStream(this);
     }
     return status;
 }
