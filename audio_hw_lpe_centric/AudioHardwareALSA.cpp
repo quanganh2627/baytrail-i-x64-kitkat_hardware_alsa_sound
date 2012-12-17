@@ -207,7 +207,7 @@ AudioHardwareALSA::~AudioHardwareALSA()
 status_t AudioHardwareALSA::initCheck()
 {
 
-    if (getAlsaHwDevice())
+    if (getAlsaHwDevice() && mRouteMgr->isStarted())
 
         return NO_ERROR;
     else

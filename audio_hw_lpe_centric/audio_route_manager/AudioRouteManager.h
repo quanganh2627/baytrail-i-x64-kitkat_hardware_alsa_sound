@@ -126,6 +126,8 @@ public:
     // Start route manager service
     void start();
 
+    bool isStarted() const;
+
     void lock();
 
     void unlock();

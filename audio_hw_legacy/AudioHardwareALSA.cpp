@@ -125,9 +125,15 @@ class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnect
 public:
     CParameterMgrPlatformConnectorLogger() {}
 
-    virtual void log(const std::string& strLog)
+    virtual void log(bool bIsWarning, const std::string& strLog)
     {
-        ALOGD("%s",strLog.c_str());
+        if (bIsWarning) {
+
+            ALOGW("%s", strLog.c_str());
+        } else {
+
+            ALOGD("%s", strLog.c_str());
+        }
     }
 };
 
@@ -480,7 +486,7 @@ AudioHardwareALSA::~AudioHardwareALSA()
 status_t AudioHardwareALSA::initCheck()
 {
 
-    if (getAlsaHwDevice() && mMixer && mMixer->isValid())
+    if (getAlsaHwDevice() && mMixer && mMixer->isValid() && mParameterMgrPlatformConnector->isStarted())
 
         return NO_ERROR;
     else
@@ -1269,29 +1275,22 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, bool bFo
         getVpcHwDevice()->mix_disable(hwMode());
     }
 
-    if (mParameterMgrPlatformConnector->isStarted()) {
+    if (bForOutput) {
 
-        if (bForOutput) {
+        // Output devices changed
 
-            // Output devices changed
+        // Warn PFW
+        mSelectedOutputDevice->setCriterionState(devices);
 
-            // Warn PFW
-            mSelectedOutputDevice->setCriterionState(devices);
+    } else {
 
-        } else {
+        // Input devices changed
 
-            // Input devices changed
-
-            // Warn PFW
-            mSelectedInputDevice->setCriterionState(devices);
-        }
-
-        std::string strError;
-        if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            ALOGE("%s", strError.c_str());
-        }
+        // Warn PFW
+        mSelectedInputDevice->setCriterionState(devices);
     }
+
+    mParameterMgrPlatformConnector->applyConfigurations();
 
     // No more?
     if (param.size()) {
@@ -1501,11 +1500,7 @@ void AudioHardwareALSA::updateHwMode()
         // Refresh PFW mode
         mSelectedMode->setCriterionState(hwMode());
 
-        std::string strError;
-        if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            LOGE("%s", strError.c_str());
-        }
+        mParameterMgrPlatformConnector->applyConfigurations();
     }
 }
 
@@ -1639,11 +1634,7 @@ void AudioHardwareALSA::setFmModeCriterionState(int fm_mode) const
     // Set FmMode criterion state
     mSelectedFmMode->setCriterionState(fm_mode);
 
-    std::string strError;
-    if (!mParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-        LOGE("%s", strError.c_str());
-    }
+    mParameterMgrPlatformConnector->applyConfigurations();
 }
 
 

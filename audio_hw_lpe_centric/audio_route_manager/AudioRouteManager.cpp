@@ -61,9 +61,15 @@ class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnect
 public:
     CParameterMgrPlatformConnectorLogger() {}
 
-    virtual void log(const std::string& strLog)
+    virtual void log(bool bIsWarning, const std::string& strLog)
     {
-        ALOGD("%s",strLog.c_str());
+        if (bIsWarning) {
+
+            ALOGW("%s", strLog.c_str());
+        } else {
+
+            ALOGD("%s", strLog.c_str());
+        }
     }
 };
 
@@ -598,6 +604,11 @@ void CAudioRouteManager::doReconsiderRouting()
     ALOGD("-------------------------------------------------------------------------------------------------------");
     ALOGD("%s: End of Routing Reconsideration", __FUNCTION__);
     ALOGD("-------------------------------------------------------------------------------------------------------");
+}
+
+bool CAudioRouteManager::isStarted() const
+{
+    return _pParameterMgrPlatformConnector && _pParameterMgrPlatformConnector->isStarted();
 }
 
 void CAudioRouteManager::executeRoutingStage(int iRouteStage)
@@ -1260,14 +1271,7 @@ void CAudioRouteManager::muteRoutingStage()
     muteRoutes(INPUT);
     muteRoutes(OUTPUT);
 
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        std::string strError;
-        if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            ALOGE("%s", strError.c_str());
-        }
-    }
+    _pParameterMgrPlatformConnector->applyConfigurations();
 }
 
 void CAudioRouteManager::muteRoutes(bool bIsOut)
@@ -1315,14 +1319,7 @@ void CAudioRouteManager::unmuteRoutingStage()
     unmuteRoutes(INPUT);
     unmuteRoutes(OUTPUT);
 
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        std::string strError;
-        if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            ALOGE("%s", strError.c_str());
-        }
-    }
+    _pParameterMgrPlatformConnector->applyConfigurations();
 }
 void CAudioRouteManager::unmuteRoutes(bool bIsOut)
 {
@@ -1371,22 +1368,15 @@ void CAudioRouteManager::configureRoutingStage()
     configureRoutes(OUTPUT);
     configureRoutes(INPUT);
 
-    if (_pParameterMgrPlatformConnector->isStarted()) {
+    // Warn PFW
+    _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
+    _apSelectedCriteria[ESelectedFmMode]->setCriterionState(_pPlatformState->getFmRxHwMode());
+    _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(_pPlatformState->getTtyDirection());
+    _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
+    _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
+    _apSelectedCriteria[ESelectedHacMode]->setCriterionState(_pPlatformState->isHacEnabled());
 
-        // Warn PFW
-        _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
-        _apSelectedCriteria[ESelectedFmMode]->setCriterionState(_pPlatformState->getFmRxHwMode());
-        _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(_pPlatformState->getTtyDirection());
-        _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
-        _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
-        _apSelectedCriteria[ESelectedHacMode]->setCriterionState(_pPlatformState->isHacEnabled());
-
-        std::string strError;
-        if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            ALOGE("%s", strError.c_str());
-        }
-    }
+    _pParameterMgrPlatformConnector->applyConfigurations();
 }
 
 void CAudioRouteManager::configureRoutes(bool bIsOut)
@@ -1435,14 +1425,7 @@ void CAudioRouteManager::disableRoutingStage()
     // PFW: disable route stage:
     // CurrentEnabledRoutes reflects the reality: do not disable route that need reconfiguration only
     //
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        std::string strError;
-        if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            ALOGE("%s", strError.c_str());
-        }
-    }
+    _pParameterMgrPlatformConnector->applyConfigurations();
 }
 
 void CAudioRouteManager::disableRoutes(bool bIsOut)
@@ -1497,14 +1480,7 @@ void CAudioRouteManager::enableRoutingStage()
     //
     // Enable routes through PFW
     //
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        std::string strError;
-        if (!_pParameterMgrPlatformConnector->applyConfigurations(strError)) {
-
-            ALOGE("%s", strError.c_str());
-        }
-    }
+    _pParameterMgrPlatformConnector->applyConfigurations();
 }
 
 void CAudioRouteManager::enableRoutes(bool bIsOut)
