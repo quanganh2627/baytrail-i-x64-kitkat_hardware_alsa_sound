@@ -700,26 +700,36 @@ public:
 
             if (!_ctxtPtr) {
                 amhal_close(_ctxtPtr);
-                ALOGE("VINCE + FRANçOIS : can not open amhal, closing it!!!");
+                ALOGE("can not open amhal, closing it!!!");
             }
             bFirstCall = false;
+            //wait for amhal to be opened to be started before continuing
+            // workaround: audio HAL is not registered to amhal callbacks
+            usleep(500000);
         }
 
         if (bIsOut) {
             // Start Modem DSP
             command = AMHAL_SPUV_START;
 
-            ALOGD("Send AMHAL_SPUV_START");
+            ALOGE("Send AMHAL_SPUV_START");
 
             amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
 
             // Enable PCM for speech
             command = AMHAL_PCM_START;
 
+            ALOGE("Send AMHAL_PCM_START");
+
             amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
+
+            ALOGE("Sleep for a while to guarantee audio started before opening codec");
+            //wait for a while for modem to send data and provide clock before opening VSP
+            // workaround: audio HAL is not registered to amhal callbacks
+            usleep(500000);
         }
 
-        return NO_ERROR;
+        return CAudioExternalRoute::route(bIsOut);
     }
 
     // UnRoute order - for external until Manager under PFW
@@ -727,23 +737,24 @@ public:
         if (bIsOut) {
             command = AMHAL_PCM_STOP;
 
-            ALOGD("Send AMHAL_PCM_STOP");
+            ALOGE("Send AMHAL_PCM_STOP");
 
             amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
 
             // the same is the same for stop
             command = AMHAL_SPUV_STOP;
 
-            ALOGD("Send AMHAL_SPUV_STOP");
+            ALOGE("Send AMHAL_SPUV_STOP");
 
             amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
 
         }
+        CAudioExternalRoute::unRoute(bIsOut);
     }
 
     virtual bool needReconfiguration(bool bIsOut) const
     {
-        if (bIsOut && _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)) {
+        if (CAudioExternalRoute::needReconfiguration(bIsOut) && bIsOut && _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)) {
             return true;
         }
         return false;
