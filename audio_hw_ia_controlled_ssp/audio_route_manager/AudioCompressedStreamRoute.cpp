@@ -36,13 +36,12 @@ namespace android_audio_legacy
 //
 bool CAudioCompressedStreamRoute::needReconfiguration(bool bIsOut) const
 {
-    //ALOGD("%s: route %s needs to be reconfigured??? %d %d", __FUNCTION__, getName().c_str(), base::needReconfiguration(bIsOut), _pPlatformState->hasPlatformStateChanged());
     return false;
 }
 
 bool CAudioCompressedStreamRoute::isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags) const
 {
-    if (bIsOut && (uiFlags & _uiApplicableFlags[OUTPUT])) {
+    if (bIsOut && _pPlatformState->hasDirectStreams()) {
 
         return base::isApplicable(uidevices, iMode, bIsOut, uiFlags);
     }

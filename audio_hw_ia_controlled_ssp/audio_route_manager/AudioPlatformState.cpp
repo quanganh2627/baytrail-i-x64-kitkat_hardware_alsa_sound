@@ -23,6 +23,8 @@
 #include "VolumeKeys.h"
 #include "AudioRouteManager.h"
 
+#define DIRECT_STREAM_FLAGS (AUDIO_OUTPUT_FLAG_DIRECT | AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD)
+
 namespace android_audio_legacy
 {
 
@@ -42,6 +44,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bBtHeadsetNrEcEnabled(false),
     _bIsBtEnabled(false),
     _uiInputSource(0),
+    _uiDirectStreamsRefCount(0),
     _iHwMode(AudioSystem::MODE_NORMAL),
     _eBandType(ENarrowBand),
     _bIsSharedI2SGlitchSafe(false),
@@ -366,9 +369,23 @@ void CAudioPlatformState::enableVolumeKeys(bool bEnable)
     }
 }
 
-void CAudioPlatformState::setDirectStreamEvent()
+void CAudioPlatformState::setDirectStreamEvent(uint32_t uiFlags)
 {
-    setPlatformStateEvent(EStreamEvent);
+    ALOGD("%s: flags=0x%X refCount=%d", __FUNCTION__, uiFlags, _uiDirectStreamsRefCount);
+
+    bool hadDirectStreams = !!_uiDirectStreamsRefCount;
+
+    if (uiFlags & DIRECT_STREAM_FLAGS) {
+
+        _uiDirectStreamsRefCount += 1;
+    } else {
+
+        _uiDirectStreamsRefCount -= 1;
+    }
+    if (hadDirectStreams != !!_uiDirectStreamsRefCount) {
+
+        setPlatformStateEvent(EStreamEvent);
+    }
 }
 
 }       // namespace android

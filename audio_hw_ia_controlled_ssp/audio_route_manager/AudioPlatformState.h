@@ -169,6 +169,8 @@ public:
     // Get BT Enabled flag
     bool isBtEnabled() const { return _bIsBtEnabled; }
 
+    bool hasDirectStreams() const { return !!_uiDirectStreamsRefCount; }
+
     // Get devices
     uint32_t getDevices(bool bIsOut) const { return _uiDevices[bIsOut]; }
 
@@ -196,7 +198,7 @@ public:
 
     void enableVolumeKeys(bool bEnable);
 
-    void setDirectStreamEvent();
+    void setDirectStreamEvent(uint32_t uiFlags);
 
 private:
     // Check if the Hw mode has changed
@@ -243,6 +245,8 @@ private:
     uint32_t _uiDevices[2];
 
     uint32_t _uiInputSource;
+
+    uint32_t _uiDirectStreamsRefCount;
 
     uint32_t _uiRoutes[];
 

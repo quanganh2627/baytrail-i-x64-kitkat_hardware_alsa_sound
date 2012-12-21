@@ -160,7 +160,7 @@ private:
 
     void setInputSource(android_audio_legacy::ALSAStreamOps *pStream, int iInputSource);
 
-    void setFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags);
+    void setStreamFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags);
 
     // Set TTY mode
     void setTtyDirection(int iTtyDirection);

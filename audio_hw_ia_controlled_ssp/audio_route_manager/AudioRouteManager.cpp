@@ -43,7 +43,6 @@ typedef RWLock::AutoWLock AutoW;
 #define MASK_32_BITS_MSB    0x7FFFFFFF
 #define REMOVE_32_BITS_MSB(bitfield) bitfield & MASK_32_BITS_MSB
 
-#define DIRECT_STREAM_FLAGS (AUDIO_OUTPUT_FLAG_DIRECT | AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD)
 namespace android_audio_legacy
 {
 
@@ -613,8 +612,9 @@ void CAudioRouteManager::doReconsiderRouting()
     ALOGD("%s:          -Platform Band type = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getBandType(), EBandCriteriaType).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange)? "[has changed]" : "");
-    ALOGD("%s:          -Platform Direct Stream Event = %s", __FUNCTION__,
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent)? "yes" : "no");
+    ALOGD("%s:          -Platform Has Direct Stream = %s %s", __FUNCTION__,
+          _pPlatformState->hasDirectStreams()? "yes" : "no",
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent)? "[has changed]" : "");
     ALOGD("%s:          -Platform TTY direction = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getTtyDirection(), ETtyDirectionCriteriaType).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange)? "[has changed]" : "");
@@ -726,7 +726,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
         // Remove parameter
         param.remove(key);
 
-        setFlags(pStream, iFlags);
+        setStreamFlags(pStream, iFlags);
     }
 
     /// Devices (ie routing key)
@@ -906,14 +906,27 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
 
     AudioParameter param = AudioParameter(keyValuePairs);
     status_t status;
-    bool bReconsiderRouting = false;
+
+    //
+    // Search Stream Flags
+    //
+    int iFlags;
+    String8 key = String8(AudioParameter::keyStreamFlags);
+    status = param.getInt(key, iFlags);
+    if (status == NO_ERROR) {
+
+        // Remove parameter
+        param.remove(key);
+
+        _pPlatformState->setDirectStreamEvent(iFlags);
+    }
 
     //
     // Search TTY mode
     //
     String8 strTtyDevice;
     int iTtyDirection = 0;
-    String8 key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
+    key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
 
     // Get concerned devices
     status = param.get(key, strTtyDevice);
@@ -939,7 +952,6 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         }
 
         setTtyDirection(iTtyDirection);
-        bReconsiderRouting = true;
 
         // Remove parameter
         param.remove(key);
@@ -995,7 +1007,6 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
                 // BT_NREC_OFF when the SCO link is enabled. But only BT_NREC_ON setting is applied in that
                 // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
                 // becomes necessary, to be aligned with BT_NREC_OFF to process the correct Audience profile.
-                bReconsiderRouting = true;
             }
 
             setBtNrEc(isBtNRecAvailable);
@@ -1026,14 +1037,13 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         }
 
         setHacMode(bIsHACModeSet);
-        bReconsiderRouting = true;
 
         // Remove parameter
         param.remove(key);
     }
 
     // Reconsider the routing now
-    if (bReconsiderRouting) {
+    if (_pPlatformState->hasPlatformStateChanged()) {
 
         //
         // ASYNCHRONOUSLY RECONSIDERATION of the routing in case of a parameter change
@@ -1093,23 +1103,12 @@ void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource
     _pPlatformState->setInputSource(iInputSource);
 }
 
-
-void CAudioRouteManager::setFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags)
+void CAudioRouteManager::setStreamFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags)
 {
     uint32_t uiPreviousFlags = (uint32_t)pStream->getFlags();
     pStream->setFlags((audio_output_flags_t)uiFlags);
 
     ALOGD("%s: output flags = 0x%X (Prev Flags=0x%X)", __FUNCTION__, uiFlags, uiPreviousFlags);
-
-    //
-    // Checks that the stream is coming to/from direct mode to/from non-direct mode
-    // Note: direct is meaningfull for both direct and compressed stream flags
-    //
-    if (((uiFlags & DIRECT_STREAM_FLAGS) && !(uiPreviousFlags & DIRECT_STREAM_FLAGS)) ||
-            ((uiPreviousFlags & DIRECT_STREAM_FLAGS) && !(uiFlags & DIRECT_STREAM_FLAGS))) {
-
-        _pPlatformState->setDirectStreamEvent();
-    }
 }
 
 void CAudioRouteManager::createsRoutes()
@@ -1363,7 +1362,7 @@ void CAudioRouteManager::virtuallyConnectRoute(CAudioRoute* pRoute, bool bIsOut)
         }
     }
 
-    if (pRoute->getRouteType() == CAudioRoute::EExternalRoute) {
+    if (pRoute->getRouteType() == CAudioRoute::EExternalRoute || pRoute->getRouteType() == CAudioRoute::ECompressedStreamRoute) {
 
         if (pRoute->isApplicable(uiDevices, iMode, bIsOut)) {
 
@@ -1381,7 +1380,7 @@ void CAudioRouteManager::virtuallyConnectRoute(CAudioRoute* pRoute, bool bIsOut)
             _uiEnabledRoutes[bIsOut] |= pRoute->getRouteId();
         }
 
-    } else if ((pRoute->getRouteType() == CAudioRoute::EStreamRoute) || (pRoute->getRouteType() == CAudioRoute::ECompressedStreamRoute)) {
+    } else if (pRoute->getRouteType() == CAudioRoute::EStreamRoute) {
 
         ALSAStreamOps* pStreamOps;
 
@@ -1390,11 +1389,8 @@ void CAudioRouteManager::virtuallyConnectRoute(CAudioRoute* pRoute, bool bIsOut)
 
         if (pStreamOps) {
 
-            if (pRoute->getRouteType() == CAudioRoute::EStreamRoute) {
-
-                CAudioStreamRoute* pStreamRoute = static_cast<CAudioStreamRoute*>(pRoute);
-                pStreamRoute->setStream(pStreamOps);
-            }
+            CAudioStreamRoute* pStreamRoute = static_cast<CAudioStreamRoute*>(pRoute);
+            pStreamRoute->setStream(pStreamOps);
 
             pRoute->setBorrowed(bIsOut);
 
@@ -1429,7 +1425,7 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, CAu
 
         // Check if the route is applicable
         // Applicability will also check if this route is already borrowed or not.
-        uint32_t uiFlags = (bIsOut? pOps->getFlags() : pOps->getInputSource());
+        uint32_t uiFlags = (bIsOut? pOps->getFlags() : (1 << pOps->getInputSource()));
         if (pRoute->isApplicable(pOps->getNewDevice(), _pPlatformState->getHwMode(), bIsOut, uiFlags)) {
 
             ALOGD("%s: route %s is applicable", __FUNCTION__, pRoute->getName().c_str());

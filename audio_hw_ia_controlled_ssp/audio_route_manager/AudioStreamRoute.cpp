@@ -143,19 +143,18 @@ status_t CAudioStreamRoute::setStream(ALSAStreamOps* pStream)
 bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int mode, bool bIsOut, uint32_t uiFlags) const
 {
     ALOGI("%s: is Route %s applicable? ",__FUNCTION__, getName().c_str());
-    ALOGI("%s: \t\t\t bIsOut=%s && (1 << uiFlags)=0x%X & _uiApplicableFlags[%s]=0x%X", __FUNCTION__,
+    ALOGI("%s: \t\t\t bIsOut=%s && uiFlags=0x%X & _uiApplicableFlags[%s]=0x%X", __FUNCTION__,
           bIsOut? "output" : "input",
-          (1 << uiFlags),
+          uiFlags,
           bIsOut? "output" : "input",
           _uiApplicableFlags[bIsOut]);
 
-    // Base class does not have much work to do than checking
-    // if no stream is already using it and if not condemened
-    if (!bIsOut &&
-            !((1 << uiFlags) & _uiApplicableFlags[bIsOut])) {
+    if (!bIsOut && !(uiFlags & _uiApplicableFlags[bIsOut])) {
 
         return false;
     }
+    // Base class does not have much work to do than checking
+    // if no stream is already using it and if not condemened
     return base::isApplicable(uiDevices, mode, bIsOut);
 }
 
