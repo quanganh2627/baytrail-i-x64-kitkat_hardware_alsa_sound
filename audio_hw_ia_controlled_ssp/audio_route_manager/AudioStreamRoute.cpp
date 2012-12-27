@@ -56,10 +56,17 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
     // The route needs reconfiguration except if:
     //      - still borrowed by the same stream
     //      - the stream is using the same device
-    if (base::needReconfiguration(bIsOut) &&
-            ((_pCurrentStreams[bIsOut] != _pNewStreams[bIsOut]) ||
-            (_pCurrentStreams[bIsOut]->getCurrentDevice() !=  _pNewStreams[bIsOut]->getNewDevice()))) {
+    //      - bluetooth noise reduction and echo cancelation is not changed
+    //      - HAC mode is not changed
+    //      - TTY direction is not changed
 
+    if (base::needReconfiguration(bIsOut) &&
+            (_pPlatformState->hasPlatformStateChanged(
+                CAudioPlatformState::EBtHeadsetNrEcChange |
+                CAudioPlatformState::EHacModeChange |
+                CAudioPlatformState::ETtyDirectionChange) ||
+            (_pCurrentStreams[bIsOut] != _pNewStreams[bIsOut]) ||
+            (_pCurrentStreams[bIsOut]->getCurrentDevice() !=  _pNewStreams[bIsOut]->getNewDevice()))) {
         return true;
     }
     return false;
