@@ -1,7 +1,6 @@
 ifeq ($(BOARD_USES_ALSA_AUDIO),true)
 ifeq ($(BOARD_USES_AUDIO_HAL_IA_CONTROLLED_SSP),true)
 
-#AUDIO_POLICY_TEST := true
 #ENABLE_AUDIO_DUMP := true
 LOCAL_PATH := $(call my-dir)
 
@@ -141,49 +140,6 @@ LOCAL_SHARED_LIBRARIES += \
 
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
   LOCAL_SHARED_LIBRARIES += libamhal
-endif
-
-include $(BUILD_SHARED_LIBRARY)
-
-# This is the ALSA audio policy manager
-
-include $(CLEAR_VARS)
-
-LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/at-manager \
-    $(TARGET_OUT_HEADERS)/event-listener \
-    $(TARGET_OUT_HEADERS)/libaudioresample \
-    $(TARGET_OUT_HEADERS)/property
-
-LOCAL_SRC_FILES := \
-    AudioPolicyManagerALSA.cpp
-
-LOCAL_C_INCLUDES += \
-    external/stlport/stlport/ \
-    bionic/
-
-LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/property
-
-LOCAL_SHARED_LIBRARIES := \
-    libcutils \
-    libutils \
-    libstlport \
-    libproperty \
-    libmedia
-
-LOCAL_STATIC_LIBRARIES := \
-    libmedia_helper
-
-LOCAL_WHOLE_STATIC_LIBRARIES := \
-    libaudiopolicy_legacy
-
-LOCAL_MODULE := audio_policy.$(TARGET_DEVICE)
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_MODULE_TAGS := optional
-
-ifeq ($(BOARD_HAVE_BLUETOOTH),true)
-  LOCAL_CFLAGS += -DWITH_A2DP
 endif
 
 include $(BUILD_SHARED_LIBRARY)
