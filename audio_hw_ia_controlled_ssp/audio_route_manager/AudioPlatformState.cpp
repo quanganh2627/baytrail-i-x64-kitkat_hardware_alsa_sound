@@ -373,7 +373,7 @@ void CAudioPlatformState::setDirectStreamEvent(uint32_t uiFlags)
 {
     ALOGD("%s: flags=0x%X refCount=%d", __FUNCTION__, uiFlags, _uiDirectStreamsRefCount);
 
-    bool hadDirectStreams = !!_uiDirectStreamsRefCount;
+    bool hadDirectStreams = (_uiDirectStreamsRefCount != 0);
 
     if (uiFlags & DIRECT_STREAM_FLAGS) {
 
@@ -382,7 +382,7 @@ void CAudioPlatformState::setDirectStreamEvent(uint32_t uiFlags)
 
         _uiDirectStreamsRefCount -= 1;
     }
-    if (hadDirectStreams != !!_uiDirectStreamsRefCount) {
+    if (hadDirectStreams != (_uiDirectStreamsRefCount != 0)) {
 
         setPlatformStateEvent(EStreamEvent);
     }

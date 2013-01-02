@@ -580,47 +580,47 @@ void CAudioRouteManager::doReconsiderRouting()
     ALOGD("%s: following conditions:", __FUNCTION__);
     ALOGD("%s:          -Modem Alive = %d %s", __FUNCTION__,
           _pPlatformState->isModemAlive(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange) ? "[has changed]" : "");
     ALOGD("%s:          -Modem Call Active = %d %s", __FUNCTION__,
           _pPlatformState->isModemAudioAvailable(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange) ? "[has changed]" : "");
     ALOGD("%s:          -Is Shared I2S glitch free=%d %s", __FUNCTION__, _pPlatformState->isSharedI2SBusAvailable(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ESharedI2SStateChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ESharedI2SStateChange) ? "[has changed]" : "");
     ALOGD("%s:          -Android Telephony Mode = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getMode(), EModeCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EAndroidModeChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EAndroidModeChange) ? "[has changed]" : "");
     ALOGD("%s:          -RTE MGR HW Mode = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getHwMode(), EModeCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange) ? "[has changed]" : "");
     ALOGD("%s:          -Android FM Mode = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getFmRxHwMode(), EFmModeCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange) ? "[has changed]" : "");
     ALOGD("%s:          -RTE MGR FM HW Mode = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getFmRxMode(), EFmModeCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange) ? "[has changed]" : "");
     ALOGD("%s:          -BT Enabled = %d %s", __FUNCTION__, _pPlatformState->isBtEnabled(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform output device = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getDevices(true), EOutputDeviceCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform input device = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getDevices(false), EInputDeviceCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform input source = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getInputSource(), EInputSourceCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform Band type = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getBandType(), EBandCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform Has Direct Stream = %s %s", __FUNCTION__,
-          _pPlatformState->hasDirectStreams()? "yes" : "no",
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent)? "[has changed]" : "");
+          _pPlatformState->hasDirectStreams() ? "yes" : "no",
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent) ? "[has changed]" : "");
     ALOGD("%s:          -Platform TTY direction = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getTtyDirection(), ETtyDirectionCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform Direct HAC Mode = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->isHacEnabled(), ETtyDirectionCriteriaType).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange)? "[has changed]" : "");
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange) ? "[has changed]" : "");
 
 
     // Reset availability of all route (All routes to be available)
@@ -781,7 +781,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
         ALOGD("-------------------------------------------------------------------------------------------------------");
         ALOGD("%s: Reconsider Routing due to %s stream parameter change",
               __FUNCTION__,
-              pStream->isOut()? "output": "input");
+              pStream->isOut() ? "output": "input");
         ALOGD("-------------------------------------------------------------------------------------------------------");
         // Reconsider the routing now
         status = reconsiderRouting();
@@ -825,7 +825,7 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
     ALOGD("-------------------------------------------------------------------------------------------------------");
     ALOGD("%s: Reconsider Routing due to %s stream start event",
           __FUNCTION__,
-          pStream->isOut()? "output" : "input");
+          pStream->isOut() ? "output" : "input");
     ALOGD("-------------------------------------------------------------------------------------------------------");
     //
     // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
@@ -850,7 +850,7 @@ status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
     ALOGD("-------------------------------------------------------------------------------------------------------");
     ALOGD("%s: Reconsider Routing due to %s stream stop event",
           __FUNCTION__,
-          pStream->isOut()? "output" : "input");
+          pStream->isOut() ? "output" : "input");
     ALOGD("-------------------------------------------------------------------------------------------------------");
     //
     // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
@@ -1238,7 +1238,7 @@ void CAudioRouteManager::addStream(ALSAStreamOps* pStream)
 
     bool isOut = pStream->isOut();
 
-    ALOGD("%s: add %s stream to route manager", __FUNCTION__, isOut? "output" : "input");
+    ALOGD("%s: add %s stream to route manager", __FUNCTION__, isOut ? "output" : "input");
 
     // Add Stream Out to the list
     _streamsList[isOut].push_back(pStream);
@@ -1299,7 +1299,7 @@ bool CAudioRouteManager::virtuallyConnectRoutes()
 bool CAudioRouteManager::virtuallyConnectRoutes(bool bIsOut)
 {
     ALOGD("%s for %s", __FUNCTION__,
-          bIsOut? "output" : "input");
+          bIsOut ? "output" : "input");
 
     // Save Enabled routes bit field
     _uiPreviousEnabledRoutes[bIsOut] = _uiEnabledRoutes[bIsOut];
@@ -1425,7 +1425,7 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, CAu
 
         // Check if the route is applicable
         // Applicability will also check if this route is already borrowed or not.
-        uint32_t uiFlags = (bIsOut? pOps->getFlags() : (1 << pOps->getInputSource()));
+        uint32_t uiFlags = (bIsOut ? pOps->getFlags() : (1 << pOps->getInputSource()));
         if (pRoute->isApplicable(pOps->getNewDevice(), _pPlatformState->getHwMode(), bIsOut, uiFlags)) {
 
             ALOGD("%s: route %s is applicable", __FUNCTION__, pRoute->getName().c_str());
@@ -1459,7 +1459,7 @@ void CAudioRouteManager::muteRoutingStage()
 void CAudioRouteManager::muteRoutes(bool bIsOut)
 {
     ALOGD("%s for %s:", __FUNCTION__,
-          bIsOut? "output" : "input");
+          bIsOut ? "output" : "input");
 
     //
     // CurrentEnabledRoute: Eclipse the route that need to reconfigure
@@ -1471,16 +1471,16 @@ void CAudioRouteManager::muteRoutes(bool bIsOut)
     uint32_t uiEnabledRoutes = _uiEnabledRoutes[bIsOut] & ~_uiNeedToReconfigureRoutes[bIsOut];
 
     ALOGD("%s \t -Previously enabled routes in %s = %s", __FUNCTION__,
-             bIsOut? "Output" : "Input",
+             bIsOut ? "Output" : "Input",
              print_criteria(_uiPreviousEnabledRoutes[bIsOut], ERouteCriteriaType).c_str());
 
     ALOGD("%s \t -Enabled routes [eclipsing route that need reconfiguration] in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(uiEnabledRoutes, ERouteCriteriaType).c_str());
 
     ALOGD("%s \t --------------------------------------------------------------------------", __FUNCTION__);
     ALOGD("%s \t Expected Routes to be muted in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(((_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut]),
                         ERouteCriteriaType).c_str());
 
@@ -1513,7 +1513,7 @@ void CAudioRouteManager::unmuteRoutingStage()
 void CAudioRouteManager::unmuteRoutes(bool bIsOut)
 {
     ALOGD("%s for %s:", __FUNCTION__,
-          bIsOut? "output" : "input");
+          bIsOut ? "output" : "input");
 
     // Unmute Routes that
     //      -were not enabled but will be enabled
@@ -1524,16 +1524,16 @@ void CAudioRouteManager::unmuteRoutes(bool bIsOut)
     //                               NeedToReconfigureRoutes[bIsOut];
 
     ALOGD("%s \t -Previously enabled routes in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(_uiPreviousEnabledRoutes[bIsOut], ERouteCriteriaType).c_str());
 
     ALOGD("%s \t -Enabled routes  in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(_uiEnabledRoutes[bIsOut], ERouteCriteriaType).c_str());
 
     ALOGD("%s \t --------------------------------------------------------------------------", __FUNCTION__);
     ALOGD("%s \t Expected Routes to be unmuted in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) |_uiNeedToReconfigureRoutes[bIsOut]),
                         ERouteCriteriaType).c_str());
 
@@ -1573,7 +1573,7 @@ void CAudioRouteManager::configureRoutingStage()
 void CAudioRouteManager::configureRoutes(bool bIsOut)
 {
     ALOGD("%s for %s:", __FUNCTION__,
-          bIsOut? "output" : "input");
+          bIsOut ? "output" : "input");
 
     // Configure Routes that
     //      -were not enabled but will be enabled
@@ -1584,7 +1584,7 @@ void CAudioRouteManager::configureRoutes(bool bIsOut)
     //                                NeedToReconfigureRoutes[bIsOut];
 
     ALOGD("%s:          -Routes to be configured in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut]),
                         ERouteCriteriaType).c_str());
 
@@ -1629,7 +1629,7 @@ void CAudioRouteManager::disableRoutingStage()
 void CAudioRouteManager::disableRoutes(bool bIsOut)
 {
     ALOGD("%s for %s:", __FUNCTION__,
-          bIsOut? "output" : "input");
+          bIsOut ? "output" : "input");
 
     // Disable Routes that
     //      -are disabled
@@ -1640,7 +1640,7 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
     //                              NeedToReconfigureRoutes[bIsOut];
 
     ALOGD("%s \t -Routes to be disabled(unrouted) in %s = %s",  __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria((_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut],
                         ERouteCriteriaType).c_str());
 
@@ -1697,7 +1697,7 @@ void CAudioRouteManager::enableRoutingStage()
 void CAudioRouteManager::enableRoutes(bool bIsOut)
 {
     ALOGD("%s for %s:", __FUNCTION__,
-          bIsOut? "output" : "input");
+          bIsOut ? "output" : "input");
 
     CAudioRoute *aRoute =  NULL;
     RouteListIterator it;
@@ -1713,7 +1713,7 @@ void CAudioRouteManager::enableRoutes(bool bIsOut)
     //                                NeedToReconfigureRoutes[bIsOut];
 
     ALOGD("%s \t -Routes to be enabled(routed) in %s = %s", __FUNCTION__,
-         bIsOut? "Output" : "Input",
+         bIsOut ? "Output" : "Input",
          print_criteria(((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut]),
                         ERouteCriteriaType).c_str());
 

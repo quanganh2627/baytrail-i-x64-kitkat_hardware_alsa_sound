@@ -169,7 +169,7 @@ public:
     // Get BT Enabled flag
     bool isBtEnabled() const { return _bIsBtEnabled; }
 
-    bool hasDirectStreams() const { return !!_uiDirectStreamsRefCount; }
+    bool hasDirectStreams() const { return (_uiDirectStreamsRefCount != 0); }
 
     // Get devices
     uint32_t getDevices(bool bIsOut) const { return _uiDevices[bIsOut]; }

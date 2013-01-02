@@ -156,7 +156,7 @@ bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int mode, bool bIsOut, 
           bIsOut? "output" : "input",
           _uiApplicableFlags[bIsOut]);
 
-    if (!bIsOut && !(uiFlags & _uiApplicableFlags[bIsOut])) {
+    if (!bIsOut && (uiFlags & _uiApplicableFlags[bIsOut]) == 0) {
 
         return false;
     }
