@@ -569,24 +569,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
 //
 // Specific Applicability Rules
 //
-class CAudioStreamRouteMedia : public CAudioStreamRoute
-{
-public:
-    CAudioStreamRouteMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioStreamRoute(uiRouteIndex, pPlatformState) {
-    }
-
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const {
-
-        if (_pPlatformState->hasDirectStreams()) {
-
-            return false;
-        }
-        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
-    }
-};
-
-
 class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 {
 public:
@@ -724,7 +706,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteId, CAudio
     switch(uiRouteId) {
 
     case Media_Offset:
-        return new CAudioStreamRouteMedia(uiRouteId, pPlatformState);
+        return new CAudioStreamRoute(uiRouteId, pPlatformState);
         break;
 
     case CompressedMedia_Offset:
