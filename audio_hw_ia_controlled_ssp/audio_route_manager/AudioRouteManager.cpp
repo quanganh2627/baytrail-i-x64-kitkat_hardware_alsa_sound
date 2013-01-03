@@ -1815,7 +1815,7 @@ void CAudioRouteManager::onModemAudioStatusChanged()
             ALOGD("%s: Reconsider Routing due to Modem Audio Status change",
                   __FUNCTION__);
             ALOGD("-------------------------------------------------------------------------------------------------------");
-            status_t status = reconsiderRouting(false);
+            status_t status = reconsiderRouting();
             if (status != NO_ERROR) {
 
                 // Just log!
@@ -1852,7 +1852,7 @@ void  CAudioRouteManager::onModemStateChanged()
         ALOGD("%s: Reconsider Routing due to Modem State change",
               __FUNCTION__);
         ALOGD("-------------------------------------------------------------------------------------------------------");
-        status_t status = reconsiderRouting(false);
+        status_t status = reconsiderRouting();
         if (status != NO_ERROR) {
 
             // Just log!
@@ -1886,7 +1886,7 @@ void  CAudioRouteManager::onModemAudioPCMChanged() {
     ALOGD("%s: Reconsider Routing due to Modem Band change",
           __FUNCTION__);
     ALOGD("-------------------------------------------------------------------------------------------------------");
-    status_t status = reconsiderRouting(false);
+    status_t status = reconsiderRouting();
     if (status != NO_ERROR) {
 
         // Just log!
