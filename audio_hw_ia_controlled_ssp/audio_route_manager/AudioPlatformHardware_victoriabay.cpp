@@ -624,6 +624,23 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
+    bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - still borrowed by the same stream
+        //      - HAC mode has not changed
+        //      - TTY direction has not changed
+        if ((CAudioRoute::needReconfiguration(bIsOut) &&
+                    _pPlatformState->hasPlatformStateChanged(
+                        CAudioPlatformState::EHacModeChange |
+                        CAudioPlatformState::ETtyDirectionChange)) ||
+                 CAudioStreamRoute::needReconfiguration(bIsOut)) {
+
+            return true;
+        }
+        return false;
+    }
+
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const {
 
         if (!_pPlatformState->isSharedI2SBusAvailable()) {
@@ -639,6 +656,20 @@ class CAudioStreamRouteBtComm : public CAudioStreamRoute
 public:
     CAudioStreamRouteBtComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+    }
+
+    bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - still borrowed by the same stream
+        //      - bluetooth noise reduction and echo cancelation has not changed
+        if ((CAudioRoute::needReconfiguration(bIsOut) &&
+                    _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtHeadsetNrEcChange)) ||
+                 CAudioStreamRoute::needReconfiguration(bIsOut)) {
+
+            return true;
+        }
+        return false;
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const {
