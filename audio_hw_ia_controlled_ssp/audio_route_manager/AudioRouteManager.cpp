@@ -419,6 +419,16 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
         ALOGI("%s(): platform does NOT support Bluetooth HFP", __FUNCTION__);
     }
 
+    //check if platform embeds a modem
+    _bHaveModem = TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue);
+    if (_bHaveModem) {
+
+        ALOGD("%s: platform embeds a Modem chip", __FUNCTION__);
+    } else {
+
+        ALOGD("%s: platform does NOT embed a Modem chip", __FUNCTION__);
+    }
+
     // Client wait semaphore
     bzero(&_clientWaitSemaphore, sizeof(_clientWaitSemaphore));
     sem_init(&_clientWaitSemaphore, 0, 0);
