@@ -1052,7 +1052,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         ALOGD("%s: Reconsider Routing due to External parameter change",
               __FUNCTION__);
         ALOGD("-------------------------------------------------------------------------------------------------------");
-        reconsiderRouting(false);
+        reconsiderRouting();
     }
 
     // Not a problem if a key does not exist, its value will
