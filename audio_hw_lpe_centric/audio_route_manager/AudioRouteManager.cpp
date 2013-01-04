@@ -322,8 +322,6 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     _pModemAudioManager(CModemAudioManagerInstance::create(this)),
     _pPlatformState(new CAudioPlatformState(this)),
-    _bModemCallActive(false),
-    _bModemAvailable(false),
     _pEventThread(new CEventThread(this)),
     _bIsStarted(false),
     _bClientWaiting(false),
@@ -366,11 +364,6 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     }
 
     createAudioHardwarePlatform();
-
-    // Client wait semaphore
-    bzero(&_clientWaitSemaphore, sizeof(_clientWaitSemaphore));
-    sem_init(&_clientWaitSemaphore, 0, 0);
-
 }
 
 void CAudioRouteManager::start()
@@ -400,7 +393,7 @@ void CAudioRouteManager::start()
 // must be called with AudioHardwareALSA::mLock held
 void CAudioRouteManager::setFmRxMode(int fmMode)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     // Update the platform state: fmmode
     _pPlatformState->setFmRxMode(fmMode);
@@ -409,9 +402,9 @@ void CAudioRouteManager::setFmRxMode(int fmMode)
     ALOGD("%s: Reconsider Routing due to FM Mode change", __FUNCTION__);
     ALOGD("-------------------------------------------------------------------------------------------------------");
     //
-    // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
+    // SYNCHRONOUSLY RECONSIDERATION of the routing in case of FM mode
     //
-    reconsiderRouting();
+    reconsiderRouting(false);
 }
 
 // From AudioHardwareALSA, set TTY mode
@@ -440,9 +433,6 @@ void CAudioRouteManager::setBtEnable(bool bIsBtEnabled)
 
 CAudioRouteManager::~CAudioRouteManager()
 {
-    // Semaphores
-    sem_destroy(&_clientWaitSemaphore);
-
     // Delete Modem Audio Manager
     delete _pModemAudioManager;
 
@@ -467,45 +457,39 @@ CAudioRouteManager::~CAudioRouteManager()
 //
 // Must be called from WLocked context
 //
-status_t CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
+void CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
 {
     ALOGD("%s", __FUNCTION__);
 
     assert(_bStarted && !_pEventThread->inThreadContext());
 
-    status_t eStatus = NO_ERROR;
-
-    if (_bClientWaiting) {
-
-        eStatus = PERMISSION_DENIED;
-        goto end;
-    }
-
-    if (bIsSynchronous) {
-
-        // Set the client wait sema flag
-        _bClientWaiting = true;
-    }
-
-
-    // Trig the processing of the list
-    _pEventThread->trig();
-
     if (!bIsSynchronous) {
 
-        return eStatus;
+        // Trig the processing of the list
+        _pEventThread->trig();
+
+    } else {
+
+        // Synchronization semaphore
+        CSyncSemaphore syncSemaphore;
+
+        // Push sync semaphore
+        _clientWaitSemaphoreList.add(&syncSemaphore);
+
+        // Trig the processing of the list
+        _pEventThread->trig();
+
+        // Unlock to allow for sem wait
+        _lock.unlock();
+
+        // Wait
+        syncSemaphore.wait();
+
+        // Relock
+        _lock.writeLock();
     }
 
-    // Wait
-    sem_wait(&_clientWaitSemaphore);
-
-    // Consume
-    _bClientWaiting = false;
-
-end:
-
     ALOGD("%s: DONE", __FUNCTION__);
-    return eStatus;
 }
 
 //
@@ -594,12 +578,8 @@ void CAudioRouteManager::doReconsiderRouting()
     // Clear Platform State flag
     _pPlatformState->clearPlatformStateEvents();
 
-    // Is a client waiting for routing reconsideration?
-    if (_bClientWaiting) {
-
-        // Warn client
-        sem_post(&_clientWaitSemaphore);
-    }
+    // Complete all synchronous requests
+    _clientWaitSemaphoreList.sync();
 
     ALOGD("-------------------------------------------------------------------------------------------------------");
     ALOGD("%s: End of Routing Reconsideration", __FUNCTION__);
@@ -649,7 +629,7 @@ void CAudioRouteManager::executeRoutingStage(int iRouteStage)
 //
 status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const String8 &keyValuePairs, int iMode)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     AudioParameter param = AudioParameter(keyValuePairs);
     status_t status;
@@ -715,12 +695,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
         // A change of device can be performed without locking the stream
         // on MRFLD.
         //
-        status = reconsiderRouting(false);
-        if (status != NO_ERROR) {
-
-            // Just log!
-            ALOGE("alsa route error: %d", status);
-        }
+        reconsiderRouting(false);
 
     } else {
 
@@ -745,7 +720,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
 status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 {
     {
-        AutoR lock(mLock);
+        AutoR lock(_lock);
 
         if (pStream->isStarted()) {
 
@@ -754,7 +729,7 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
         }
     }
 
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     pStream->setStarted(true);
 
@@ -766,7 +741,8 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
     //
     // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
     //
-    return reconsiderRouting();
+    reconsiderRouting();
+    return NO_ERROR;
 }
 
 //
@@ -775,7 +751,7 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
 {
     {
-        AutoR lock(mLock);
+        AutoR lock(_lock);
 
         if (!pStream->isStarted()) {
 
@@ -784,7 +760,7 @@ status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
         }
     }
 
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     pStream->setStarted(false);
 
@@ -796,7 +772,8 @@ status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
     //
     // SYNCHRONOUSLY RECONSIDERATION of the routing in case of stream start
     //
-    return reconsiderRouting();
+    reconsiderRouting();
+    return NO_ERROR;
 }
 
 //
@@ -804,7 +781,7 @@ status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
 //
 status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     AudioParameter param = AudioParameter(keyValuePairs);
     status_t status;
@@ -838,16 +815,15 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
     return NO_ERROR;
 }
 
-
+//
+// Called from locked context
+//
 status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
 {
-    AutoW lock(mLock);
-
     ALOGD("%s: key value pair %s", __FUNCTION__, keyValuePairs.string());
 
     AudioParameter param = AudioParameter(keyValuePairs);
     status_t status;
-    bool bReconsiderRouting = false;
 
     //
     // Search TTY mode
@@ -880,7 +856,6 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         }
 
         setTtyDirection(iTtyDirection);
-        bReconsiderRouting = true;
 
         // Remove parameter
         param.remove(key);
@@ -932,7 +907,6 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
             // BT_NREC_OFF when the SCO link is enabled. But only BT_NREC_ON setting is applied in that
             // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
             // becomes necessary, to be aligned with BT_NREC_OFF to process the correct Audience profile.
-            bReconsiderRouting = true;
         }
 
         setBtNrEc(isBtNRecAvailable);
@@ -962,14 +936,13 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         }
 
         setHacMode(bIsHACModeSet);
-        bReconsiderRouting = true;
 
         // Remove parameter
         param.remove(key);
     }
 
     // Reconsider the routing now
-    if (bReconsiderRouting) {
+    if (_pPlatformState->hasPlatformStateChanged()) {
 
         //
         // ASYNCHRONOUSLY RECONSIDERATION of the routing in case of a parameter change
@@ -991,7 +964,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
 //
 void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     bool bIsOut = pStream->isOut();
 
@@ -1004,8 +977,8 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
     _pPlatformState->setDevices(devices, bIsOut);
 
     ALOGD("%s: set device = %s to %s stream", __FUNCTION__,
-         bIsOut ?\
-             print_criteria(devices, EOutputDeviceCriteriaType).c_str() :\
+         bIsOut ?
+             print_criteria(devices, EOutputDeviceCriteriaType).c_str() :
              print_criteria(devices, EInputDeviceCriteriaType).c_str(),
         bIsOut ? "output": "input");
 
@@ -1020,7 +993,7 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 //
 void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     pStream->setInputSource(iInputSource);
 
@@ -1031,7 +1004,7 @@ void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource
 
 void CAudioRouteManager::createAudioHardwarePlatform()
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     ALOGD("%s", __FUNCTION__);
 
@@ -1074,7 +1047,7 @@ void CAudioRouteManager::resetAvailability()
 //
 void CAudioRouteManager::addStream(ALSAStreamOps* pStream)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     bool isOut = pStream->isOut();
 
@@ -1089,7 +1062,7 @@ void CAudioRouteManager::addStream(ALSAStreamOps* pStream)
 //
 void CAudioRouteManager::removeStream(ALSAStreamOps* pStream)
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     ALOGD("%s", __FUNCTION__);
 
@@ -1567,74 +1540,47 @@ void CAudioRouteManager::startATManager()
 //
 void CAudioRouteManager::onModemAudioStatusChanged()
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     ALOGD("%s: IN", __FUNCTION__);
 
-    // Check if Modem Audio Path is available
-    // According to network, some can receive XCALLSTAT, some can receive XPROGRESS
-    // so compute both information
-    bool isAudioPathAvail = _pModemAudioManager->isModemAudioAvailable();
+    // Update the platform state
+    _pPlatformState->setModemAudioAvailable(_pModemAudioManager->isModemAudioAvailable());
 
-    // Modem Call State has changed?
-    if(_bModemCallActive != isAudioPathAvail){
+    // Reconsider the routing now only if the platform state has changed
+    if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange)) {
 
-        // ModemCallActive has changed, keep track
-        _bModemCallActive = isAudioPathAvail;
-
-        // Update the platform state
-        _pPlatformState->setModemAudioAvailable(_bModemCallActive);
-
-        // Reconsider the routing now only if the platform state has changed
-        if (_pPlatformState->hasPlatformStateChanged()) {
-
-            ALOGD("-------------------------------------------------------------------------------------------------------");
-            ALOGD("%s: Reconsider Routing due to Modem Audio Status change",
-                  __FUNCTION__);
-            ALOGD("-------------------------------------------------------------------------------------------------------");
-            status_t status = reconsiderRouting(false);
-            if (status != NO_ERROR) {
-
-                // Just log!
-                ALOGE("alsa route error: %d", status);
-            }
-        }
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        ALOGD("%s: Reconsider Routing due to Modem Audio Status change",
+              __FUNCTION__);
+        ALOGD("-------------------------------------------------------------------------------------------------------");
+        reconsiderRouting(false);
     }
     ALOGD("%s: OUT", __FUNCTION__);
 }
 
 //
 // From IModemStatusNotifier
-// Called on Modem State change reported by MMGR
+// Called on Modem State change reported by ModemAudioManager
 // Need to hold AudioHardwareALSA::mLock
 //
 void  CAudioRouteManager::onModemStateChanged()
 {
-    AutoW lock(mLock);
+    AutoW lock(_lock);
 
     ALOGD("%s: IN: ModemStatus", __FUNCTION__);
 
-    _bModemAvailable = _pModemAudioManager->isModemAlive();
-
     // Update the platform state
-    _pPlatformState->setModemAlive(_bModemAvailable);
-
-    // Reset the modem audio status
-    _pPlatformState->setModemAudioAvailable(false);
+    _pPlatformState->setModemAlive(_pModemAudioManager->isModemAlive());
 
     // Reconsider the routing now only if the platform state has changed
-    if (_pPlatformState->hasPlatformStateChanged()) {
+    if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange)) {
 
         ALOGD("-------------------------------------------------------------------------------------------------------");
         ALOGD("%s: Reconsider Routing due to Modem State change",
               __FUNCTION__);
         ALOGD("-------------------------------------------------------------------------------------------------------");
-        status_t status = reconsiderRouting(false);
-        if (status != NO_ERROR) {
-
-            // Just log!
-            ALOGE("alsa route error: %d", status);
-        }
+        reconsiderRouting(false);
     }
     ALOGD("%s: OUT", __FUNCTION__);
 }
@@ -1648,7 +1594,7 @@ void  CAudioRouteManager::onModemAudioPCMChanged() {
     MODEM_CODEC modemCodec;
     CAudioPlatformState::BandType_t band;
 
-    AutoW lock(mLock);
+    AutoW lock(_lock);
     ALOGD("%s: in", __FUNCTION__);
 
     modemCodec = _pModemAudioManager->getModemCodec();
@@ -1663,12 +1609,7 @@ void  CAudioRouteManager::onModemAudioPCMChanged() {
     ALOGD("%s: Reconsider Routing due to Modem Band change",
           __FUNCTION__);
     ALOGD("-------------------------------------------------------------------------------------------------------");
-    status_t status = reconsiderRouting(false);
-    if (status != NO_ERROR) {
-
-        // Just log!
-        ALOGE("%s error: %d", __FUNCTION__, status);
-    }
+    reconsiderRouting(false);
 
     ALOGD("%s: out", __FUNCTION__);
 }
@@ -1719,32 +1660,21 @@ void CAudioRouteManager::onPollError()
 //
 bool CAudioRouteManager::onProcess(uint16_t uiEvent)
 {
-    //
-    // Take the lock only in case of asynchronous request
-    // as already handled by client thread if synchronous request
-    //
-    if (!_bClientWaiting) {
-
-        mLock.writeLock();
-    }
+    AutoW lock(_lock);
 
     doReconsiderRouting();
 
-    if (!_bClientWaiting) {
-
-        mLock.unlock();
-    }
     return false;
 }
 
 void CAudioRouteManager::lock()
 {
-    mLock.readLock();
+    _lock.readLock();
 }
 
 void CAudioRouteManager::unlock()
 {
-    mLock.unlock();
+    _lock.unlock();
 }
 
 // Used to fill types for PFW

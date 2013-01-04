@@ -14,7 +14,8 @@ LOCAL_REQUIRED_MODULES := \
     audio.primary.$(TARGET_DEVICE) \
     audio_policy.$(TARGET_DEVICE) \
     tinyalsa.$(TARGET_DEVICE) \
-    libmodem-audio-manager
+    libmodem-audio-manager \
+    libaudiohalutils
 
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
   LOCAL_REQUIRED_MODULES += libamhal.so
@@ -52,7 +53,8 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/modem-audio-manager \
     $(TARGET_OUT_HEADERS)/audio-at-manager \
     $(TARGET_OUT_HEADERS)/event-listener \
-    $(TARGET_OUT_HEADERS)/property
+    $(TARGET_OUT_HEADERS)/property \
+    $(TARGET_OUT_HEADERS)/audio_hal_utils
 
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
 LOCAL_C_INCLUDES += \
@@ -128,7 +130,8 @@ LOCAL_SHARED_LIBRARIES := \
     libevent-listener \
     libaudioresample \
     libaudioutils \
-    libproperty
+    libproperty \
+    libaudiohalutils
 
 # Private audiocomms components
 LOCAL_SHARED_LIBRARIES += \

@@ -19,14 +19,11 @@
 
 #include <list>
 #include <vector>
-#include <semaphore.h>
 #include <utils/threads.h>
 #include <hardware_legacy/AudioHardwareBase.h>
 
-#include "AudioRoute.h"
 #include "ModemAudioManager.h"
-#include "AudioPlatformState.h"
-
+#include "SyncSemaphoreList.h"
 
 #define NOT_SET (-1)
 
@@ -50,6 +47,7 @@ class CAudioPortGroup;
 class CAudioPort;
 class CAudioStreamRoute;
 class CAudioParameterHandler;
+class CAudioPlatformState;
 
 class CAudioRouteManager : public IModemStatusNotifier, public IEventListener
 {
@@ -149,9 +147,6 @@ public:
 
     status_t setFmRxVolume(float volume);
 
-protected:
-    CAudioRoute* findApplicableRoute(uint32_t devices, uint32_t uiFlags, int mode, bool bForOutput, CAudioRoute::RouteType type);
-
 private:
     CAudioRouteManager(const CAudioRouteManager &);
     CAudioRouteManager& operator = (const CAudioRouteManager &);
@@ -174,7 +169,7 @@ private:
     // Set BT Enabled
     void setBtEnable(bool bIsBTEnabled);
 
-    status_t reconsiderRouting(bool bIsSynchronous = true);
+    void reconsiderRouting(bool bIsSynchronous = true);
 
     // Routing within worker thread context
     void doReconsiderRouting();
@@ -405,17 +400,11 @@ private:
     // Platform state pointer
     CAudioPlatformState* _pPlatformState;
 
-    // Modem Call state
-    bool _bModemCallActive;
-
-    // Modem State
-    bool _bModemAvailable;
-
     // Worker Thread
     CEventThread* _pEventThread;
 
-    // Answer wait semaphore
-    sem_t _clientWaitSemaphore;
+    // Client wait semaphore list
+    CSyncSemaphoreList _clientWaitSemaphoreList;
 
     // Started service flag
     bool _bIsStarted;
@@ -427,7 +416,7 @@ private:
     static const uint32_t _uiTimeoutSec;
 
     // Routing lock protection
-    RWLock mLock;
+    RWLock _lock;
 
     // Bitfield of route that needs reconfiguration, it includes route
     // that were enabled and need to be disabled

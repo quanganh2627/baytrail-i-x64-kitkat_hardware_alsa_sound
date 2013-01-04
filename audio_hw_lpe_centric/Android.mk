@@ -13,7 +13,8 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := \
     audio.primary.$(TARGET_DEVICE) \
     audio_policy.$(TARGET_DEVICE) \
-    tinyalsa.$(TARGET_DEVICE)
+    tinyalsa.$(TARGET_DEVICE) \
+    libaudiohalutils
 
 include $(BUILD_PHONY_PACKAGE)
 
@@ -47,7 +48,8 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/modem-audio-manager \
     $(TARGET_OUT_HEADERS)/audio-at-manager \
     $(TARGET_OUT_HEADERS)/event-listener \
-    $(TARGET_OUT_HEADERS)/property
+    $(TARGET_OUT_HEADERS)/property \
+    $(TARGET_OUT_HEADERS)/audio_hal_utils
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -111,7 +113,8 @@ LOCAL_SHARED_LIBRARIES := \
     libevent-listener \
     libaudioresample \
     libaudioutils \
-    libproperty
+    libproperty \
+    libaudiohalutils
 
 ifeq ($(BOARD_USES_GTI_FRAMEWORK),true)
 LOCAL_C_INCLUDES += \
