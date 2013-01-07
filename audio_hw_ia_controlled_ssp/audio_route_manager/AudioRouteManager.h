@@ -286,9 +286,6 @@ private:
     static const bool mBluetoothHFPSupportedDefaultValue;
     static const char* const mPFWConfigurationFileNamePropertyName;
 
-    // Indicate if platform embeds a Modem chip.
-    bool _bHaveModem;
-
     // Indicate if platform supports FM Radio
     bool _bFmSupported;
 

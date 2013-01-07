@@ -124,6 +124,12 @@ public:
     // Set the modem Audio available
     void setModemAudioAvailable(bool bIsAudioAvailable);
 
+    // Get the modem embedded status
+    bool isModemEmbedded() const { return _bModemEmbedded; }
+
+    // Set the modem embedded status
+    void setModemEmbedded(bool bIsPresent);
+
     // Check if the Modem Shared I2S is safe to use
     bool isSharedI2SBusAvailable();
 
@@ -221,6 +227,9 @@ private:
 
     // Modem State
     bool _bModemAlive;
+
+    // Indicate if platform embeds a modem
+    bool _bModemEmbedded;
 
     // Android Telephony mode cache
     int _iAndroidMode;

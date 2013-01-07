@@ -93,6 +93,12 @@ void CAudioPlatformState::setModemAlive(bool bIsAlive)
     updateHwMode();
 }
 
+// Set the modem embedded state
+void CAudioPlatformState::setModemEmbedded(bool bIsEmbedded)
+{
+    _bModemEmbedded = bIsEmbedded;
+}
+
 // Set the modem Audio available
 void CAudioPlatformState::setModemAudioAvailable(bool bIsAudioAvailable)
 {
@@ -119,10 +125,11 @@ void CAudioPlatformState::setModemAudioAvailable(bool bIsAudioAvailable)
 //      -Modem must be up
 //      -A call is being set (Android Mode already changed) but
 //          modem audio status is still inactive
+// if there is no modem, I2S bus can always be used
 //
 bool CAudioPlatformState::isSharedI2SBusAvailable()
 {
-    return isModemAlive() && _bIsSharedI2SGlitchSafe;
+    return isModemEmbedded() ? (isModemAlive() && _bIsSharedI2SGlitchSafe) : true;
 }
 
 // Set Android Telephony Mode

@@ -426,8 +426,8 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     }
 
     //check if platform embeds a modem
-    _bHaveModem = TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue);
-    if (_bHaveModem) {
+    _pPlatformState->setModemEmbedded(TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue));
+    if (_pPlatformState->isModemEmbedded()) {
 
         ALOGD("%s: platform embeds a Modem chip", __FUNCTION__);
     } else {
@@ -453,7 +453,7 @@ status_t CAudioRouteManager::start()
 
 #ifndef VB_HAL_AUDIO_TEMP
     // Start AT Manager
-    if(_bHaveModem){
+    if (_pPlatformState->isModemEmbedded()) {
 
         startATManager();
     }
