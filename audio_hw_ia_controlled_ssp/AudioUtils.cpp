@@ -104,6 +104,12 @@ pcm_format CAudioUtils::convertHalToTinyFormat(int format)
     return convFormat;
 }
 
+uint32_t CAudioUtils::convertUsecToMsec(uint32_t uiTimeUsec)
+{
+    // Round up to the nearest Msec
+    return ((uiTimeUsec + 999) / 1000);
+}
+
 // ----------------------------------------------------------------------------
 }; // namespace android
 

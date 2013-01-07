@@ -38,7 +38,7 @@ public:
     String8             getParameters(const String8& keys);
 
     inline uint32_t     sampleRate() const { return mSampleSpec.getSampleRate();}
-    size_t              bufferSize() const;
+    size_t              getBufferSize(uint32_t iDivider) const;
     inline int          format() const {return mSampleSpec.getFormat();}
     inline uint32_t     channelCount() const {return mSampleSpec.getChannelCount();}
     inline uint32_t     channels() const {return mSampleSpec.getChannelMask();}
@@ -122,6 +122,11 @@ private:
 
     // Audio Conversion utility class
     CAudioConversion* mAudioConversion;
+
+    static const uint32_t NB_RING_BUFFER_NORMAL;
+    static const uint32_t PLAYBACK_PERIOD_TIME_US;
+    static const uint32_t CAPTURE_PERIOD_TIME_US;
+    static const pcm_config DEFAULT_PCM_CONFIG;
 };
 
 

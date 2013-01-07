@@ -27,15 +27,8 @@
 #include <tinyalsa/asoundlib.h>
 
 
-#define SAMPLE_RATE_48000               (48000)
-
 #define MAX_RETRY (6)
-
-#define NB_RING_BUFFER_NORMAL   2
-
-#define USEC_PER_SEC        (1000000)
-
-#define PLAYBACK_48000_PERIOD_SIZE   (1152) // (24000*2 * 48000 / USEC_PER_SEC)
+#define USEC_PER_SEC                    ((int)1000000)
 
 namespace android_audio_legacy
 {
@@ -79,46 +72,34 @@ static int s_device_close(hw_device_t* device)
 
 // ----------------------------------------------------------------------------
 
-static const pcm_config default_pcm_config_playback = {
-    channels        : 2,
-    rate            : SAMPLE_RATE_48000,
-    period_size     : PLAYBACK_48000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_NORMAL,
-    format          : PCM_FORMAT_S16_LE,
-    start_threshold : PLAYBACK_48000_PERIOD_SIZE - 1,
-    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-    silence_threshold : 0,
-    avail_min       : PLAYBACK_48000_PERIOD_SIZE,
-};
-
-static const pcm_config default_pcm_config_capture = {
-    channels        : 2,
-    rate            : SAMPLE_RATE_48000,
-    period_size     : PLAYBACK_48000_PERIOD_SIZE / 2,
-    period_count    : 4,
-    format          : PCM_FORMAT_S16_LE,
-    start_threshold : 0,
-    stop_threshold  : 0,
-    silence_threshold : 0,
-    avail_min       : 0,
+static const pcm_config pcm_config_default = {
+   /* channels        : */0,
+   /* rate            : */0,
+   /* period_size     : */0,
+   /* period_count    : */0,
+   /* format          : */PCM_FORMAT_S16_LE,
+   /* start_threshold : */0 ,
+   /* stop_threshold  : */0 ,
+   /* silence_threshold : */0,
+   /* avail_min       : */0,
 };
 
 static alsa_handle_t _defaultsOut = {
     module             : 0,
     handle             : NULL,
-    config             : default_pcm_config_playback,
+    config             : pcm_config_default,
+    latencyInUs          : 0,
     flags              : PCM_OUT,
     modPrivate         : 0,
-    openFlag           : false,
 };
 
 static alsa_handle_t _defaultsIn = {
     module             : 0,
     handle             : NULL,
-    config             : default_pcm_config_capture,
+    config             : pcm_config_default,
+    latencyInUs          : 0,
     flags              : PCM_IN,
     modPrivate         : 0,
-    openFlag           : false,
 };
 
 // ----------------------------------------------------------------------------
@@ -131,7 +112,7 @@ static status_t s_init(alsa_device_t *module)
     return NO_ERROR;
 }
 
-static status_t s_init_stream(alsa_handle_t *handle, bool isOut, uint32_t rate, uint32_t channels, pcm_format format)
+static status_t s_init_stream(alsa_handle_t *handle, bool isOut, const pcm_config& config)
 {
     LOGD("%s called for %s stream", __FUNCTION__, isOut? "output" : "input");
 
@@ -139,24 +120,14 @@ static status_t s_init_stream(alsa_handle_t *handle, bool isOut, uint32_t rate, 
 
         *handle = _defaultsOut;
 
-        // For output stream, use rate/channels/format requested by AF
-        // upon information read into audio_policy.conf
-        handle->config.rate = rate;
-        handle->config.channels = channels;
-        handle->config.format = format;
     } else {
 
         *handle = _defaultsIn;
-
-        // For intput stream, DO NOT use rate/channels/format requested by AF
-        // upon information read into audio_policy.conf
-        // SRC might be used within HAL
-        // Wait for open to give sample spec information from the AudioRoute borrowed
     }
 
-    handle->handle = NULL;
+    handle->config = config;
+    handle->latencyInUs = (int64_t)config.period_size * config.period_count * USEC_PER_SEC / config.rate;
 
-    handle->openFlag = 0;
     return NO_ERROR;
 }
 
@@ -243,7 +214,6 @@ static status_t s_open(alsa_handle_t *handle,
         break ;
     }
 
-    handle->openFlag = true;
     return NO_ERROR;
 }
 
@@ -257,6 +227,7 @@ static status_t s_stop(alsa_handle_t *handle)
         LOGD("%s stopping stream \n", __func__);
         err = pcm_stop(h);
     }
+
     LOGD("%s out \n", __func__);
     return err;
 }
@@ -270,6 +241,7 @@ static status_t s_standby(alsa_handle_t *handle)
         err = pcm_close(h);
         handle->handle = NULL;
     }
+
     LOGD("%s out \n", __func__);
     return err;
 }
@@ -281,11 +253,11 @@ static status_t s_close(alsa_handle_t *handle)
     pcm* h = handle->handle;
     handle->handle = NULL;
 
-    handle->openFlag = false;
     if (h) {
 
         err = pcm_close(h);
     }
+
     LOGD("%s out \n", __func__);
     return err;
 }

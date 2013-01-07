@@ -44,10 +44,11 @@ struct alsa_handle_t {
 
     pcm*                handle;
     pcm_config          config;
+    uint32_t            latencyInUs;
+
     int                 flags;
 
     void *              modPrivate;
-    bool                openFlag;        // If handle is opened then openFlag = 1
 };
 
 struct alsa_device_t {
@@ -60,7 +61,7 @@ struct alsa_device_t {
     status_t (*standby)(alsa_handle_t *);
     status_t (*close)(alsa_handle_t *);
     status_t (*volume)(alsa_handle_t *, uint32_t, float);
-    status_t (*initStream)(alsa_handle_t *, bool, uint32_t, uint32_t, pcm_format);
+    status_t (*initStream)(alsa_handle_t *, bool, const pcm_config&);
 };
 
 /**

@@ -11,9 +11,12 @@
 using namespace android;
 using namespace std;
 
+
 namespace android_audio_legacy {
 
 // ----------------------------------------------------------------------------
+
+const uint32_t CSampleSpec::USEC_PER_SEC = 1000000;
 
 // Generic Accessor
 void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue)
@@ -44,9 +47,14 @@ ssize_t CSampleSpec::convertFramesToBytes(ssize_t frames) const
     return frames * getFrameSize();
 }
 
-float CSampleSpec::framesToMs(uint32_t uiFrames) const
+float CSampleSpec::convertFramesToMs(uint32_t uiFrames) const
 {
-    return 1000.0*(float)(uiFrames) / (getChannelCount()*getSampleRate());
+    return 1000.0 * (float)(uiFrames) / getSampleRate();
+}
+
+ssize_t CSampleSpec::convertUsecToframes(uint32_t uiIntervalUsec) const
+{
+    return (uint64_t)uiIntervalUsec * getSampleRate() / USEC_PER_SEC;
 }
 
 // ----------------------------------------------------------------------------

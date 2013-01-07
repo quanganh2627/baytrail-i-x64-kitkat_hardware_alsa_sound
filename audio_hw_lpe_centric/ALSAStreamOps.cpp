@@ -45,8 +45,6 @@
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
-#define USEC_PER_SEC            (1000000)
-#define USEC_PER_MSEC           (1000)
 
 using namespace android;
 
@@ -54,6 +52,24 @@ namespace android_audio_legacy
 {
 
 // ----------------------------------------------------------------------------
+
+const uint32_t ALSAStreamOps::NB_RING_BUFFER_NORMAL = 2;
+const uint32_t ALSAStreamOps::PLAYBACK_PERIOD_TIME_US = 48000;
+const uint32_t ALSAStreamOps::CAPTURE_PERIOD_TIME_US = 40000;
+
+
+const pcm_config ALSAStreamOps::DEFAULT_PCM_CONFIG = {
+    channels        : 0,
+    rate            : 0,
+    period_size     : 0,
+    period_count    : ALSAStreamOps::NB_RING_BUFFER_NORMAL,
+    format          : PCM_FORMAT_S16_LE,
+    start_threshold : 0,
+    stop_threshold  : 0,
+    silence_threshold : 0,
+    avail_min       : 0,
+};
+
 
 static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Headset//pmdown_time";
 static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
@@ -191,11 +207,17 @@ status_t ALSAStreamOps::set(int      *format,
 
         if (mParent->getAlsaHwDevice()) {
 
+            pcm_config stConfig = DEFAULT_PCM_CONFIG;
+
+            stConfig.rate = mSampleSpec.getSampleRate();
+            stConfig.channels = mSampleSpec.getChannelCount();
+            stConfig.format = CAudioUtils::convertHalToTinyFormat(mSampleSpec.getFormat());
+            uint32_t uiPeriodTimeUs = isOut() ? PLAYBACK_PERIOD_TIME_US : CAPTURE_PERIOD_TIME_US;
+            stConfig.period_size = mSampleSpec.convertUsecToframes(uiPeriodTimeUs);
+
             mParent->getAlsaHwDevice()->initStream(mHandle,
                                                    isOut(),
-                                                   mSampleSpec.getSampleRate(),
-                                                   mSampleSpec.getChannelCount(),
-                                                   CAudioUtils::convertHalToTinyFormat(mSampleSpec.getFormat()));
+                                                   stConfig);
             mHwSampleSpec = mSampleSpec;
         }
     }
@@ -225,13 +247,15 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
 // Return the number of bytes (not frames)
 // number of bytes returned takes sample rate into account
 //
-size_t ALSAStreamOps::bufferSize() const
+// @params: uiDivider: dividing factor of the latency of ringbuffer
+//
+size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
 {
     size_t bytes;
-    size_t size;
 
-    ALOGD("%s: %d %d", __FUNCTION__, mHandle->config.period_size, mHandle->config.period_count);
-    size = CAudioUtils::convertSrcToDstInFrames(mHandle->config.period_size *  mHandle->config.period_count / 4, mHwSampleSpec, mSampleSpec);
+    ALOGD("%s: latency = %d divider = %d", __FUNCTION__, mHandle->latencyInUs, uiDivider);
+
+    size_t size = mSampleSpec.convertUsecToframes(mHandle->latencyInUs) / uiDivider;
 
     size = CAudioUtils::alignOn16(size);
 
@@ -245,8 +269,7 @@ uint32_t ALSAStreamOps::latency() const
 {
     // Android wants latency in milliseconds.
 
-    int latency = mHwSampleSpec.framesToMs(mHandle->config.period_size *  mHandle->config.period_count);
-    return latency / USEC_PER_MSEC;
+    return CAudioUtils::convertUsecToMsec(mHandle->latencyInUs);
 }
 
 status_t ALSAStreamOps::setStandby(bool bIsSet)

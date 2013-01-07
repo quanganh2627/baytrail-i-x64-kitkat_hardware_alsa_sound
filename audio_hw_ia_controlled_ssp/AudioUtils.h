@@ -43,6 +43,8 @@ public:
     static int convertTinyToHalFormat(pcm_format format);
     static pcm_format convertHalToTinyFormat(int format);
 
+    static uint32_t convertUsecToMsec(uint32_t uiTimeUsec);
+
     /**
       * Constante used during convert of frames to delays in micro-seconds (us).
       * It is used for delays computation of AEC effect

@@ -39,10 +39,7 @@ public:
         return ALSAStreamOps::sampleRate();
     }
 
-    virtual size_t      bufferSize() const
-    {
-        return ALSAStreamOps::bufferSize();
-    }
+    virtual size_t      bufferSize() const;
 
     virtual uint32_t    channels() const
     {
@@ -119,6 +116,9 @@ private:
 
     char* mHwBuffer;
     ssize_t mHwBufferSize;
+
+    static const uint32_t HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
+    static const uint32_t LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
 };
 
 };        // namespace android

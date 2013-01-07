@@ -38,14 +38,17 @@
 #include "AudioStreamOutALSA.h"
 #include "AudioAutoRoutingLock.h"
 
-#define MAX_AGAIN_RETRY     2
-#define WAIT_TIME_MS        20
-#define WAIT_BEFORE_RETRY 10000 //10ms
+
 
 #define base ALSAStreamOps
 
 namespace android_audio_legacy
 {
+
+const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
+const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
+const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY = 10000; //10ms
+const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
     base(parent, "AudioOutLock"),
@@ -82,7 +85,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
     acquirePowerLock();
 
-    ALSAStreamOps::setStandby(false);
+    setStandby(false);
 
     // DONOT take routing lock anymore on MRFLD.
     // TODO: shall we need a lock within streams?
@@ -161,19 +164,19 @@ status_t AudioStreamOutALSA::dump(int , const Vector<String16>& )
 
 status_t AudioStreamOutALSA::open(int mode)
 {
-    return ALSAStreamOps::setStandby(false);
+    return setStandby(false);
 }
 
 status_t AudioStreamOutALSA::close()
 {
-    return ALSAStreamOps::setStandby(true);
+    return setStandby(true);
 }
 
 status_t AudioStreamOutALSA::standby()
 {
     LOGD("%s", __FUNCTION__);
 
-    status_t status = ALSAStreamOps::setStandby(true);
+    status_t status = setStandby(true);
 
     mFrameCount = 0;
 
@@ -184,6 +187,11 @@ uint32_t AudioStreamOutALSA::latency() const
 {
     // Android wants latency in milliseconds.
     return base::latency();
+}
+
+size_t AudioStreamOutALSA::bufferSize() const
+{
+    return getBufferSize(LATENCY_TO_BUFFER_INTERVAL_RATIO);
 }
 
 // return the number of audio frames written by the audio dsp to DAC since

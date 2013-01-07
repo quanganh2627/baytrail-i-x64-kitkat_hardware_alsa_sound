@@ -38,14 +38,17 @@
 #include "AudioStreamOutALSA.h"
 #include "AudioAutoRoutingLock.h"
 
-#define MAX_AGAIN_RETRY     2
-#define WAIT_TIME_MS        20
-#define WAIT_BEFORE_RETRY 10000 //10ms
+
 
 #define base ALSAStreamOps
 
 namespace android_audio_legacy
 {
+
+const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
+const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
+const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY = 10000; //10ms
+const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
     base(parent, "AudioOutLock"),
@@ -183,6 +186,11 @@ uint32_t AudioStreamOutALSA::latency() const
 {
     // Android wants latency in milliseconds.
     return base::latency();
+}
+
+size_t AudioStreamOutALSA::bufferSize() const
+{
+    return getBufferSize(LATENCY_TO_BUFFER_INTERVAL_RATIO);
 }
 
 // return the number of audio frames written by the audio dsp to DAC since

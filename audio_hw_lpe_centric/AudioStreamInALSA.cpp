@@ -39,8 +39,13 @@
 
 #define base ALSAStreamOps
 
+
+
 namespace android_audio_legacy
 {
+
+const uint32_t AudioStreamInALSA::HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO = 1;
+const uint32_t AudioStreamInALSA::LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
 
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
                                      AudioSystem::audio_in_acoustics audio_acoustics) :
@@ -143,7 +148,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     acquirePowerLock();
 
-    ALSAStreamOps::setStandby(false);
+    setStandby(false);
 
     // DONOT take routing lock anymore on MRFLD.
     // TODO: shall we need a lock within streams?
@@ -195,19 +200,19 @@ status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
 
 status_t AudioStreamInALSA::open(int mode)
 {
-    return ALSAStreamOps::setStandby(false);
+    return setStandby(false);
 }
 
 status_t AudioStreamInALSA::close()
 {
-    return ALSAStreamOps::setStandby(true);
+    return setStandby(true);
 }
 
 status_t AudioStreamInALSA::standby()
 {
     LOGD("StreamInAlsa standby.\n");
 
-    return ALSAStreamOps::setStandby(true);
+    return setStandby(true);
 }
 
 void AudioStreamInALSA::resetFramesLost()
@@ -308,6 +313,17 @@ status_t AudioStreamInALSA::doClose()
 void AudioStreamInALSA::setInputSource(int inputSource)
 {
     mInputSource = inputSource;
+}
+
+size_t AudioStreamInALSA::bufferSize() const
+{
+    uint32_t uiDivider = HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
+
+    if (mInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+
+        uiDivider = LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
+    }
+    return getBufferSize(uiDivider);
 }
 
 }       // namespace android

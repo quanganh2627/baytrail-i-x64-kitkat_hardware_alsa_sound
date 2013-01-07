@@ -34,10 +34,7 @@ public:
         return ALSAStreamOps::sampleRate();
     }
 
-    virtual size_t      bufferSize() const
-    {
-        return ALSAStreamOps::bufferSize();
-    }
+    virtual size_t      bufferSize() const;
 
     virtual uint32_t    channels() const;
 
@@ -79,6 +76,11 @@ private:
     ssize_t             writeFrames(void* buffer, ssize_t frames);
 
     uint32_t            mFrameCount;
+
+    static const uint32_t MAX_AGAIN_RETRY;
+    static const uint32_t WAIT_TIME_MS;
+    static const uint32_t WAIT_BEFORE_RETRY;
+    static const uint32_t LATENCY_TO_BUFFER_INTERVAL_RATIO;
 };
 
 };        // namespace android

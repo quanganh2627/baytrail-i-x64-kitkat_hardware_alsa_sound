@@ -19,15 +19,24 @@
 
 #include <tinyalsa/asoundlib.h>
 
+#define PLAYBACK_PERIOD_TIME_MS         ((int)24)
+#define VOICE_PERIOD_TIME_MS            ((int)20)
+
+#define LONG_PERIOD_FACTOR              ((int)2)
+#define SEC_PER_MSEC                    ((int)1000)
 
 /// May add a new route, include header here...
-#define SAMPLE_RATE_8000                ((int)8000)
-#define SAMPLE_RATE_48000               ((int)48000)
-#define VOICE_8000_PERIOD_SIZE          ((int)160)  // 20ms @ 8k
-#define PLAYBACK_48000_PERIOD_SIZE      ((int)2304) //(24000*2 * 48000 / USEC_PER_SEC)
-#define VOICE_48000_PERIOD_SIZE         ((int)960)  //(20000 * 48000 / USEC_PER_SEC)
 #define NB_RING_BUFFER_NORMAL           ((int)2)
 #define NB_RING_BUFFER_INCALL           ((int)4)
+
+#define SAMPLE_RATE_8000                ((int)8000)
+#define SAMPLE_RATE_48000               ((int)48000)
+
+#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)  // 20ms @ 8k
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(24000*2 * 48000 / USEC_PER_SEC)
+#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(20000*2 * 48000 / USEC_PER_SEC)
+#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)  //(20000 * 48000 / USEC_PER_SEC)
+
 
 
 static const char* MEDIA_CARD_NAME = "cloverviewaudio";
@@ -67,13 +76,13 @@ static const pcm_config pcm_config_media_playback = {
 static const pcm_config pcm_config_media_capture = {
    /* channels          : */2,
    /* rate              : */SAMPLE_RATE_48000,
-   /* period_size       : */PLAYBACK_48000_PERIOD_SIZE,
+   /* period_size       : */CAPTURE_48000_PERIOD_SIZE,
    /* period_count      : */NB_RING_BUFFER_NORMAL,
    /* format            : */PCM_FORMAT_S16_LE,
    /* start_threshold   : */1,
-   /* stop_threshold    : */PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   /* stop_threshold    : */CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
    /* silence_threshold : */0,
-   /* avail_min         : */PLAYBACK_48000_PERIOD_SIZE,
+   /* avail_min         : */CAPTURE_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_bt_downlink = {
@@ -118,10 +127,10 @@ static const pcm_config pcm_config_voice_hwcodec_uplink = {
    /* period_size       : */VOICE_48000_PERIOD_SIZE,
    /* period_count      : */NB_RING_BUFFER_INCALL,
    /* format            : */PCM_FORMAT_S16_LE,
-   /* start_threshold   : */0,
-   /* stop_threshold    : */0,
-   /* silence_threshold : */0,
-   /* avail_min         : */0,
+    /* start_threshold   : */1,
+    /* stop_threshold    : */VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    /* silence_threshold : */0,
+    /* avail_min         : */VOICE_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_mixing_playback = {

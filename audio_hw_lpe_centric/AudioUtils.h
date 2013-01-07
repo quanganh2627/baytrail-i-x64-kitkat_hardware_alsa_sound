@@ -28,8 +28,6 @@ public:
         return u;
     }
 
-    static inline uint32_t convertUsecToMsec(uint32_t uiTimeInUsec) { return ((uiTimeInUsec + 999) / 1000); }
-
     static uint32_t alignOn16(uint32_t u);
 
     static ssize_t convertSrcToDstInBytes(ssize_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
@@ -44,6 +42,8 @@ public:
     // to AudioSystem enum
     static int convertTinyToHalFormat(pcm_format format);
     static pcm_format convertHalToTinyFormat(int format);
+
+    static uint32_t convertUsecToMsec(uint32_t uiTimeUsec);
 
     /**
       * Constante used during convert of frames to delays in micro-seconds (us).

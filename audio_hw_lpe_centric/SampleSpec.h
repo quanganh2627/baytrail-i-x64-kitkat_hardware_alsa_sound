@@ -55,7 +55,9 @@ public:
 
     ssize_t convertFramesToBytes(ssize_t frames) const;
 
-    float framesToMs(uint32_t uiFrames) const;
+    float convertFramesToMs(uint32_t uiFrames) const;
+
+    ssize_t convertUsecToframes(uint32_t uiIntervalUsec) const;
 
 private:
     // Attributes
@@ -70,6 +72,8 @@ private:
     // Refer to AudioSystemLegacy.h for the definition of the bit field
     // (enum audio_channels)
     uint32_t _uiChannelMask;
+
+    static const uint32_t USEC_PER_SEC;
 };
 
 // ----------------------------------------------------------------------------
