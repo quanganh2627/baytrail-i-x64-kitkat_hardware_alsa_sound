@@ -635,7 +635,7 @@ void CAudioRouteManager::doReconsiderRouting()
           print_criteria(_pPlatformState->getTtyDirection(), ETtyDirectionCriteriaType).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange) ? "[has changed]" : "");
     ALOGD("%s:          -Platform Direct HAC Mode = %s %s", __FUNCTION__,
-          print_criteria(_pPlatformState->isHacEnabled(), ETtyDirectionCriteriaType).c_str(),
+          print_criteria(_pPlatformState->isHacEnabled(), EHacModeCriteriaType).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange) ? "[has changed]" : "");
 
 
@@ -1639,7 +1639,7 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
 
     ALOGD("%s \t -Routes to be disabled(unrouted) in %s = %s",  __FUNCTION__,
          bIsOut ? "Output" : "Input",
-         print_criteria((_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut],
+         print_criteria(_uiPreviousEnabledRoutes[bIsOut] & ~_uiEnabledRoutes[bIsOut],
                         ERouteCriteriaType).c_str());
 
     CAudioRoute *aRoute =  NULL;
@@ -1657,7 +1657,7 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
         //      -are disabled
         //      -need reconfiguration
         //
-        if (aRoute->currentlyBorrowed(bIsOut) && (aRoute->needReconfiguration(bIsOut) || !aRoute->willBeBorrowed(bIsOut))) {
+        if (aRoute->currentlyBorrowed(bIsOut) && !aRoute->willBeBorrowed(bIsOut)) {
 
             aRoute->unRoute(bIsOut);
         }
@@ -1700,12 +1700,11 @@ void CAudioRouteManager::enableRoutes(bool bIsOut)
     //      -were previously enabled, will be enabled but need reconfiguration
     //
     // From logic point of view:
-    //          RoutesToEnable = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]) |
-    //                                NeedToReconfigureRoutes[bIsOut];
-
+    //          RoutesToEnable = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]);
+    //
     ALOGD("%s \t -Routes to be enabled(routed) in %s = %s", __FUNCTION__,
          bIsOut ? "Output" : "Input",
-         print_criteria(((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]) | _uiNeedToReconfigureRoutes[bIsOut]),
+         print_criteria((_uiEnabledRoutes[bIsOut] & ~_uiPreviousEnabledRoutes[bIsOut]),
                         ERouteCriteriaType).c_str());
 
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
@@ -1713,7 +1712,7 @@ void CAudioRouteManager::enableRoutes(bool bIsOut)
         aRoute = *it;
 
         // If the route is external and was set borrowed -> it needs to be routed
-        if (aRoute->needReconfiguration(bIsOut) || (!aRoute->currentlyBorrowed(bIsOut) && aRoute->willBeBorrowed(bIsOut))) {
+        if (!aRoute->currentlyBorrowed(bIsOut) && aRoute->willBeBorrowed(bIsOut)) {
 
             if (aRoute->route(bIsOut) != NO_ERROR) {
 

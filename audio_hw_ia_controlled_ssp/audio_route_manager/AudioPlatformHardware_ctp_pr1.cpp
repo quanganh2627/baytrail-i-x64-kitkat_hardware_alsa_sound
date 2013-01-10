@@ -585,7 +585,7 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    bool needReconfiguration(bool bIsOut) const
+    virtual bool needReconfiguration(bool bIsOut) const
     {
         // The route needs reconfiguration except if:
         //      - still borrowed by the same stream
@@ -619,7 +619,7 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    bool needReconfiguration(bool bIsOut) const
+    virtual bool needReconfiguration(bool bIsOut) const
     {
         // The route needs reconfiguration except if:
         //      - still borrowed by the same stream
