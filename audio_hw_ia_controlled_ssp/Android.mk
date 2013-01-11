@@ -13,9 +13,8 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := \
     audio.primary.$(TARGET_DEVICE) \
     audio_policy.$(TARGET_DEVICE) \
-    tinyalsa.$(TARGET_DEVICE) \
-    libmodem-audio-manager \
-    libaudiohalutils
+    libaudiohalutils \
+    tinyalsa.$(TARGET_DEVICE)
 
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
   LOCAL_REQUIRED_MODULES += libamhal.so
@@ -46,14 +45,14 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/audio_route_manager \
-    $(TARGET_OUT_HEADERS)/modem-mgr-wrapper \
-    $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/libaudioresample \
     $(TARGET_OUT_HEADERS)/event-listener \
-    $(TARGET_OUT_HEADERS)/modem-audio-manager \
-    $(TARGET_OUT_HEADERS)/audio-at-manager \
-    $(TARGET_OUT_HEADERS)/event-listener \
+    $(TARGET_OUT_HEADERS)/mamgr-interface \
+    $(TARGET_OUT_HEADERS)/mamgr-core \
+    $(TARGET_OUT_HEADERS)/interface-provider \
+    $(TARGET_OUT_HEADERS)/interface-provider-lib \
     $(TARGET_OUT_HEADERS)/property \
+    $(TARGET_OUT_HEADERS)/audiocomms-include \
     $(TARGET_OUT_HEADERS)/audio_hal_utils
 
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
@@ -126,20 +125,13 @@ LOCAL_SHARED_LIBRARIES := \
     libparameter \
     libstlport \
     libicuuc \
-    libmodem-audio-manager \
     libevent-listener \
     libaudioresample \
     libaudioutils \
     libproperty \
-    libaudiohalutils
-
-# Private audiocomms components
-LOCAL_SHARED_LIBRARIES += \
-    libtty-handler \
-    libat-parser \
-    libmmgrcli \
-    libmodem-mgr-wrapper \
-    libaudio-at-manager
+    libaudiohalutils \
+    libinterface-provider \
+    libinterface-provider-lib
 
 ifeq ($(VB_HAL_AUDIO_TEMP),true)
   LOCAL_SHARED_LIBRARIES += libamhal

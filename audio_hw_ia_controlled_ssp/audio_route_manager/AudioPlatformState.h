@@ -15,6 +15,7 @@
  ** limitations under the License.
  */
 #pragma once
+#include "AudioBand.h"
 
 #define INPUT        false
 #define OUTPUT       true
@@ -102,13 +103,6 @@ public:
         ADD_EVENT(StreamEvent)
     };
 
-    enum BandType_t {
-        ENarrowBand,
-        EWideBand,
-
-        ENbBandType
-    };
-
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
     virtual           ~CAudioPlatformState();
 
@@ -189,9 +183,9 @@ public:
     // Set devices
     void setInputSource(uint32_t inputSource);
 
-    void setBandType(BandType_t eBandType);
+    void setBandType(CAudioBand::Type eBandType);
 
-    BandType_t getBandType() { return _eBandType; }
+    CAudioBand::Type getBandType() { return _eBandType; }
 
     void setPlatformStateEvent(int iEvent);
 
@@ -262,7 +256,7 @@ private:
     // Hw Mode: translate the use case, indeed it implies the audio route to follow
     int32_t _iHwMode;
 
-    BandType_t _eBandType;
+    CAudioBand::Type _eBandType;
 
     // Glitch safe flag for the shared I2S bus
     bool _bIsSharedI2SGlitchSafe;

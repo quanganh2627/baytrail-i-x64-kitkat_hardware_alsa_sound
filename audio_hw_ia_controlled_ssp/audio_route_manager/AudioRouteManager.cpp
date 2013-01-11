@@ -31,8 +31,9 @@
 #include "AudioPlatformState.h"
 #include "ParameterMgrPlatformConnector.h"
 #include "SelectionCriterionInterface.h"
-#include "ModemAudioManagerInstance.h"
+#include "ModemAudioManagerInterface.h"
 #include "Property.h"
+#include "InterfaceProviderLib.h"
 
 #include "AudioPlatformHardware.h"
 #include "AudioParameterHandler.h"
@@ -167,8 +168,10 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
 // Voice Codec Band
 // Band ringing
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stBandTypeValuePairs[] = {
-    { 0 , "NB" },
-    { 1 , "WB" }
+    { 0 , "Unknown" },
+    { 1 , "NB" },
+    { 2 , "WB" },
+    { 3 , "SuperWB" },
 };
 
 // TTY mode
@@ -288,9 +291,8 @@ const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::_
     }
 };
 
-// Property name indicating if platform embeds a modem chip
-const char* const CAudioRouteManager::mModemEmbeddedPropName = "Audiocomms.Modem.IsPresent";
-const bool CAudioRouteManager::mModemEmbeddedDefaultValue = true;
+// MAMGR library name property
+const char* const CAudioRouteManager::mModemLibPropertyName = "audiocomms.modemLib";
 
 const char* const CAudioRouteManager::mBluetoothHFPSupportedPropName = "Audiocomms.BT.HFP.Supported";
 const bool CAudioRouteManager::mBluetoothHFPSupportedDefaultValue = true;
@@ -347,11 +349,7 @@ const string CAudioRouteManager::print_criteria(int32_t uiValue, CriteriaType eC
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
-#ifdef VB_HAL_AUDIO_TEMP
-    _pModemAudioManager(NULL/*CModemAudioManagerInstance::create(this)*/),
-#else
-    _pModemAudioManager(CModemAudioManagerInstance::create(this)),
-#endif
+    _pModemAudioManagerInterface(NULL),
     _pPlatformState(new CAudioPlatformState(this)),
     _pEventThread(new CEventThread(this)),
     _bIsStarted(false),
@@ -368,12 +366,32 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _uiPreviousEnabledRoutes[INPUT] = 0;
     _uiPreviousEnabledRoutes[OUTPUT] = 0;
 
+    // Try to connect a ModemAudioManager Interface
+    NInterfaceProvider::IInterfaceProvider* pMAMGRInterfaceProvider = getInterfaceProvider(TProperty<string>(mModemLibPropertyName).getValue().c_str());
+    if (pMAMGRInterfaceProvider == NULL) {
+
+        ALOGI("No MAMGR library.");
+    } else {
+
+        // Retrieve the ModemAudioManager Interface
+        _pModemAudioManagerInterface = static_cast<IModemAudioManagerInterface*>(pMAMGRInterfaceProvider->queryInterface(IModemAudioManagerInterface::getInterfaceName()));
+        if (_pModemAudioManagerInterface == NULL) {
+
+            ALOGE("Failed to get ModemAudioManager interface");
+        } else {
+
+            // Declare ourselves as observer
+            _pModemAudioManagerInterface->setModemAudioManagerObserver(this);
+            ALOGI("Connected to a ModemAudioManager interface");
+        }
+    }
+
     /// Connector
     // Fetch the name of the PFW configuration file: this name is stored in an Android property
     // and can be different for each hardware
     string strParameterConfigurationFilePath = TProperty<string>(mPFWConfigurationFileNamePropertyName,
                                                                  "/etc/parameter-framework/ParameterFrameworkConfiguration.xml");
-    LOGI("parameter-framework: using configuration file: %s", strParameterConfigurationFilePath.c_str());
+    ALOGI("parameter-framework: using configuration file: %s", strParameterConfigurationFilePath.c_str());
 
     // Actually create the Connector
     _pParameterMgrPlatformConnector = new CParameterMgrPlatformConnector(strParameterConfigurationFilePath);
@@ -418,8 +436,8 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
         ALOGI("%s(): platform does NOT support Bluetooth HFP", __FUNCTION__);
     }
 
-    //check if platform embeds a modem
-    _pPlatformState->setModemEmbedded(TProperty<bool>(mModemEmbeddedPropName, mModemEmbeddedDefaultValue));
+    // Platform embeds a modem if we found a modem interface
+    _pPlatformState->setModemEmbedded(pMAMGRInterfaceProvider != NULL);
     if (_pPlatformState->isModemEmbedded()) {
 
         ALOGD("%s: platform embeds a Modem chip", __FUNCTION__);
@@ -427,6 +445,40 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
 
         ALOGD("%s: platform does NOT embed a Modem chip", __FUNCTION__);
     }
+}
+
+CAudioRouteManager::~CAudioRouteManager()
+{
+    if (_pModemAudioManagerInterface != NULL) {
+
+        // Unsuscribe & stop ModemAudioManager
+        _pModemAudioManagerInterface->setModemAudioManagerObserver(NULL);
+        _pModemAudioManagerInterface->stop();
+    }
+
+    if (_bIsStarted) {
+
+        _pEventThread->stop();
+    }
+    delete _pEventThread;
+
+    RouteListIterator it;
+    // Delete all routes
+    for (it = _routeList.begin(); it != _routeList.end(); ++it) {
+
+        delete *it;
+    }
+
+    // Unset logger
+    _pParameterMgrPlatformConnector->setLogger(NULL);
+    // Remove logger
+    delete _pParameterMgrPlatformConnectorLogger;
+    // Remove connector
+    delete _pParameterMgrPlatformConnector;
+    // Remove parameter handler
+    delete _pAudioParameterHandler;
+    // Remove Platform State component
+    delete _pPlatformState;
 }
 
 status_t CAudioRouteManager::start()
@@ -439,13 +491,8 @@ status_t CAudioRouteManager::start()
     // Start Event thread
     _pEventThread->start();
 
-#ifndef VB_HAL_AUDIO_TEMP
-    // Start AT Manager
-    if (_pPlatformState->isModemEmbedded()) {
-
-        startATManager();
-    }
-#endif
+    // Start Modem Audio Manager
+    startModemAudioManager();
 
     // Start PFW
     std::string strError;
@@ -503,37 +550,6 @@ void CAudioRouteManager::setBtEnable(bool bIsBtEnabled)
     _pPlatformState->setBtEnabled(bIsBtEnabled);
 }
 
-CAudioRouteManager::~CAudioRouteManager()
-{
-    if (_bIsStarted) {
-
-        _pEventThread->stop();
-    }
-    delete _pEventThread;
-
-    // Delete Modem Audio Manager
-    delete _pModemAudioManager;
-
-    RouteListIterator it;
-
-    // Delete all routes
-    for (it = _routeList.begin(); it != _routeList.end(); ++it) {
-
-        delete *it;
-    }
-
-    // Unset logger
-    _pParameterMgrPlatformConnector->setLogger(NULL);
-    // Remove logger
-    delete _pParameterMgrPlatformConnectorLogger;
-    // Remove connector
-    delete _pParameterMgrPlatformConnector;
-    // Remove parameter handler
-    delete _pAudioParameterHandler;
-    // Remove Platform State component
-    delete _pPlatformState;
-}
-
 //
 // Must be called from WLocked context
 //
@@ -557,7 +573,7 @@ void CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
         _clientWaitSemaphoreList.add(&syncSemaphore);
 
         // Trig the processing of the list
-        _pEventThread->trig();
+        _pEventThread->trig(EUpdateRouting);
 
         // Unlock to allow for sem wait
         _lock.unlock();
@@ -1745,10 +1761,15 @@ CAudioPort* CAudioRouteManager::findPortById(uint32_t uiPortId)
     return pFoundPort;
 }
 
-void CAudioRouteManager::startATManager()
+void CAudioRouteManager::startModemAudioManager()
 {
+    if (_pModemAudioManagerInterface == NULL) {
+
+        ALOGI("%s: No ModemAudioManager interface.", __FUNCTION__);
+        return;
+    }
     // Starts the ModemAudioManager
-    if(_pModemAudioManager->start()) {
+    if(!_pModemAudioManagerInterface->start()) {
 
         ALOGE("%s: could not start ModemAudioManager", __FUNCTION__);
         return ;
@@ -1762,23 +1783,9 @@ void CAudioRouteManager::startATManager()
 //
 void CAudioRouteManager::onModemAudioStatusChanged()
 {
-    AutoW lock(_lock);
+    ALOGD("%s: in", __FUNCTION__);
 
-    ALOGD("%s: IN", __FUNCTION__);
-
-    // Update the platform state
-    _pPlatformState->setModemAudioAvailable(_pModemAudioManager->isModemAudioAvailable());
-
-    // Reconsider the routing now only if the platform state has changed
-    if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange)) {
-
-        ALOGD("-------------------------------------------------------------------------------------------------------");
-        ALOGD("%s: Reconsider Routing due to Modem Audio Status change",
-              __FUNCTION__);
-        ALOGD("-------------------------------------------------------------------------------------------------------");
-        reconsiderRouting(false);
-    }
-    ALOGD("%s: OUT", __FUNCTION__);
+    _pEventThread->trig(EUpdateModemAudioStatus);
 }
 
 //
@@ -1788,52 +1795,20 @@ void CAudioRouteManager::onModemAudioStatusChanged()
 //
 void  CAudioRouteManager::onModemStateChanged()
 {
-    AutoW lock(_lock);
+    ALOGD("%s: in", __FUNCTION__);
 
-    ALOGD("%s: IN: ModemStatus", __FUNCTION__);
-
-    // Update the platform state
-    _pPlatformState->setModemAlive(_pModemAudioManager->isModemAlive());
-
-    // Reconsider the routing now only if the platform state has changed
-    if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange)) {
-
-        ALOGD("-------------------------------------------------------------------------------------------------------");
-        ALOGD("%s: Reconsider Routing due to Modem State change",
-              __FUNCTION__);
-        ALOGD("-------------------------------------------------------------------------------------------------------");
-        reconsiderRouting(false);
-    }
-    ALOGD("%s: OUT", __FUNCTION__);
+    _pEventThread->trig(EUpdateModemState);
 }
 
 //
 // From IModemStatusNotifier
-// Called on Modem Audio PCM change report
+// Called on Modem Audio band change report
 //
-void  CAudioRouteManager::onModemAudioPCMChanged() {
-
-    MODEM_CODEC modemCodec;
-    CAudioPlatformState::BandType_t band;
-
-    AutoW lock(_lock);
+void  CAudioRouteManager::onModemAudioBandChanged()
+{
     ALOGD("%s: in", __FUNCTION__);
 
-    modemCodec = _pModemAudioManager->getModemCodec();
-    if (modemCodec == CODEC_TYPE_WB_AMR_SPEECH)
-        band = CAudioPlatformState::EWideBand;
-    else
-        band = CAudioPlatformState::ENarrowBand;
-
-    _pPlatformState->setBandType(band);
-
-    ALOGD("-------------------------------------------------------------------------------------------------------");
-    ALOGD("%s: Reconsider Routing due to Modem Band change",
-          __FUNCTION__);
-    ALOGD("-------------------------------------------------------------------------------------------------------");
-    reconsiderRouting(false);
-
-    ALOGD("%s: out", __FUNCTION__);
+    _pEventThread->trig(EUpdateModemAudioBand);
 }
 
 //
@@ -1884,6 +1859,42 @@ bool CAudioRouteManager::onProcess(uint16_t uiEvent)
 {
     AutoW lock(_lock);
 
+    switch(uiEvent) {
+        case EUpdateModemAudioBand:
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            ALOGD("%s: Reconsider Routing due to Modem Band change",
+                  __FUNCTION__);
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            // Update the platform state
+            _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand());
+            break;
+
+        case EUpdateModemState:
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            ALOGD("%s: Reconsider Routing due to Modem State change",
+                  __FUNCTION__);
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            // Update the platform state
+            _pPlatformState->setModemAlive(_pModemAudioManagerInterface->isModemAlive());
+            break;
+
+        case EUpdateModemAudioStatus:
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            ALOGD("%s: Reconsider Routing due to Modem Audio Status change",
+                  __FUNCTION__);
+            ALOGD("-------------------------------------------------------------------------------------------------------");
+            // Update the platform state
+            _pPlatformState->setModemAudioAvailable(_pModemAudioManagerInterface->isModemAudioAvailable());
+            break;
+
+        case EUpdateRouting:
+            // Nothing to update before call of doReconsiderRouting()
+            break;
+
+        default:
+            ALOGE("%s: Unhandled event.", __FUNCTION__);
+            break;
+    }
     doReconsiderRouting();
 
     return false;

@@ -46,7 +46,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _uiInputSource(0),
     _uiDirectStreamsRefCount(0),
     _iHwMode(AudioSystem::MODE_NORMAL),
-    _eBandType(ENarrowBand),
+    _eBandType(CAudioBand::ENarrow),
     _bIsSharedI2SGlitchSafe(false),
     _uiPlatformEventChanged(false),
     _iVolumeKeysRefCount(0),
@@ -257,7 +257,7 @@ void CAudioPlatformState::setInputSource(uint32_t inputSource)
     setPlatformStateEvent(EInputSourceChange);
 }
 
-void CAudioPlatformState::setBandType(BandType_t eBandType)
+void CAudioPlatformState::setBandType(CAudioBand::Type eBandType)
 {
     if (_eBandType == eBandType) {
 

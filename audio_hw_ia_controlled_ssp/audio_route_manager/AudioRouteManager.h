@@ -22,8 +22,11 @@
 #include <utils/threads.h>
 #include <hardware_legacy/AudioHardwareBase.h>
 
-#include "ModemAudioManager.h"
+#include "AudioRoute.h"
 #include "SyncSemaphoreList.h"
+#include "ModemAudioManagerObserver.h"
+#include "AudioPlatformState.h"
+#include "EventListener.h"
 
 #define NOT_SET (-1)
 
@@ -33,6 +36,7 @@ class CEventThread;
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
+struct IModemAudioManagerInterface;
 
 namespace android_audio_legacy
 {
@@ -49,7 +53,7 @@ class CAudioStreamRoute;
 class CAudioParameterHandler;
 class CAudioPlatformState;
 
-class CAudioRouteManager : public IModemStatusNotifier, public IEventListener
+class CAudioRouteManager : private IModemAudioManagerObserver, public IEventListener
 {
     // Criteria Types
     enum CriteriaType {
@@ -67,6 +71,13 @@ class CAudioRouteManager : public IModemStatusNotifier, public IEventListener
         EHacModeCriteriaType,
 
         ENbCriteriaType
+    };
+
+    enum EventType {
+        EUpdateModemAudioBand = 0,
+        EUpdateModemState,
+        EUpdateModemAudioStatus,
+        EUpdateRouting
     };
 
     static inline uint32_t popCount(uint32_t u)
@@ -224,12 +235,12 @@ private:
     void resetAvailability();
 
     // Start the AT Manager
-    void startATManager();
+    void startModemAudioManager();
 
-    /* from ModemStatusNotifier: notified on modem status changes */
+    /// Inherited from IModemAudioManagerObserver
     virtual void onModemAudioStatusChanged();
     virtual void onModemStateChanged();
-    virtual void onModemAudioPCMChanged();
+    virtual void onModemAudioBandChanged();
 
     // Inherited from IEventListener: Event processing
     virtual bool onEvent(int iFd);
@@ -271,8 +282,7 @@ private:
     static const char* const gapcLineInToEarSpeakerLineVolume;
     static const char* const gapcDefaultFmRxMaxVolume[FM_RX_NB_DEVICE];
 
-    static const char* const mModemEmbeddedPropName;
-    static const bool mModemEmbeddedDefaultValue;
+    static const char* const mModemLibPropertyName;
     static const char* const mFmSupportedPropName;
     static const bool mFmSupportedDefaultValue;
     static const char* const mFmIsAnalogPropName;
@@ -394,8 +404,8 @@ private:
     // List of port group
     list<CAudioPortGroup*> _portGroupList;
 
-    // Audio AT Manager
-    CModemAudioManager* _pModemAudioManager;
+    // Audio AT Manager interface
+    IModemAudioManagerInterface* _pModemAudioManagerInterface;
 
     // Platform state pointer
     CAudioPlatformState* _pPlatformState;
