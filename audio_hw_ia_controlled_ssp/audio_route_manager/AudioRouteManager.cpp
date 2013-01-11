@@ -829,13 +829,18 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
 //
 status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 {
+    {
+        AutoR lock(mLock);
+
+        if (pStream->isStarted()) {
+
+            // bailing out
+            return NO_ERROR;
+        }
+    }
+
     AutoW lock(mLock);
 
-    if (pStream->isStarted()){
-
-        // bailing out
-        return NO_ERROR;
-    }
     pStream->setStarted(true);
 
     ALOGD("-------------------------------------------------------------------------------------------------------");
@@ -854,13 +859,18 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 //
 status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
 {
+    {
+        AutoR lock(mLock);
+
+        if (!pStream->isStarted()) {
+
+            // bailing out
+            return NO_ERROR;
+        }
+    }
+
     AutoW lock(mLock);
 
-    if (!pStream->isStarted()){
-
-        // bailing out
-        return NO_ERROR;
-    }
     pStream->setStarted(false);
 
     ALOGD("-------------------------------------------------------------------------------------------------------");
