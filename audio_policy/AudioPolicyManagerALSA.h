@@ -64,7 +64,6 @@ public:
                                                         audio_devices_t device);
 
     virtual audio_devices_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
-    virtual audio_devices_t getDeviceForInputSource(int inputSource);
  private:
     // true if current platform implements a back microphone
     inline bool hasBackMicrophone() const { return mAvailableInputDevices & AudioSystem::DEVICE_IN_BACK_MIC; }

@@ -561,10 +561,7 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
     LOGD("%s in.\n", __FUNCTION__);
     status = param.getInt(key, inputSource);
     if (status == NO_ERROR) {
-        if ( (mHandle->curMode == AudioSystem::MODE_IN_CALL) && (inputSource == AUDIO_SOURCE_MIC) ) {
-            LOGV("We are in call : change inputSource from mic to uplink");
-            inputSource = AUDIO_SOURCE_VOICE_UPLINK;
-        }
+
         mInputSource = inputSource;
         if (mParent->getVpcHwDevice() && mParent->getVpcHwDevice()->set_input_source) {
             mParent->getVpcHwDevice()->set_input_source(inputSource);
