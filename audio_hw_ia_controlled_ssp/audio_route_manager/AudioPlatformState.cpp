@@ -141,10 +141,6 @@ void CAudioPlatformState::setMode(int iMode)
     }
     _iAndroidMode = iMode;
     setPlatformStateEvent(EAndroidModeChange);
-
-    updateHwMode();
-
-    checkAndSetFmRxHwMode();
 }
 
 // Set FM mode
@@ -259,8 +255,6 @@ void CAudioPlatformState::setInputSource(uint32_t inputSource)
     }
     _uiInputSource = inputSource;
     setPlatformStateEvent(EInputSourceChange);
-
-    updateHwMode();
 }
 
 void CAudioPlatformState::setBandType(BandType_t eBandType)
@@ -281,6 +275,8 @@ void CAudioPlatformState::updateHwMode()
 
         setPlatformStateEvent(EHwModeChange);
     }
+
+    checkAndSetFmRxHwMode();
 }
 
 //

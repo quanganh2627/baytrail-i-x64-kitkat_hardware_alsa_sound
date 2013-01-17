@@ -786,6 +786,8 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
             // For output streams, latch Android Mode
             _pPlatformState->setMode(iMode);
         }
+
+        _pPlatformState->updateHwMode();
     }
 
     /// Process pending platform changes
