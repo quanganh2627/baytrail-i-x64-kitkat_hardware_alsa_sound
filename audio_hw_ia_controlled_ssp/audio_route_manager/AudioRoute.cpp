@@ -84,7 +84,7 @@ status_t CAudioRoute::route(bool bIsOut)
     return NO_ERROR;
 }
 
-void CAudioRoute::unRoute(bool bIsOut)
+void CAudioRoute::unroute(bool bIsOut)
 {
     ALOGD("%s: %s", __FUNCTION__, getName().c_str());
 

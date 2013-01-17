@@ -104,6 +104,9 @@ public:
     static const pcm_config& getRoutePcmConfig(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].astrPcmConfig[bIsOut]; }
     static uint32_t getSlaveRoutes(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiSlaveRoutes; }
 
+    // Property name indicating time to write silence before first write
+    static const char* CODEC_DELAY_PROP_NAME;
+
 private:
 
     struct s_port_t {

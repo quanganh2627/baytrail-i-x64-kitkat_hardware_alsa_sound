@@ -286,11 +286,11 @@ void AudioStreamInALSA::freeAllocatedBuffers()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamInALSA::doOpen()
+status_t AudioStreamInALSA::route()
 {
-    status_t status = NO_ERROR;
+    status_t status;
 
-    status = base::doOpen();
+    status = base::route();
     if (status != NO_ERROR) {
 
         return status;
@@ -302,11 +302,11 @@ status_t AudioStreamInALSA::doOpen()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamInALSA::doClose()
+status_t AudioStreamInALSA::unroute()
 {
     freeAllocatedBuffers();
 
-    return base::doClose();
+    return base::unroute();
 }
 
 void AudioStreamInALSA::setInputSource(int inputSource)

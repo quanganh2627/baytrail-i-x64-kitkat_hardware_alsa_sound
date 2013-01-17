@@ -78,6 +78,7 @@ public:
         InputSourceChange,
         SharedI2SStateChange,
         StreamEvent,
+        ScreenStateChange,
 
         NbEvents
     };
@@ -100,7 +101,8 @@ public:
         ADD_EVENT(OutputDevicesChange),
         ADD_EVENT(InputSourceChange),
         ADD_EVENT(SharedI2SStateChange),
-        ADD_EVENT(StreamEvent)
+        ADD_EVENT(StreamEvent),
+        ADD_EVENT(ScreenStateChange)
     };
 
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
@@ -187,6 +189,10 @@ public:
 
     CAudioBand::Type getBandType() { return _eBandType; }
 
+    void setScreenState(bool _bScreenOn);
+
+    bool isScreenOn() { return _bScreenOn; }
+
     void setPlatformStateEvent(int iEvent);
 
     void clearPlatformStateEvents();
@@ -260,6 +266,9 @@ private:
 
     // Glitch safe flag for the shared I2S bus
     bool _bIsSharedI2SGlitchSafe;
+
+    // Screen State
+    bool _bScreenOn;
 
     uint32_t _uiPlatformEventChanged;
 

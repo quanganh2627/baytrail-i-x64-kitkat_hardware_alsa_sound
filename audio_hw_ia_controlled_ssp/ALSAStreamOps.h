@@ -17,14 +17,20 @@
 
 #pragma once
 
-#include "AudioHardwareALSA.h"
 #include "AudioBufferProvider.h"
+#include "SampleSpec.h"
 
 using namespace android;
 
 
 namespace android_audio_legacy
 {
+
+class AudioHardwareALSA;
+class CAudioStreamRoute;
+class CAudioConversion;
+struct acoustic_device_t;
+struct alsa_handle_t;
 
 class ALSAStreamOps
 {
@@ -45,9 +51,9 @@ public:
 
     // From AudioStreamIn/Out: indicates if the stream has a route pointer
     bool                isRouteAvailable();
-    // From
-    virtual status_t    doOpen();
-    virtual status_t    doClose();
+
+    virtual status_t    route();
+    virtual status_t    unroute();
     status_t            setStandby(bool bIsSet);
 
     virtual bool        isOut() const = 0 ;
@@ -63,6 +69,7 @@ public:
     void                setNewDevice(uint32_t uiNewDevice);
     uint32_t            getCurrentDevice() const { return mCurrentDevices; }
     void                setCurrentDevice(uint32_t uiCurrentDevice);
+    CAudioStreamRoute*  getCurrentRoute() const { return mCurrentRoute; }
 
     audio_output_flags_t getFlags() const { return mFlags; }
     void                setFlags(audio_output_flags_t stFlags);

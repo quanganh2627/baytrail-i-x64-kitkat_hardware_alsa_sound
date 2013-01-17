@@ -101,6 +101,7 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::_apCriteriaInter
     {"BandType", CAudioRouteManager::EBandCriteriaType},
     {"BtHeadsetNrEc", CAudioRouteManager::EBtHeadsetNrEcCriteriaType},
     {"HAC", CAudioRouteManager::EHacModeCriteriaType},
+    {"ScreenState", CAudioRouteManager::EScreenStateCriteriaType},
 };
 
 
@@ -204,7 +205,14 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_
     { 1 , "On" }
 };
 
-const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::_asCriteriaType[ENbCriteriaType] = {
+
+// Screen Mode
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::_stScreenStateValuePairs[] = {
+    { 0 , "Off" },
+    { 1 , "On" }
+};
+
+const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::_asCriteriaType[ENbCriteriaTypes] = {
     // Mode
     {
         CAudioRouteManager::EModeCriteriaType,
@@ -287,6 +295,13 @@ const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::_
         CAudioRouteManager::EHacModeCriteriaType,
         CAudioRouteManager::_stHACModeValuePairs,
         sizeof(CAudioRouteManager::_stHACModeValuePairs)/sizeof(CAudioRouteManager::_stHACModeValuePairs[0]),
+        false
+    },
+    // Screen State
+    {
+        CAudioRouteManager::EScreenStateCriteriaType,
+        CAudioRouteManager::_stScreenStateValuePairs,
+        sizeof(CAudioRouteManager::_stScreenStateValuePairs)/sizeof(CAudioRouteManager::_stScreenStateValuePairs[0]),
         false
     }
 };
@@ -399,17 +414,18 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     // Logger
     _pParameterMgrPlatformConnector->setLogger(_pParameterMgrPlatformConnectorLogger);
 
+    int index;
     /// Criteria Types
-    for (int i = 0; i < ENbCriteriaType; i++) {
+    for (index = 0; index < ENbCriteriaTypes; index++) {
 
-        _apCriteriaTypeInterface[i] = createAndFillSelectionCriterionType((CriteriaType)i);
+        _apCriteriaTypeInterface[index] = createAndFillSelectionCriterionType((CriteriaType)index);
     }
 
     /// Criteria
-    for (int i = 0; i < ENbCriteria; i++) {
+    for (index = 0; index < ENbCriteria; index++) {
 
-        _apSelectedCriteria[i] = _pParameterMgrPlatformConnector->createSelectionCriterion(_apCriteriaInterface[i].pcName,
-                                                                  _apCriteriaTypeInterface[_apCriteriaInterface[i].eCriteriaType]);
+        _apSelectedCriteria[index] = _pParameterMgrPlatformConnector->createSelectionCriterion(_apCriteriaInterface[index].pcName,
+                                                                  _apCriteriaTypeInterface[_apCriteriaInterface[index].eCriteriaType]);
     }
 
     createAudioHardwarePlatform();
@@ -637,9 +653,12 @@ void CAudioRouteManager::doReconsiderRouting()
     ALOGD("%s:          -Platform TTY direction = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->getTtyDirection(), ETtyDirectionCriteriaType).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange) ? "[has changed]" : "");
-    ALOGD("%s:          -Platform Direct HAC Mode = %s %s", __FUNCTION__,
+    ALOGD("%s:          -Platform HAC Mode = %s %s", __FUNCTION__,
           print_criteria(_pPlatformState->isHacEnabled(), EHacModeCriteriaType).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange) ? "[has changed]" : "");
+    ALOGD("%s:          -Screen State = %s %s", __FUNCTION__,
+          print_criteria(_pPlatformState->isScreenOn(), EScreenStateCriteriaType).c_str(),
+          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange) ? "[has changed]" : "");
 
 
     // Reset availability of all route (All routes to be available)
@@ -1064,6 +1083,24 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
 
         // Remove parameter
         param.remove(key);
+    }
+
+    // Search Screen State value
+    String8 strScreenState;
+    key = String8(AUDIO_PARAMETER_KEY_SCREEN_STATE);
+    status = param.get(key, strScreenState);
+    ALOGV("Screen State %d %s", status, strScreenState.string());
+
+    if (status == NO_ERROR) {
+
+        bool bIsScreenOn = false;
+        if (strScreenState == AUDIO_PARAMETER_VALUE_ON) {
+
+            ALOGV("%s: Screen ON", __FUNCTION__);
+            bIsScreenOn = true;
+        }
+
+        _pPlatformState->setScreenState(bIsScreenOn);
     }
 
     // Reconsider the routing now
@@ -1569,6 +1606,7 @@ void CAudioRouteManager::configureRoutingStage()
     _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
     _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
     _apSelectedCriteria[ESelectedHacMode]->setCriterionState(_pPlatformState->isHacEnabled());
+    _apSelectedCriteria[ESelectedScreenState]->setCriterionState(_pPlatformState->isScreenOn());
 
     _pParameterMgrPlatformConnector->applyConfigurations();
 }
@@ -1666,7 +1704,7 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
         //
         if (aRoute->currentlyBorrowed(bIsOut) && !aRoute->willBeBorrowed(bIsOut)) {
 
-            aRoute->unRoute(bIsOut);
+            aRoute->unroute(bIsOut);
         }
     }
 

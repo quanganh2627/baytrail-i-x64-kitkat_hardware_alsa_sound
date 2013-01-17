@@ -66,27 +66,11 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
 
 status_t CAudioStreamRoute::route(bool bIsOut)
 {
-    return openStream(bIsOut);
-}
-
-void CAudioStreamRoute::unRoute(bool bIsOut)
-{
-    closeStream(bIsOut);
-}
-
-void CAudioStreamRoute::configure(bool bIsOut)
-{
-    // Consume the new device(s)
-    _pCurrentStreams[bIsOut]->setCurrentDevice(_pCurrentStreams[bIsOut]->getNewDevice());
-}
-
-status_t CAudioStreamRoute::openStream(bool bIsOut)
-{
     status_t err = NO_ERROR;
 
     if (_pNewStreams[bIsOut]) {
 
-        err = _pNewStreams[bIsOut]->doOpen();
+        err = _pNewStreams[bIsOut]->route();
 
         if (err != NO_ERROR) {
 
@@ -102,15 +86,21 @@ status_t CAudioStreamRoute::openStream(bool bIsOut)
     return NO_ERROR;
 }
 
-void CAudioStreamRoute::closeStream(bool bIsOut)
+void CAudioStreamRoute::unroute(bool bIsOut)
 {
     // First unroute input stream
     if (_pCurrentStreams[bIsOut]) {
 
-        _pCurrentStreams[bIsOut]->doClose();
+        _pCurrentStreams[bIsOut]->unroute();
 
         _pCurrentStreams[bIsOut] = NULL;
     }
+}
+
+void CAudioStreamRoute::configure(bool bIsOut)
+{
+    // Consume the new device(s)
+    _pCurrentStreams[bIsOut]->setCurrentDevice(_pCurrentStreams[bIsOut]->getNewDevice());
 }
 
 void CAudioStreamRoute::resetAvailability()

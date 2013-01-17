@@ -80,8 +80,8 @@ public:
 
 
     // From ALSAStreamOps: to perform extra open/close actions
-    virtual status_t    doOpen();
-    virtual status_t    doClose();
+    virtual status_t    route();
+    virtual status_t    unroute();
 
     virtual int         getInputSource() const { return mInputSource; }
 

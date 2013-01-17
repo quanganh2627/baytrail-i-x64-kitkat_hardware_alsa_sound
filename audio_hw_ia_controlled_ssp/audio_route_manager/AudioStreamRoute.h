@@ -48,16 +48,10 @@ public:
     // Route order - for external until Manager under PFW
     virtual status_t route(bool bForOutput);
 
-    // UnRoute order - for external until Manager under PFW
-    virtual void unRoute(bool bForOutput);
+    // Unroute order - for external until Manager under PFW
+    virtual void unroute(bool bForOutput);
 
     virtual void configure(bool bIsOut);
-
-    // Route order - for external until Manager under PFW
-    virtual status_t openStream(bool bForOutput);
-
-    // UnRoute order - for external until Manager under PFW
-    virtual void closeStream(bool bForOutput);
 
     // Inherited for AudioRoute - called from RouteManager
     virtual void resetAvailability();
@@ -76,6 +70,9 @@ public:
 
     // Filters the unroute/route
     virtual bool needReconfiguration(bool bIsOut) const;
+
+    // Get amount of silence delay upon stream opening
+    virtual uint32_t getOutputSilencePrologMs() const { return 0; }
 
 protected:
     ALSAStreamOps* _pCurrentStreams[2];

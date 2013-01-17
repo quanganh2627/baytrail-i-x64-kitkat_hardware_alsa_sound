@@ -78,9 +78,11 @@ public:
     // Route order - for external until Manager under PFW
     virtual status_t route(bool bIsOut);
 
-    // UnRoute order - for external until Manager under PFW
-    virtual void unRoute(bool bIsOut);
+    // Unroute order - for external until Manager under PFW
+    virtual void unroute(bool bIsOut);
+
     virtual void configure(bool bIsOut) { return ; }
+
     uint32_t getRouteId() const {return _uiRouteId; }
 
     // Filters the unroute/route

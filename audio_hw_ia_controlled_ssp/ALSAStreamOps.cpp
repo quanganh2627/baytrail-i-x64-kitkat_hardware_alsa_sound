@@ -38,10 +38,12 @@
 #include "ALSAStreamOps.h"
 #include "AudioStreamRoute.h"
 #include "AudioConverter.h"
+#include "AudioConversion.h"
 #include "AudioResampler.h"
 #include "AudioReformatter.h"
 #include "AudioRemapper.h"
 #include "AudioConversion.h"
+#include "AudioHardwareALSA.h"
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
@@ -117,7 +119,7 @@ status_t ALSAStreamOps::set(int      *format,
     bool bad_rate = false;
     bool bad_format = false;
 
-    ALOGD("%s() -- IN", __FUNCTION__);
+    ALOGV("%s() -- IN", __FUNCTION__);
 
     if (channels) {
 
@@ -220,7 +222,7 @@ status_t ALSAStreamOps::set(int      *format,
             mHwSampleSpec = mSampleSpec;
         }
     }
-    ALOGD("%s() -- OUT", __FUNCTION__);
+    ALOGV("%s() -- OUT", __FUNCTION__);
     return status;
 }
 
@@ -298,7 +300,7 @@ bool ALSAStreamOps::isRouteAvailable()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t ALSAStreamOps::doOpen()
+status_t ALSAStreamOps::route()
 {
     ALOGD("%s", __FUNCTION__);
 
@@ -354,7 +356,7 @@ fail_open:
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t ALSAStreamOps::doClose()
+status_t ALSAStreamOps::unroute()
 {
     ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
 

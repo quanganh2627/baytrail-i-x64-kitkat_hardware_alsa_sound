@@ -37,7 +37,7 @@
 
 #include "AudioStreamOutALSA.h"
 #include "AudioAutoRoutingLock.h"
-
+#include "AudioStreamRoute.h"
 
 
 #define base ALSAStreamOps
@@ -47,8 +47,9 @@ namespace android_audio_legacy
 
 const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
 const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
-const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY = 10000; //10ms
+const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
 const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
+const uint32_t AudioStreamOutALSA ::USEC_PER_MSEC = 1000;
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
     base(parent, "AudioOutLock"),
@@ -165,6 +166,41 @@ status_t AudioStreamOutALSA::open(int mode)
 {
     return setStandby(false);
 }
+
+//
+// Called from Route Manager Context -> WLocked
+//
+status_t AudioStreamOutALSA::route()
+{
+    status_t status = base::route();
+    if (status != NO_ERROR) {
+
+        return status;
+    }
+
+    // Need to generate silence?
+    assert(getCurrentRoute() && mHandle->handle);
+
+    uint32_t uiSilenceMs = getCurrentRoute()->getOutputSilencePrologMs();
+    if (uiSilenceMs) {
+
+        // Allocate a 1Ms buffer in stack
+        uint32_t uiBufferSize = mHwSampleSpec.convertFramesToBytes(mHwSampleSpec.convertUsecToframes(1 * USEC_PER_MSEC));
+        void* pSilenceBuffer = alloca(uiBufferSize);
+        memset(pSilenceBuffer, 0, uiBufferSize);
+
+        uint32_t uiMsCount;
+        for (uiMsCount = 0; uiMsCount < uiSilenceMs; uiMsCount++) {
+
+            pcm_write(mHandle->handle,
+                          (const char*)pSilenceBuffer,
+                          uiBufferSize);
+        }
+    }
+
+    return NO_ERROR;
+}
+
 
 status_t AudioStreamOutALSA::close()
 {

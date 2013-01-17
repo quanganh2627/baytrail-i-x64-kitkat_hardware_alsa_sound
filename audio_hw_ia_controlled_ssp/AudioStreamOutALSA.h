@@ -67,6 +67,9 @@ public:
     status_t            open(int mode);
     status_t            close();
 
+    // From ALSAStreamOps - specific output stream routing actions
+    virtual status_t    route();
+
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA &);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
@@ -79,8 +82,9 @@ private:
 
     static const uint32_t MAX_AGAIN_RETRY;
     static const uint32_t WAIT_TIME_MS;
-    static const uint32_t WAIT_BEFORE_RETRY;
+    static const uint32_t WAIT_BEFORE_RETRY_US;
     static const uint32_t LATENCY_TO_BUFFER_INTERVAL_RATIO;
+    static const uint32_t USEC_PER_MSEC;
 };
 
 };        // namespace android

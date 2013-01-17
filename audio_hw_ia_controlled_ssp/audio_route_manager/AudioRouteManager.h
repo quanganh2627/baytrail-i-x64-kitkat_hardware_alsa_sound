@@ -69,8 +69,9 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EBandCriteriaType,
         EBtHeadsetNrEcCriteriaType,
         EHacModeCriteriaType,
+        EScreenStateCriteriaType,
 
-        ENbCriteriaType
+        ENbCriteriaTypes
     };
 
     enum EventType {
@@ -326,6 +327,8 @@ private:
     static const SSelectionCriterionTypeValuePair _stBtHeadsetNrEcValuePairs[];
     // HAC mode
     static const SSelectionCriterionTypeValuePair _stHACModeValuePairs[];
+    // Screen State
+    static const SSelectionCriterionTypeValuePair _stScreenStateValuePairs[];
     // Route
     // Selected Input Device type
     static const SSelectionCriterionTypeValuePair _stInputDeviceValuePairs[];
@@ -342,9 +345,9 @@ private:
         bool _bIsInclusive;
     };
 
-    static const SSelectionCriterionTypeInterface _asCriteriaType[ENbCriteriaType];
+    static const SSelectionCriterionTypeInterface _asCriteriaType[ENbCriteriaTypes];
 
-    ISelectionCriterionTypeInterface* _apCriteriaTypeInterface[ENbCriteriaType];
+    ISelectionCriterionTypeInterface* _apCriteriaTypeInterface[ENbCriteriaTypes];
 
     // Criteria
     enum Criteria {
@@ -363,6 +366,7 @@ private:
         ESelectedBand,
         ESelectedBtHeadsetNrEc,
         ESelectedHacMode,
+        ESelectedScreenState,
 
         ENbCriteria
     };

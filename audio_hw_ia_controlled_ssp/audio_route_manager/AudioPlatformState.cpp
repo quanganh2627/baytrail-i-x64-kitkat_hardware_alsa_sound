@@ -43,6 +43,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _iHwMode(AudioSystem::MODE_NORMAL),
     _eBandType(CAudioBand::ENarrow),
     _bIsSharedI2SGlitchSafe(false),
+    _bScreenOn(true),
     _uiPlatformEventChanged(false),
     _iVolumeKeysRefCount(0),
     _pAudioRouteManager(pAudioRouteManager)
@@ -260,6 +261,16 @@ void CAudioPlatformState::setBandType(CAudioBand::Type eBandType)
     }
     _eBandType = eBandType;
     setPlatformStateEvent(EBandTypeChange);
+}
+
+void CAudioPlatformState::setScreenState(bool bScreenOn)
+{
+    if (_bScreenOn == bScreenOn) {
+
+        return ;
+    }
+    _bScreenOn = bScreenOn;
+    setPlatformStateEvent(EScreenStateChange);
 }
 
 void CAudioPlatformState::updateHwMode()

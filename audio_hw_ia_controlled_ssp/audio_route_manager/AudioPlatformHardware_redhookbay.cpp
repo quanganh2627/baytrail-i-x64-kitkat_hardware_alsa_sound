@@ -16,6 +16,7 @@
  */
 
 #include "AudioPlatformHardware.h"
+#include "Property.h"
 
 #include <tinyalsa/asoundlib.h>
 
@@ -223,6 +224,7 @@ enum AudioRouteId {
     HwCodecCSV_Offset,
     BtCSV_Offset,
     HwCodecFm_Offset,
+    VirtualASP_Offset,
 
     NB_ROUTE
 };
@@ -237,12 +239,15 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioPlatformHardwar
     { 1 << HwCodecCSV_Offset , "HwCodecCSV" },
     { 1 << BtCSV_Offset , "BtCSV" },
     { 1 << HwCodecFm_Offset , "HwCodecFm" },
+    { 1 << VirtualASP_Offset, "VirtualASP"}
 };
 
 const uint32_t CAudioPlatformHardware::_uiNbRouteValuePairs = sizeof(CAudioPlatformHardware::_stRouteValuePairs)
         /sizeof(CAudioPlatformHardware::_stRouteValuePairs[0]);
 
 const uint32_t CAudioPlatformHardware::_uiNbRoutes = NB_ROUTE;
+
+const char* CAudioPlatformHardware::CODEC_DELAY_PROP_NAME = "Audio.Media.CodecDelayMs";
 
 //
 // Route description structure
@@ -572,12 +577,67 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
             pcm_config_not_applicable
         },
         NOT_APPLICABLE
+    },
+    {
+        "VirtualASP",
+        1 << VirtualASP_Offset,
+        CAudioRoute::EExternalRoute,
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            pcm_config_not_applicable,
+            pcm_config_not_applicable
+        },
+        NOT_APPLICABLE
     }
 };
 
 //
 // Specific Applicability Rules
 //
+class CAudioStreamRouteMedia : public CAudioStreamRoute
+{
+public:
+    CAudioStreamRouteMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioStreamRoute(uiRouteIndex, pPlatformState),
+        _uiCodecDelayMs(TProperty<int32_t>(CAudioPlatformHardware::CODEC_DELAY_PROP_NAME, 0))
+    {
+    }
+    // Get amount of silence delay upon stream opening
+    virtual uint32_t getOutputSilencePrologMs() const
+    {
+
+        if (((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_SPEAKER) == AudioSystem::DEVICE_OUT_SPEAKER) ||
+                ((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) == AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
+
+            return _uiCodecDelayMs;
+        }
+        return CAudioStreamRoute::getOutputSilencePrologMs();
+    }
+private:
+    uint32_t _uiCodecDelayMs;
+};
+
 class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 {
 public:
@@ -735,6 +795,38 @@ public:
     }
 };
 
+class CAudioExternalRouteVirtualASP : public CAudioExternalRoute
+{
+public:
+    CAudioExternalRouteVirtualASP(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioExternalRoute(uiRouteIndex, pPlatformState)
+    {
+    }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags) const
+    {
+        // BT module must be off and as the BT is on the shared I2S bus
+        // the modem must be alive as well to use this route
+        if (bIsOut && _pPlatformState->isScreenOn()) {
+
+            return true;
+        }
+        return false;
+    }
+
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - output devices did not change
+        if (CAudioRoute::needReconfiguration(bIsOut) &&
+                    _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)) {
+
+            return true;
+        }
+        return false;
+    }
+};
+
 //
 // Once all deriavated class exception has been removed
 // replace this function by a generic route creator according to the route type
@@ -746,7 +838,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteId, CAudio
     switch(uiRouteId) {
 
     case Media_Offset:
-        return new CAudioStreamRoute(uiRouteId, pPlatformState);
+        return new CAudioStreamRouteMedia(uiRouteId, pPlatformState);
         break;
 
     case CompressedMedia_Offset:
@@ -779,6 +871,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteId, CAudio
 
     case BtCSV_Offset:
         return new CAudioExternalRouteBtCSV(uiRouteId, pPlatformState);
+        break;
+
+    case VirtualASP_Offset:
+        return new CAudioExternalRouteVirtualASP(uiRouteId, pPlatformState);
         break;
 
     default:
