@@ -29,13 +29,8 @@ namespace android_audio_legacy
 {
 
 CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager) :
-#ifdef VB_HAL_AUDIO_TEMP
-    _bModemAudioAvailable(true),
-    _bModemAlive(true),
-#else
     _bModemAudioAvailable(false),
     _bModemAlive(false),
-#endif
     _iAndroidMode(AudioSystem::MODE_NORMAL),
     _iFmRxMode(0),
     _iFmRxHwMode(0),

@@ -1774,6 +1774,14 @@ void CAudioRouteManager::startModemAudioManager()
         ALOGE("%s: could not start ModemAudioManager", __FUNCTION__);
         return ;
     }
+    /// Initialize current modem status
+    // Modem status
+    _pPlatformState->setModemAlive(_pModemAudioManagerInterface->isModemAlive());
+    // Modem audio availability
+    _pPlatformState->setModemAudioAvailable(_pModemAudioManagerInterface->isModemAudioAvailable());
+    // Modem band
+    _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand());
+
     ALOGE("%s: success", __FUNCTION__);
 }
 

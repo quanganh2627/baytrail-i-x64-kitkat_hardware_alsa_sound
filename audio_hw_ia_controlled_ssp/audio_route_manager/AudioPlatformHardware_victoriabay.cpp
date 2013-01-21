@@ -19,12 +19,6 @@
 
 #include <tinyalsa/asoundlib.h>
 
-#ifdef VB_HAL_AUDIO_TEMP
-extern "C" {
-#include "amhal.h"
-}
-#endif
-
 #define PLABACK_PERIOD_TIME_MS  ((int)24)
 #define CAPTURE_PERIOD_TIME_MS  ((int)24)
 #define VOICE_PERIOD_TIME_MS    ((int)20)
@@ -625,9 +619,6 @@ public:
     }
 
   ~CAudioExternalRouteHwCodecCSV() {
-#ifdef VB_HAL_AUDIO_TEMP
-        amhal_close(_ctxtPtr);
-#endif
   }
 
     //
@@ -642,75 +633,6 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
-
-#ifdef VB_HAL_AUDIO_TEMP
-    void * _ctxtPtr;
-    int amhal_err;
-    amhal_command_t command;
-
-    // Route order - for external until Manager under PFW
-    virtual status_t route(bool bIsOut) {
-
-        static bool bFirstCall = true;
-
-        // Open amhal at first call
-        if (bFirstCall) {
-            _ctxtPtr = amhal_open(NULL);
-
-            if (!_ctxtPtr) {
-                amhal_close(_ctxtPtr);
-                ALOGE("can not open amhal, closing it!!!");
-            }
-            bFirstCall = false;
-            //wait for amhal to be opened to be started before continuing
-            // workaround: audio HAL is not registered to amhal callbacks
-            usleep(500000);
-        }
-
-        if (bIsOut) {
-            // Start Modem DSP
-            command = AMHAL_SPUV_START;
-
-            ALOGE("Send AMHAL_SPUV_START");
-
-            amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
-
-            // Enable PCM for speech
-            command = AMHAL_PCM_START;
-
-            ALOGE("Send AMHAL_PCM_START");
-
-            amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
-
-            ALOGE("Sleep for a while to guarantee audio started before opening codec");
-            //wait for a while for modem to send data and provide clock before opening VSP
-            // workaround: audio HAL is not registered to amhal callbacks
-            usleep(500000);
-        }
-
-        return CAudioExternalRoute::route(bIsOut);
-    }
-
-    // UnRoute order - for external until Manager under PFW
-    virtual void unRoute(bool bIsOut) {
-        if (bIsOut) {
-            command = AMHAL_PCM_STOP;
-
-            ALOGE("Send AMHAL_PCM_STOP");
-
-            amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
-
-            // the same is the same for stop
-            command = AMHAL_SPUV_STOP;
-
-            ALOGE("Send AMHAL_SPUV_STOP");
-
-            amhal_err = amhal_sendto(_ctxtPtr, command, NULL);
-
-        }
-        CAudioExternalRoute::unRoute(bIsOut);
-    }
-#endif
 };
 
 class CAudioExternalRouteHwCodecFm : public CAudioExternalRoute
