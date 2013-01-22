@@ -505,6 +505,12 @@ void CAudioRouteManager::setBtEnable(bool bIsBtEnabled)
 
 CAudioRouteManager::~CAudioRouteManager()
 {
+    if (_bIsStarted) {
+
+        _pEventThread->stop();
+    }
+    delete _pEventThread;
+
     // Delete Modem Audio Manager
     delete _pModemAudioManager;
 
@@ -524,6 +530,8 @@ CAudioRouteManager::~CAudioRouteManager()
     delete _pParameterMgrPlatformConnector;
     // Remove parameter handler
     delete _pAudioParameterHandler;
+    // Remove Platform State component
+    delete _pPlatformState;
 }
 
 //

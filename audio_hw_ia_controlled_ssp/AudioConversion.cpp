@@ -297,7 +297,7 @@ void CAudioConversion::emptyConversionChain()
 //
 status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpecItem, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst)
 {
-    assert(eSampleSpecItem < ENbSampleSpecItems);
+    LOG_ALWAYS_FATAL_IF(eSampleSpecItem >= ENbSampleSpecItems);
 
     CSampleSpec tmpSsDst = *pSsSrc;
     tmpSsDst.setSampleSpecItem(eSampleSpecItem, pSsDst->getSampleSpecItem(eSampleSpecItem));
@@ -354,7 +354,7 @@ status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpec
 status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecItem, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst)
 {
     status_t ret;
-    assert(eSampleSpecItem < ENbSampleSpecItems);
+    LOG_ALWAYS_FATAL_IF(eSampleSpecItem >= ENbSampleSpecItems);
 
     // If the input format size is higher, first perform the reformat
     // then add the resampler

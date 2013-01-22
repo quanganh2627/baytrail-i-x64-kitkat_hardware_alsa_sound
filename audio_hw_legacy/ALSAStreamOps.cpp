@@ -102,13 +102,14 @@ status_t ALSAStreamOps::set(int      *format,
     bool bad_rate = false;
     bool bad_format = false;
 
-    LOGD("%s(format:%d channels:0x%x (popCount returns %d) rate:%d) and mHandle->sampleRate=%d, mHandle->channels=%d",
-         __FUNCTION__, *format, *channels, CAudioUtils::popCount(*channels), *rate, mHandle->sampleRate, mHandle->channels);
+    LOGD("%s() -- IN", __FUNCTION__);
 
     if (channels) {
 
         if (*channels != 0) {
 
+            LOGD("%s(requested channels: 0x%x (popCount returns %d))",
+                  __FUNCTION__, *channels, CAudioUtils::popCount(*channels));
             // Always accept the channels requested by the client
             // as far as the channel count is supported
             mSampleSpec.setChannelMask(*channels);
@@ -145,6 +146,7 @@ status_t ALSAStreamOps::set(int      *format,
 
         if (*rate != 0) {
 
+            LOGD("%s(requested rate: %d))", __FUNCTION__, *rate);
             // Always accept the rate provided by the client
             mSampleSpec.setSampleRate(*rate);
         }
@@ -163,6 +165,7 @@ status_t ALSAStreamOps::set(int      *format,
 
         if (*format != 0) {
 
+            LOGD("%s(requested format: %d))", __FUNCTION__, *format);
             // Always accept the rate provided by the client
             // as far as this rate is supported
             if (*format != AUDIO_FORMAT_PCM_16_BIT && *format != AUDIO_FORMAT_PCM_8_24_BIT) {
@@ -182,7 +185,7 @@ status_t ALSAStreamOps::set(int      *format,
         }
         LOGD("%s : set format to %d", __FUNCTION__, *format);
     }
-
+    LOGD("%s() -- OUT", __FUNCTION__);
     return (bad_channels || bad_rate || bad_format) ? BAD_VALUE : NO_ERROR;
 }
 

@@ -121,8 +121,8 @@ status_t ALSAStreamOps::set(int      *format,
           __FUNCTION__,
           (format? *format : 0),
           (channels? *channels : 0),
-          (*channels? CAudioUtils::popCount(*channels) : 0),
-          (*rate? *rate : 0));
+          (channels? CAudioUtils::popCount(*channels) : 0),
+          (rate? *rate : 0));
 
     if (channels) {
 
