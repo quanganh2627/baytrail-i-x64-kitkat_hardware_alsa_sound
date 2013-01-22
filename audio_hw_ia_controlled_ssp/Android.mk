@@ -112,6 +112,14 @@ LOCAL_SHARED_LIBRARIES := \
     libinterface-provider \
     libinterface-provider-lib
 
+# gcov build
+ifeq ($($(LOCAL_MODULE).gcov),true)
+  LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/gcov_flush_with_prop
+  LOCAL_CFLAGS += -O0 -fprofile-arcs -ftest-coverage -include GcovFlushWithProp.h
+  LOCAL_LDFLAGS += -fprofile-arcs -lgcov
+  LOCAL_STATIC_LIBRARIES += gcov_flush_with_prop
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 endif
