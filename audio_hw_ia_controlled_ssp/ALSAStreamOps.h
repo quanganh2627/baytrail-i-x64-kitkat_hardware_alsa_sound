@@ -19,9 +19,8 @@
 
 #include "AudioBufferProvider.h"
 #include "SampleSpec.h"
-
-using namespace android;
-
+#include <utils/String8.h>
+#include "Utils.h"
 
 namespace android_audio_legacy
 {
@@ -35,40 +34,41 @@ struct alsa_handle_t;
 class ALSAStreamOps
 {
 public:
-    ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag);
+    ALSAStreamOps(AudioHardwareALSA* parent, const char* pcLockTag);
     virtual            ~ALSAStreamOps();
 
-    status_t            set(int *format, uint32_t *channels, uint32_t *rate);
+    android::status_t   set(int* format, uint32_t* channels, uint32_t* rate);
 
-    status_t            setParameters(const String8& keyValuePairs);
-    String8             getParameters(const String8& keys);
+    android::status_t   setParameters(const android::String8& keyValuePairs);
+    android::String8    getParameters(const android::String8& keys);
 
-    inline uint32_t     sampleRate() const { return mSampleSpec.getSampleRate();}
+    inline uint32_t     sampleRate() const { return mSampleSpec.getSampleRate(); }
     size_t              getBufferSize(uint32_t iDivider) const;
-    inline int          format() const {return mSampleSpec.getFormat();}
-    inline uint32_t     channelCount() const {return mSampleSpec.getChannelCount();}
-    inline uint32_t     channels() const {return mSampleSpec.getChannelMask();}
+    inline int          format() const { return mSampleSpec.getFormat(); }
+    inline uint32_t     channelCount() const { return mSampleSpec.getChannelCount(); }
+    inline uint32_t     channels() const { return mSampleSpec.getChannelMask(); }
 
     // From AudioStreamIn/Out: indicates if the stream has a route pointer
-    bool                isRouteAvailable();
+    bool                isRouteAvailable() const;
+    // From
+    virtual android::status_t    attachRoute();
+    virtual android::status_t    detachRoute();
 
-    virtual status_t    route();
-    virtual status_t    unroute();
-    status_t            setStandby(bool bIsSet);
+    android::status_t   setStandby(bool bIsSet);
 
     virtual bool        isOut() const = 0 ;
 
-    virtual void        setInputSource(int iInputSource) {}
+    virtual void        setInputSource(int __UNUSED iInputSource) { return ; }
     virtual int         getInputSource() const { return 0; }
 
 
-    void                setNewRoute(CAudioStreamRoute *route);
+    void                setNewRoute(CAudioStreamRoute* attachRoute);
     void                resetRoute();
 
-    uint32_t            getNewDevice() const { return mNewDevices; }
-    void                setNewDevice(uint32_t uiNewDevice);
-    uint32_t            getCurrentDevice() const { return mCurrentDevices; }
-    void                setCurrentDevice(uint32_t uiCurrentDevice);
+    uint32_t            getNewDevices() const { return mNewDevices; }
+    void                setNewDevices(uint32_t uiNewDevices);
+    uint32_t            getCurrentDevices() const { return mCurrentDevices; }
+    void                setCurrentDevices(uint32_t uiCurrentDevices);
     CAudioStreamRoute*  getCurrentRoute() const { return mCurrentRoute; }
 
     audio_output_flags_t getFlags() const { return mFlags; }
@@ -86,15 +86,13 @@ protected:
     void                acquirePowerLock();
     void                releasePowerLock();
 
-    acoustic_device_t *acoustics();
-
-    status_t            applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
-    status_t            getConvertedBuffer(void *dst, const uint32_t outFrames, AudioBufferProvider* pBufferProvider);
+    android::status_t applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
+    android::status_t getConvertedBuffer(void* dst, const uint32_t outFrames, android::AudioBufferProvider* pBufferProvider);
 
     uint32_t            latency() const;
 
-    AudioHardwareALSA *     mParent;
-    alsa_handle_t *         mHandle;
+    AudioHardwareALSA*      mParent;
+    pcm*                    mHandle;
 
     bool                    mStandby;
     uint32_t                mDevices;
@@ -111,18 +109,20 @@ private:
     int         readSysEntry(const char* filePath);
 
     // Configure the audio conversion chain
-    status_t configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    android::status_t configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
     int         headsetPmDownDelay;
     int         speakerPmDownDelay;
     int         voicePmDownDelay;
 
-    bool        isResetted;
+    bool        mIsReset;
     CAudioStreamRoute*       mCurrentRoute;
     CAudioStreamRoute*       mNewRoute;
 
     uint32_t                mCurrentDevices;
     uint32_t                mNewDevices;
+
+    uint32_t                mLatencyUs;
 
     bool                    mPowerLock;
     const char*             mPowerLockTag;
@@ -134,8 +134,7 @@ private:
     static const uint32_t PLAYBACK_PERIOD_TIME_US;
     static const uint32_t CAPTURE_PERIOD_TIME_US;
     static const pcm_config DEFAULT_PCM_CONFIG;
+    static const uint32_t STR_FORMAT_LENGTH;
 };
-
-
 
 };        // namespace android

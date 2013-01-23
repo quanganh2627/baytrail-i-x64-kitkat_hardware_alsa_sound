@@ -1,6 +1,5 @@
-/* AudioStreamRoute.h
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -17,11 +16,10 @@
 
 #pragma once
 
-using namespace std;
-
 #include <tinyalsa/asoundlib.h>
 
 #include "AudioRoute.h"
+#include "SampleSpec.h"
 
 namespace android_audio_legacy
 {
@@ -34,23 +32,22 @@ public:
     CAudioStreamRoute(uint32_t uiRouteIndex,
                       CAudioPlatformState* platformState);
 
-    int getPcmDeviceId(bool bIsOut) const;
+    pcm* getPcmDevice(bool bIsOut) const;
 
-    const pcm_config& getPcmConfig(bool bIsOut) const;
-
-    const char* getCardName() const;
+    const CSampleSpec getSampleSpec(bool bIsOut) const { return _routeSampleSpec[bIsOut]; }
 
     virtual RouteType getRouteType() const { return CAudioRoute::EStreamRoute; }
 
     // Assign a new stream to this route
     status_t setStream(ALSAStreamOps* pStream);
 
-    // Route order - for external until Manager under PFW
+    // Route order
     virtual status_t route(bool bForOutput);
 
-    // Unroute order - for external until Manager under PFW
+    // Unroute order
     virtual void unroute(bool bForOutput);
 
+    // Configure order
     virtual void configure(bool bIsOut);
 
     // Inherited for AudioRoute - called from RouteManager
@@ -60,10 +57,10 @@ public:
     virtual bool available(bool bIsOut);
 
     // Inherited from AudioRoute - Called from RouteManager
-    virtual bool currentlyBorrowed(bool bIsOut) const;
+    virtual bool currentlyUsed(bool bIsOut) const;
 
     // Inherited from AudioRoute - Called from RouteManager
-    virtual bool willBeBorrowed(bool bIsOut) const;
+    virtual bool willBeUsed(bool bIsOut) const;
 
     // Inherited for AudioRoute - called from RouteManager
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlagsInputSource = 0) const;
@@ -75,15 +72,43 @@ public:
     virtual uint32_t getOutputSilencePrologMs() const { return 0; }
 
 protected:
-    ALSAStreamOps* _pCurrentStreams[2];
-    ALSAStreamOps* _pNewStreams[2];
+    struct {
+
+        ALSAStreamOps* pCurrent;
+        ALSAStreamOps* pNew;
+    } _stStreams[CUtils::ENbDirections];
 
 private:
-    int _iPcmDeviceId[2];
-    const char* _pcCardName;
-    pcm_config _pcmConfig[2];
-};
-// ----------------------------------------------------------------------------
+    int getPcmDeviceId(bool bIsOut) const;
 
+    const pcm_config& getPcmConfig(bool bIsOut) const;
+
+    const char* getCardName() const;
+
+    android::status_t openPcmDevice(bool bIsOut);
+
+    void closePcmDevice(bool bIsOut);
+
+    android::status_t attachNewStream(bool bIsOut);
+
+    void detachCurrentStream(bool bIsOut);
+
+    void acquirePowerLock(bool bIsOut);
+
+    void releasePowerLock(bool bIsOut);
+
+    const char* _pcCardName;
+    int _aiPcmDeviceId[CUtils::ENbDirections];
+    pcm_config _astPcmConfig[CUtils::ENbDirections];
+
+    pcm* _astPcmDevice[CUtils::ENbDirections];
+
+    CSampleSpec             _routeSampleSpec[CUtils::ENbDirections];
+
+    bool                    _bPowerLock[CUtils::ENbDirections];
+    const char*             _acPowerLockTag[CUtils::ENbDirections];
+
+    static const char* const POWER_LOCK_TAG[CUtils::ENbDirections];
+};
 };        // namespace android
 

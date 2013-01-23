@@ -15,7 +15,6 @@
  */
 
 #include "AudioPlatformHardware.h"
-#include "Property.h"
 
 #include <tinyalsa/asoundlib.h>
 
@@ -44,11 +43,6 @@ static const char* MEDIA_CARD_NAME = "cloverviewaudio";
 #define MEDIA_PLAYBACK_DEVICE_ID        (0)
 #define MEDIA_CAPTURE_DEVICE_ID         (0)
 
-
-static const char* VOICE_MIXING_CARD_NAME = "IntelALSAIFX";
-#define VOICE_MIXING_DEVICE_ID          (0)
-#define VOICE_RECORD_DEVICE_ID          (0)
-
 static const char* VOICE_CARD_NAME = "IntelALSASSP";
 #define VOICE_DOWNLINK_DEVICE_ID    (2)
 #define VOICE_UPLINK_DEVICE_ID      (2)
@@ -62,75 +56,75 @@ namespace android_audio_legacy
 // For recording, configure ALSA to start the transfer on the
 // first frame.
 static const pcm_config pcm_config_media_playback = {
-    channels            : 2,
-    rate                : SAMPLE_RATE_48000,
-    period_size         : PLAYBACK_48000_PERIOD_SIZE,
-    period_count        : NB_RING_BUFFER_NORMAL,
-    format              : PCM_FORMAT_S16_LE,
-    start_threshold     : (PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL) - 1,
-    stop_threshold      : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-    silence_threshold   : 0,
-    avail_min           : PLAYBACK_48000_PERIOD_SIZE,
+   channels          : 2,
+   rate              : SAMPLE_RATE_48000,
+   period_size       : PLAYBACK_48000_PERIOD_SIZE,
+   period_count      : NB_RING_BUFFER_NORMAL,
+   format            : PCM_FORMAT_S16_LE,
+   start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL - 1,
+   stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   silence_threshold : 0,
+   avail_min         : PLAYBACK_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_media_capture = {
-    channels            : 2,
-    rate                : SAMPLE_RATE_48000,
-    period_size         : CAPTURE_48000_PERIOD_SIZE,
-    period_count        : NB_RING_BUFFER_NORMAL,
-    format              : PCM_FORMAT_S16_LE,
-    start_threshold     : 1,
-    stop_threshold      : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-    silence_threshold   : 0,
-    avail_min           : CAPTURE_48000_PERIOD_SIZE,
+    channels          : 2,
+    rate              : SAMPLE_RATE_48000,
+    period_size       : CAPTURE_48000_PERIOD_SIZE,
+    period_count      : NB_RING_BUFFER_NORMAL,
+    format            : PCM_FORMAT_S16_LE,
+    start_threshold   : 1,
+    stop_threshold    : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    silence_threshold : 0,
+    avail_min         : CAPTURE_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_downlink = {
-    channels        : 2,
-    rate            : SAMPLE_RATE_16000,
-    period_size     : VOICE_16000_PERIOD_SIZE,
+    channels        : 1,
+    rate            : SAMPLE_RATE_48000,
+    period_size     : VOICE_48000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_INCALL,
     format          : PCM_FORMAT_S16_LE,
-    start_threshold : VOICE_16000_PERIOD_SIZE - 1,
-    stop_threshold  : VOICE_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    start_threshold : VOICE_48000_PERIOD_SIZE - 1,
+    stop_threshold  : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
     silence_threshold : 0,
-    avail_min       : VOICE_16000_PERIOD_SIZE,
+    avail_min       : VOICE_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_uplink = {
-    channels        : 2,
-    rate            : SAMPLE_RATE_16000,
-    period_size     : VOICE_16000_PERIOD_SIZE,
+    channels        : 1,
+    rate            : SAMPLE_RATE_48000,
+    period_size     : VOICE_48000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_INCALL,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : VOICE_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold  : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
     silence_threshold : 0,
-    avail_min       : VOICE_16000_PERIOD_SIZE,
+    avail_min       : VOICE_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_mixing_playback = {
-    channels            : 2,
-    rate                : SAMPLE_RATE_48000,
-    period_size         : VOICE_48000_PERIOD_SIZE,
-    period_count        : NB_RING_BUFFER_INCALL,
-    format              : PCM_FORMAT_S16_LE,
-    start_threshold     : VOICE_48000_PERIOD_SIZE - 1,
-    stop_threshold      : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
-    silence_threshold   : 0,
-    avail_min           : NB_RING_BUFFER_INCALL,
+    channels        : 2,
+    rate            : SAMPLE_RATE_48000,
+    period_size     : VOICE_48000_PERIOD_SIZE,
+    period_count    : NB_RING_BUFFER_INCALL,
+    format          : PCM_FORMAT_S16_LE,
+    start_threshold : VOICE_48000_PERIOD_SIZE - 1,
+    stop_threshold  : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    silence_threshold : 0,
+    avail_min       : NB_RING_BUFFER_INCALL,
 };
 
 static const pcm_config pcm_config_voice_mixing_capture = {
-    channels            : 2,
-    rate                : SAMPLE_RATE_48000,
-    period_size         : PLAYBACK_48000_PERIOD_SIZE / 2,
-    period_count        : NB_RING_BUFFER_INCALL,
-    format              : PCM_FORMAT_S16_LE,
-    start_threshold     : 1,
-    stop_threshold      : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
-    silence_threshold   : 0,
-    avail_min           : NB_RING_BUFFER_INCALL,
+    channels        : 2,
+    rate            : SAMPLE_RATE_48000,
+    period_size     : PLAYBACK_48000_PERIOD_SIZE / 2,
+    period_count    : NB_RING_BUFFER_INCALL,
+    format          : PCM_FORMAT_S16_LE,
+    start_threshold : 1,
+    stop_threshold  : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    silence_threshold : 0,
+    avail_min       : NB_RING_BUFFER_INCALL,
 };
 
 /// Port section
@@ -140,22 +134,21 @@ const char* const CAudioPlatformHardware::_acPorts[] = {
     "LPE_I2S3_PORT",
     "IA_I2S0_PORT",
     "IA_I2S1_PORT",
-    "MODEM_I2S_PORT",
+    "MODEM_I2S1_PORT",
+    "MODEM_I2S2_PORT",
     "BT_I2S_PORT",
     "FM_I2S_PORT",
-    "HWCODEC_ASP_PORT",
-    "HWCODEC_VSP_PORT",
-    "HWCODEC_AUX_PORT"
+    "HWCODEC_I2S1_PORT",
+    "HWCODEC_I2S2_PORT",
+    "HWCODEC_I2S3_PORT",
 };
 
 const char* const CAudioPlatformHardware::_acPortGroups[] = {
-    "IA_I2S1_PORT,MODEM_I2S_PORT",
+    "IA_I2S1_PORT,MODEM_I2S1_PORT",
     "BT_I2S_PORT,FM_I2S_PORT"
 };
 
 /// Route section
-const char* CAudioPlatformHardware::CODEC_DELAY_PROP_NAME = "Audio.Media.CodecDelayMs";
-
 //
 // Route description structure
 //
@@ -165,9 +158,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
     // Streams routes
     //
     ////////////////////////////////////////////////////////////////////////
-    //
-    // MEDIA Route
-    //
     {
         "Media",
         CAudioRoute::EStreamRoute,
@@ -199,9 +189,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
-    //
-    // Compressed Media Route
-    //
     {
         "CompressedMedia",
         CAudioRoute::ECompressedStreamRoute,
@@ -233,50 +220,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
-    //
-    // Voice Mix route (IE mixing during CSV, VoIP or VoLTE call)
-    // Once VoIP DL uses a Direct Output, it will be used to mix streams during VoIP calls
-    // so update applicability accordingly...
-    //
-    {
-        "ModemMix",
-        CAudioRoute::EStreamRoute,
-        "IA_I2S0_PORT",
-        {
-            AudioSystem::DEVICE_IN_ALL,
-            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
-        },
-        {
-            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) | (1 << AUDIO_SOURCE_VOICE_CALL), // TBD IN COMMUNICATION
-            AUDIO_OUTPUT_FLAG_PRIMARY
-        },
-        {
-            (1 << AudioSystem::MODE_IN_CALL), // TBD: IN COMM as well?
-            (1 << AudioSystem::MODE_IN_CALL) // TBD: IN COMM as well?
-        },
-        {
-            CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
-            CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
-        },
-        VOICE_MIXING_CARD_NAME,
-        {
-            VOICE_RECORD_DEVICE_ID,
-            VOICE_MIXING_DEVICE_ID,
-        },
-        {
-            pcm_config_voice_mixing_capture,
-            pcm_config_voice_mixing_playback,
-        },
-        ""
-    },
-    //
-    // VOICE (VoIP) (on any output device) Route
-    // May be accessed by Direct Output streams
-    //
     {
         "HwCodecComm",
         CAudioRoute::EStreamRoute,
-        "IA_I2S1_PORT,HWCODEC_VSP_PORT",
+        "IA_I2S1_PORT,HWCODEC_I2S2_PORT",
         {
             DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
@@ -309,14 +256,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
     // External routes
     //
     ////////////////////////////////////////////////////////////////////////
-    //
-    // HwCodec Media route
-    // TBD: used for BT as well???
-    //
     {
         "HwCodecMedia",
         CAudioRoute::EExternalRoute,
-        "LPE_I2S3_PORT,HWCODEC_ASP_PORT",
+        "LPE_I2S3_PORT,HWCODEC_I2S1_PORT",
         {
             DEVICE_IN_BUILTIN_ALL,
             DEVICE_OUT_MM_ALL
@@ -344,13 +287,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         "CompressedMedia,Media"
     },
-    //
-    // CSV external route (on any output device)
-    //
     {
         "HwCodecCSV",
         CAudioRoute::EExternalRoute,
-        "MODEM_I2S_PORT,HWCODEC_VSP_PORT",
+        "MODEM_I2S1_PORT,HWCODEC_I2S2_PORT",
         {
             DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL, // be carefull, no input device selected in CSV by the policy!!!
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
@@ -378,13 +318,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
-    //
-    // BT External route
-    //
     {
         "HwCodecBt",
         CAudioRoute::EExternalRoute,
-        "HWCODEC_AUX_PORT,BT_I2S_PORT",
+        "HWCODEC_I2S3_PORT,BT_I2S_PORT",
         {
             DEVICE_IN_BLUETOOTH_SCO_ALL,    // Be carefull, no input selected in case of CSV!!!
             DEVICE_OUT_BLUETOOTH_SCO_ALL
@@ -412,13 +349,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
-    //
-    // FM route
-    //
     {
         "HwCodecFm",
         CAudioRoute::EExternalRoute,
-        "HWCODEC_AUX_PORT,FM_I2S_PORT",
+        "",
         {
             NOT_APPLICABLE,
             DEVICE_OUT_MM_ALL
@@ -445,39 +379,9 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable
         },
         ""
-    },
-    {
-        "VirtualASP",
-        CAudioRoute::EExternalRoute,
-        NOT_APPLICABLE,
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        NOT_APPLICABLE,
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            pcm_config_not_applicable,
-            pcm_config_not_applicable
-        },
-        ""
     }
 };
+
 
 const uint32_t CAudioPlatformHardware::_uiNbPortGroups = sizeof(CAudioPlatformHardware::_acPortGroups) /
         sizeof(CAudioPlatformHardware::_acPortGroups[0]);
@@ -488,32 +392,10 @@ const uint32_t CAudioPlatformHardware::_uiNbPorts = sizeof(CAudioPlatformHardwar
 const uint32_t CAudioPlatformHardware::_uiNbRoutes = sizeof(CAudioPlatformHardware::_astAudioRoutes) /
         sizeof(CAudioPlatformHardware::_astAudioRoutes[0]);
 
+
 //
 // Specific Applicability Rules
 //
-class CAudioStreamRouteMedia : public CAudioStreamRoute
-{
-public:
-    CAudioStreamRouteMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioStreamRoute(uiRouteIndex, pPlatformState),
-        _uiCodecDelayMs(TProperty<int32_t>(CAudioPlatformHardware::CODEC_DELAY_PROP_NAME, 0))
-    {
-    }
-    // Get amount of silence delay upon stream opening
-    virtual uint32_t getOutputSilencePrologMs() const
-    {
-
-        if (((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_SPEAKER) == AudioSystem::DEVICE_OUT_SPEAKER) ||
-                ((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) == AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
-
-            return _uiCodecDelayMs;
-        }
-        return CAudioStreamRoute::getOutputSilencePrologMs();
-    }
-private:
-    uint32_t _uiCodecDelayMs;
-};
-
 class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 {
 public:
@@ -530,7 +412,7 @@ public:
         return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
     }
 
-    virtual bool needReconfiguration(bool bIsOut) const
+    bool needReconfiguration(bool bIsOut) const
     {
         // The route needs reconfiguration except if:
         //      - still used by the same stream
@@ -538,10 +420,10 @@ public:
         //      - TTY direction has not changed
         //      - BT NrEc has not changed
         if ((CAudioRoute::needReconfiguration(bIsOut) &&
-                _pPlatformState->hasPlatformStateChanged(
-                     CAudioPlatformState::EHacModeChange |
-                     CAudioPlatformState::ETtyDirectionChange |
-                     CAudioPlatformState::EBtHeadsetNrEcChange)) ||
+             _pPlatformState->hasPlatformStateChanged(
+                 CAudioPlatformState::EHacModeChange |
+                 CAudioPlatformState::ETtyDirectionChange |
+                 CAudioPlatformState::EBtHeadsetNrEcChange)) ||
                 CAudioStreamRoute::needReconfiguration(bIsOut)) {
 
             return true;
@@ -558,14 +440,6 @@ public:
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
-
-        // For Victoria Bay platform, set Bluetooth always enabled when a BT route
-        // is needed. This change will be reverted as soon as the Bluedroid stack
-        // will be integrated as the key telling the audio manager that the Bluetooth
-        // is on comes from the BT service.
-#ifdef VB_HAL_AUDIO_TEMP
-        _pPlatformState->setBtEnabled(true);
-#endif
 
         // BT module must be on and as the BT is on the shared I2S bus
         // the share bus must be available
@@ -591,9 +465,6 @@ public:
 
     }
 
-  ~CAudioExternalRouteHwCodecCSV() {
-  }
-
     //
     // This route is applicable in CALL mode, whatever the output device selected
     //
@@ -618,44 +489,11 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags) const
     {
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
         if (!_pPlatformState->getFmRxHwMode()) {
 
             return false;
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
-    }
-};
-
-class CAudioExternalRouteVirtualASP : public CAudioExternalRoute
-{
-public:
-    CAudioExternalRouteVirtualASP(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioExternalRoute(uiRouteIndex, pPlatformState)
-    {
-    }
-
-    virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut, uint32_t __UNUSED uiFlags) const
-    {
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
-        if (bIsOut && _pPlatformState->isScreenOn()) {
-
-            return true;
-        }
-        return false;
-    }
-    virtual bool needReconfiguration(bool bIsOut) const
-    {
-        // The route needs reconfiguration except if:
-        //      - output devices did not change
-        if (CAudioRoute::needReconfiguration(bIsOut) &&
-                    _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)) {
-
-            return true;
-        }
-        return false;
     }
 };
 
@@ -701,9 +539,6 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
         return new CAudioExternalRouteHwCodecBt(uiRouteIndex, pPlatformState);
 
-    } else if (strName == "VirtualASP") {
-
-        return new CAudioExternalRouteVirtualASP(uiRouteIndex, pPlatformState);
     }
     ALOGE("%s: wrong route index=%d", __FUNCTION__, uiRouteIndex);
     return NULL;

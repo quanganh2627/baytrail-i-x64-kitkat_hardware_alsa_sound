@@ -21,13 +21,11 @@
 #include "ALSAStreamOps.h"
 #include "AudioBufferProvider.h"
 
-using namespace std;
-using namespace android;
 
 namespace android_audio_legacy
 {
 
-class AudioStreamInALSA : public AudioStreamIn, public ALSAStreamOps,  public AudioBufferProvider
+class AudioStreamInALSA : public AudioStreamIn, public ALSAStreamOps,  public android::AudioBufferProvider
 {
 public:
     AudioStreamInALSA(AudioHardwareALSA *parent,
@@ -52,15 +50,15 @@ public:
     }
 
     virtual ssize_t     read(void* buffer, ssize_t bytes);
-    virtual status_t    dump(int fd, const Vector<String16>& args);
+    virtual android::status_t    dump(int fd, const android::Vector<String16>& args);
 
-    virtual status_t    setGain(float gain);
+    virtual android::status_t    setGain(float gain);
 
-    virtual status_t    standby();
+    virtual android::status_t    standby();
 
-    virtual status_t    setParameters(const String8& keyValuePairs);
+    virtual android::status_t    setParameters(const android::String8& keyValuePairs);
 
-    virtual String8     getParameters(const String8& keys)
+    virtual android::String8     getParameters(const android::String8& keys)
     {
         return ALSAStreamOps::getParameters(keys);
     }
@@ -73,21 +71,20 @@ public:
 
     virtual bool        isOut() const { return false; }
 
-    status_t            open(int mode);
-    status_t            close();
-    virtual status_t addAudioEffect(effect_handle_t effect) { return NO_ERROR; };
-    virtual status_t removeAudioEffect(effect_handle_t effect) { return NO_ERROR; };
-
+    android::status_t            open(int mode);
+    android::status_t            close();
+    virtual android::status_t addAudioEffect(effect_handle_t __UNUSED effect) { return NO_ERROR; }
+    virtual android::status_t removeAudioEffect(effect_handle_t __UNUSED effect) { return NO_ERROR; }
 
     // From ALSAStreamOps: to perform extra open/close actions
-    virtual status_t    route();
-    virtual status_t    unroute();
+    virtual android::status_t    attachRoute();
+    virtual android::status_t    detachRoute();
 
     virtual int         getInputSource() const { return mInputSource; }
 
     // From AudioBufferProvider
-    virtual status_t getNextBuffer(AudioBufferProvider::Buffer* buffer, int64_t pts = kInvalidPTS);
-    virtual void releaseBuffer(AudioBufferProvider::Buffer* buffer);
+    virtual android::status_t getNextBuffer(android::AudioBufferProvider::Buffer* buffer, int64_t pts = kInvalidPTS);
+    virtual void releaseBuffer(android::AudioBufferProvider::Buffer* buffer);
 
     virtual void        setInputSource(int iInputSource);
 
@@ -95,19 +92,17 @@ private:
     AudioStreamInALSA(const AudioStreamInALSA &);
     AudioStreamInALSA& operator = (const AudioStreamInALSA &);
     void                resetFramesLost();
-    size_t              generateSilence(void *buffer, size_t bytes);
+    size_t              generateSilence(void* buffer, size_t bytes);
 
-    ssize_t             readHwFrames(void* buffer, ssize_t frames);
+    ssize_t             readHwFrames(void* buffer, size_t frames);
 
-    ssize_t             readFrames(void* buffer, ssize_t frames);
+    ssize_t             readFrames(void* buffer, size_t frames);
 
     void                freeAllocatedBuffers();
 
-    status_t            allocateProcessingMemory(ssize_t frames);
+    android::status_t   allocateProcessingMemory(size_t frames);
 
-    inline status_t     allocateHwBuffer();
-
-    status_t            setAcousticParams(void *params);
+    inline android::status_t     allocateHwBuffer();
 
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;

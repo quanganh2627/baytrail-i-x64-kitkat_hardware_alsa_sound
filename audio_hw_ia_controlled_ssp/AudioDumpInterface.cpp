@@ -1,4 +1,4 @@
-/* //device/servers/AudioFlinger/AudioDumpInterface.cpp
+/*
 **
 ** Copyright 2008, The Android Open Source Project
 **
@@ -16,7 +16,6 @@
 */
 
 #define LOG_TAG "AudioDumpInterface"
-//#define LOG_NDEBUG 0
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -30,8 +29,6 @@
 #include "AudioDumpInterface.h"
 
 namespace android_audio_legacy {
-
-// ----------------------------------------------------------------------------
 
 AudioDumpInterface::AudioDumpInterface(AudioHardwareInterface* hw)
     : mPolicyCommands(String8("")), mFileName(String8(""))
@@ -255,8 +252,6 @@ size_t AudioDumpInterface::getInputBufferSize(uint32_t sampleRate, int format, i
     return mFinalInterface->getInputBufferSize(sampleRate, format, channelCount);
 }
 
-// ----------------------------------------------------------------------------
-
 AudioStreamOutDump::AudioStreamOutDump(AudioDumpInterface *interface,
                                         int id,
                                         AudioStreamOut* finalStream,
@@ -435,8 +430,6 @@ status_t AudioStreamOutDump::getRenderPosition(uint32_t *dspFrames)
     if (mFinalStream != 0 ) return mFinalStream->getRenderPosition(dspFrames);
     return INVALID_OPERATION;
 }
-
-// ----------------------------------------------------------------------------
 
 AudioStreamInDump::AudioStreamInDump(AudioDumpInterface *interface,
                                         int id,

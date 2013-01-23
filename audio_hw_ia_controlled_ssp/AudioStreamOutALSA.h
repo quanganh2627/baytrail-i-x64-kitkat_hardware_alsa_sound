@@ -45,7 +45,7 @@ public:
 
     virtual uint32_t    latency() const;
 
-    virtual ssize_t     write(const void *buffer, size_t bytes);
+    virtual ssize_t     write(const void* buffer, size_t bytes);
     virtual status_t    dump(int fd, const Vector<String16>& args);
 
     status_t            setVolume(float left, float right);
@@ -54,13 +54,14 @@ public:
 
     virtual status_t    setParameters(const String8& keyValuePairs);
 
-    virtual String8     getParameters(const String8& keys) {
+    virtual String8     getParameters(const String8& keys)
+    {
         return ALSAStreamOps::getParameters(keys);
     }
 
     // return the number of audio frames written by the audio dsp to DAC since
     // the output has exited standby
-    virtual status_t    getRenderPosition(uint32_t *dspFrames);
+    virtual status_t    getRenderPosition(uint32_t* dspFrames);
 
     virtual bool        isOut() const { return true; }
 
@@ -68,11 +69,11 @@ public:
     status_t            close();
 
     // From ALSAStreamOps - specific output stream routing actions
-    virtual status_t    route();
+    virtual status_t    attachRoute();
 
 private:
-    AudioStreamOutALSA(const AudioStreamOutALSA &);
-    AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);
+    AudioStreamOutALSA(const AudioStreamOutALSA&);
+    AudioStreamOutALSA& operator = (const AudioStreamOutALSA&);
 
     size_t              generateSilence(size_t bytes);
 

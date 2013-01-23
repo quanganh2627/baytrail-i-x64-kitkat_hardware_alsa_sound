@@ -35,13 +35,12 @@ namespace android_audio_legacy
 
 static int s_device_open(const hw_module_t*, const char*, hw_device_t**);
 static int s_device_close(hw_device_t*);
-static status_t s_init(alsa_device_t *, uint32_t, uint32_t);
+static status_t s_init(alsa_device_t *);
 static status_t s_open(alsa_handle_t *handle, const char* cardName, int deviceId, const pcm_config& pcmConfig);
-static status_t s_init_stream(alsa_handle_t *handle, bool isOut, uint32_t rate, uint32_t channels, pcm_format format);
+static status_t s_init_stream(alsa_handle_t *handle, bool isOut, const pcm_config& config);
 static status_t s_stop(alsa_handle_t *handle);
 static status_t s_standby(alsa_handle_t *);
 static status_t s_close(alsa_handle_t *);
-static status_t s_config(alsa_handle_t *, int);
 static status_t s_volume(alsa_handle_t *, uint32_t, float);
 static int get_card_number_by_name(const char* name);
 
@@ -73,22 +72,22 @@ static int s_device_close(hw_device_t* device)
 // ----------------------------------------------------------------------------
 
 static const pcm_config pcm_config_default = {
-   /* channels        : */0,
-   /* rate            : */0,
-   /* period_size     : */0,
-   /* period_count    : */0,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */0 ,
-   /* stop_threshold  : */0 ,
-   /* silence_threshold : */0,
-   /* avail_min       : */0,
+   channels             : 0,
+   rate                 : 0,
+   period_size          : 0,
+   period_count         : 0,
+   format               : PCM_FORMAT_S16_LE,
+   start_threshold      : 0 ,
+   stop_threshold       : 0 ,
+   silence_threshold    : 0,
+   avail_min            : 0,
 };
 
 static alsa_handle_t _defaultsOut = {
     module             : 0,
     handle             : NULL,
     config             : pcm_config_default,
-    latencyInUs          : 0,
+    latencyInUs        : 0,
     flags              : PCM_OUT,
     modPrivate         : 0,
 };
@@ -134,9 +133,13 @@ static status_t s_init_stream(alsa_handle_t *handle, bool isOut, const pcm_confi
 static int s_device_open(const hw_module_t* module, const char* name,
                          hw_device_t** device)
 {
+    (void)name;
     alsa_device_t *dev;
     dev = (alsa_device_t *) malloc(sizeof(*dev));
-    if (!dev) return -ENOMEM;
+    if (!dev) {
+
+        return -ENOMEM;
+    }
 
     memset(dev, 0, sizeof(*dev));
 
@@ -183,35 +186,18 @@ static status_t s_open(alsa_handle_t *handle,
                                 handle->config.stop_threshold,
                                 handle->config.silence_threshold);
 
-    int attempt = 0;
+    //
+    // Opens the device in BLOCKING mode (default)
+    // No need to check for NULL handle, tiny alsa
+    // guarantee to return a pcm structure, even when failing to open
+    // it will return a reference on a "bad pcm" structure
+    //
+    handle->handle = pcm_open(get_card_number_by_name(cardName), deviceId, handle->flags, &handle->config);
+    if (handle->handle && !pcm_is_ready(handle->handle)) {
 
-    for (;;) {
-        //
-        // Opens the device in NON_BLOCKING mode (default)
-        // No need to check for NULL handle, tiny alsa
-        // guarantee to return a pcm structure, even when failing to open
-        // it will return a reference on a "bad pcm" structure
-        //
-        handle->handle = pcm_open(get_card_number_by_name(cardName), deviceId, handle->flags, &handle->config);
-        if (handle->handle && !pcm_is_ready(handle->handle)) {
-
-            ALOGE("cannot open pcm_in driver: %s", pcm_get_error(handle->handle));
-            pcm_close(handle->handle);
-            if (attempt < MAX_RETRY) {
-                //The processing of the open request for HDMI is done at the interrupt
-                //boundary in driver code, which takes max of 23ms. So any open request
-                //would be responded by a -EAGAIN till this interrupt boundary.
-                //The ALSA layer returns -EBUSY when driver returns -EAGAIN.
-                //This -EBUSY is handled here by sending repeated requests for MAX 6 times,
-                //without truncating the "devName", after a delay of 10ms each time.
-
-                usleep(10 * 1000);
-                attempt++;
-                continue;
-            }
-            return NO_MEMORY;
-        }
-        break ;
+        ALOGE("cannot open pcm device driver: %s", pcm_get_error(handle->handle));
+        pcm_close(handle->handle);
+        return NO_MEMORY;
     }
 
     return NO_ERROR;
@@ -264,11 +250,9 @@ static status_t s_close(alsa_handle_t *handle)
 
 static status_t s_volume(alsa_handle_t *handle, uint32_t devices, float volume)
 {
-    return NO_ERROR;
-}
-
-static status_t s_config(alsa_handle_t *handle, int mode)
-{
+    (void)handle;
+    (void)devices;
+    (void)volume;
     return NO_ERROR;
 }
 

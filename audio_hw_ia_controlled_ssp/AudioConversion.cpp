@@ -1,6 +1,6 @@
-/* AudioConversion.cpp
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -16,10 +16,7 @@
  */
 
 #define LOG_TAG "AudioConversion"
-//#define LOG_NDEBUG 0
 
-#include <stdlib.h>
-#include <string.h>
 #include <cutils/log.h>
 
 #include "AudioBufferProvider.h"
@@ -30,13 +27,14 @@
 #include "AudioResampler.h"
 #include "AudioUtils.h"
 
+using namespace android;
+using namespace std;
+
 namespace android_audio_legacy{
 
 const uint32_t CAudioConversion::MAX_RATE = 92000;
 
 const uint32_t CAudioConversion::MIN_RATE = 8000;
-
-// ----------------------------------------------------------------------------
 
 CAudioConversion::CAudioConversion() :
     _ulConvOutBufferIndex(0),
@@ -54,6 +52,7 @@ CAudioConversion::~CAudioConversion()
     for (int i = 0; i < ENbSampleSpecItems; i++) {
 
         delete _apAudioConverter[i];
+        _apAudioConverter[i] = NULL;
     }
 
     free(_pConvOutBuffer);
@@ -74,7 +73,6 @@ CAudioConversion::~CAudioConversion()
 //
 status_t CAudioConversion::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    LOGD("%s", __FUNCTION__);
     status_t ret = NO_ERROR;
 
     emptyConversionChain();
@@ -109,7 +107,7 @@ status_t CAudioConversion::configure(const CSampleSpec& ssSrc, const CSampleSpec
     }
 
     // Assert the temporary sample spec equals the destination sample spec
-    assert(tmpSsSrc == ssDst);
+    LOG_ALWAYS_FATAL_IF(tmpSsSrc != ssDst);
 
     return ret;
 }
@@ -121,8 +119,8 @@ status_t CAudioConversion::configure(const CSampleSpec& ssSrc, const CSampleSpec
 //
 status_t CAudioConversion::getConvertedBuffer(void *dst, const uint32_t outFrames, AudioBufferProvider* pBufferProvider)
 {
-    assert(pBufferProvider);
-    assert(dst);
+    LOG_ALWAYS_FATAL_IF(pBufferProvider == NULL);
+    LOG_ALWAYS_FATAL_IF(dst == NULL);
 
     status_t status = NO_ERROR;
 
@@ -157,7 +155,7 @@ status_t CAudioConversion::getConvertedBuffer(void *dst, const uint32_t outFrame
     //
     // Frames still needed? (_pConvOutBuffer emptied!)
     //
-    while (framesRequested) {
+    while (framesRequested != 0) {
 
         //
         // Outputs in the convOutBuffer
@@ -220,13 +218,13 @@ status_t CAudioConversion::getConvertedBuffer(void *dst, const uint32_t outFrame
     // Reset buffer Index
     _ulConvOutBufferIndex = 0;
 
-    return status;
+    return NO_ERROR;
 }
 
 status_t CAudioConversion::convert(const void* src, void** dst, const uint32_t inFrames, uint32_t* outFrames)
 {
-    void *srcBuf = (void* )src;
-    void *dstBuf = NULL;
+    const void* srcBuf = src;
+    void* dstBuf = NULL;
     size_t srcFrames = inFrames;
     size_t dstFrames = 0;
     status_t status = NO_ERROR;
@@ -353,7 +351,6 @@ status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpec
 //
 status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecItem, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst)
 {
-    status_t ret;
     LOG_ALWAYS_FATAL_IF(eSampleSpecItem >= ENbSampleSpecItems);
 
     // If the input format size is higher, first perform the reformat
@@ -361,7 +358,7 @@ status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecIt
     // and perform the reformat (if not already done)
     if (pSsSrc->getSampleSpecItem(eSampleSpecItem) > pSsDst->getSampleSpecItem(eSampleSpecItem)) {
 
-        ret = doConfigureAndAddConverter(eSampleSpecItem, pSsSrc, pSsDst);
+        status_t ret = doConfigureAndAddConverter(eSampleSpecItem, pSsSrc, pSsDst);
         if (ret != NO_ERROR) {
 
             return ret;
@@ -370,7 +367,7 @@ status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecIt
 
     if ((eSampleSpecItem + 1) < ENbSampleSpecItems) {
         // Dive
-        ret = configureAndAddConverter((SampleSpecItem)(eSampleSpecItem + 1), pSsSrc, pSsDst);
+        status_t ret = configureAndAddConverter((SampleSpecItem)(eSampleSpecItem + 1), pSsSrc, pSsDst);
         if (ret != NO_ERROR) {
 
             return ret;
@@ -379,14 +376,9 @@ status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecIt
 
     if (pSsSrc->getSampleSpecItem(eSampleSpecItem) < pSsDst->getSampleSpecItem(eSampleSpecItem)) {
 
-        ret = doConfigureAndAddConverter(eSampleSpecItem, pSsSrc, pSsDst);
-        if (ret != NO_ERROR) {
-
-            return ret;
-        }
+        return doConfigureAndAddConverter(eSampleSpecItem, pSsSrc, pSsDst);
     }
     return NO_ERROR;
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android

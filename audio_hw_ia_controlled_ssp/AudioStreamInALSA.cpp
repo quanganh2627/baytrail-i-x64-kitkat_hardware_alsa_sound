@@ -40,6 +40,7 @@
 #define base ALSAStreamOps
 
 
+using namespace std;
 
 namespace android_audio_legacy
 {
@@ -55,9 +56,6 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
     mInputSource(0),
     mHwBuffer(NULL)
 {
-    acoustic_device_t *aDev = acoustics();
-
-    if (aDev) aDev->set_params(aDev, mAcoustics, NULL);
 }
 
 AudioStreamInALSA::~AudioStreamInALSA()
@@ -67,7 +65,7 @@ AudioStreamInALSA::~AudioStreamInALSA()
     close();
 }
 
-status_t AudioStreamInALSA::setGain(float gain)
+status_t AudioStreamInALSA::setGain(float __UNUSED gain)
 {
     return NO_ERROR;
 }
@@ -80,13 +78,11 @@ size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
     return bytes;
 }
 
-status_t AudioStreamInALSA::getNextBuffer(AudioBufferProvider::Buffer* pBuffer, int64_t pts)
+status_t AudioStreamInALSA::getNextBuffer(AudioBufferProvider::Buffer* pBuffer, int64_t __UNUSED pts)
 {
-    (void)pts;
+    size_t maxFrames = static_cast<size_t>(pcm_bytes_to_frames(mHandle, mHwBufferSize));
 
-    size_t maxFrames =  static_cast<size_t>(pcm_bytes_to_frames(mHandle->handle, mHwBufferSize));
-
-    ssize_t hwFramesToRead = (maxFrames < pBuffer->frameCount)? maxFrames : pBuffer->frameCount;
+    ssize_t hwFramesToRead = min(maxFrames, pBuffer->frameCount);
     ssize_t framesRead;
 
     framesRead = readHwFrames(mHwBuffer, hwFramesToRead);
@@ -100,30 +96,34 @@ status_t AudioStreamInALSA::getNextBuffer(AudioBufferProvider::Buffer* pBuffer, 
     return NO_ERROR;
 }
 
-void AudioStreamInALSA::releaseBuffer(AudioBufferProvider::Buffer* buffer)
+void AudioStreamInALSA::releaseBuffer(AudioBufferProvider::Buffer __UNUSED * buffer)
 {
     // Nothing special to do here...
 }
 
-ssize_t AudioStreamInALSA::readHwFrames(void *buffer, ssize_t frames)
+ssize_t AudioStreamInALSA::readHwFrames(void *buffer, size_t frames)
 {
     int ret = 0;
 
-    ret = pcm_read(mHandle->handle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
+    ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
 
     if (ret) {
 
         //
-        // TODO: Shall we try some recover procedure???
+        // @todo: Shall we try some recover procedure???
         //
-        ALOGE("%s: read error: requested %ld (bytes=%ld)frames %s", __FUNCTION__, frames, mHwSampleSpec.convertFramesToBytes(frames), pcm_get_error(mHandle->handle));
+        ALOGE("%s: read error: requested %d (bytes=%d)frames %s",
+              __FUNCTION__,
+              frames,
+              mHwSampleSpec.convertFramesToBytes(frames),
+              pcm_get_error(mHandle));
         return ret;
     }
 
     return frames;
 }
 
-ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
+ssize_t AudioStreamInALSA::readFrames(void *buffer, size_t frames)
 {
     //
     // No conversion required, read HW frames directly
@@ -146,8 +146,6 @@ ssize_t AudioStreamInALSA::readFrames(void *buffer, ssize_t frames)
 
 ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
-    acquirePowerLock();
-
     setStandby(false);
 
     CAudioAutoRoutingLock lock(mParent);
@@ -158,15 +156,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         return generateSilence(buffer, bytes);
     }
 
-    assert(mHandle->handle);
-
-    acoustic_device_t *aDev = acoustics();
-
-    // If there is an acoustics module read method, then it overrides this
-    // implementation (unlike AudioStreamOutALSA write).
-    if (aDev && aDev->read) {
-        return aDev->read(aDev, buffer, bytes);
-    }
+    LOG_ALWAYS_FATAL_IF(mHandle == NULL);
 
     ssize_t received_frames = -1;
     ssize_t frames = mSampleSpec.convertBytesToFrames(bytes);
@@ -192,12 +182,12 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     return readBytes;
 }
 
-status_t AudioStreamInALSA::dump(int fd, const Vector<String16>& args)
+status_t AudioStreamInALSA::dump(int __UNUSED fd, const Vector<String16> __UNUSED &args)
 {
     return NO_ERROR;
 }
 
-status_t AudioStreamInALSA::open(int mode)
+status_t AudioStreamInALSA::open(int __UNUSED mode)
 {
     return setStandby(false);
 }
@@ -209,8 +199,6 @@ status_t AudioStreamInALSA::close()
 
 status_t AudioStreamInALSA::standby()
 {
-    LOGD("StreamInAlsa standby.\n");
-
     return setStandby(true);
 }
 
@@ -224,19 +212,12 @@ void AudioStreamInALSA::resetFramesLost()
 unsigned int AudioStreamInALSA::getInputFramesLost() const
 {
     unsigned int count = mFramesLost;   //set to 0 during construction
-    // Stupid interface wants us to have a side effect of clearing the count
-    // but is defined as a const to prevent such a thing.
-    ((AudioStreamInALSA *)this)->resetFramesLost();
+
+    AudioStreamInALSA* mutable_this = const_cast<AudioStreamInALSA*>(this);
+    // Requirement from AudioHardwareInterface.h:
+    // Audio driver is expected to reset the value to 0 and restart counting upon returning the current value by this function call.
+    mutable_this->resetFramesLost();
     return count;
-}
-
-status_t AudioStreamInALSA::setAcousticParams(void *params)
-{
-    CAudioAutoRoutingLock lock(mParent);
-
-    acoustic_device_t *aDev = acoustics();
-
-    return aDev ? aDev->set_params(aDev, mAcoustics, params) : (status_t)NO_ERROR;
 }
 
 status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
@@ -258,14 +239,13 @@ status_t  AudioStreamInALSA::setParameters(const String8& keyValuePairs)
 
 status_t AudioStreamInALSA::allocateHwBuffer()
 {
-    delete []mHwBuffer;
-    mHwBuffer = NULL;
-
     unsigned int bufferSize;
 
-    bufferSize = pcm_get_buffer_size(mHandle->handle);
+    freeAllocatedBuffers();
 
-    mHwBufferSize = static_cast<size_t>(pcm_frames_to_bytes(mHandle->handle, bufferSize));
+    bufferSize = pcm_get_buffer_size(mHandle);
+
+    mHwBufferSize = static_cast<size_t>(pcm_frames_to_bytes(mHandle, bufferSize));
 
     mHwBuffer = new char[mHwBufferSize];
     if (!mHwBuffer) {
@@ -286,11 +266,9 @@ void AudioStreamInALSA::freeAllocatedBuffers()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamInALSA::route()
+status_t AudioStreamInALSA::attachRoute()
 {
-    status_t status;
-
-    status = base::route();
+    status_t status = base::attachRoute();
     if (status != NO_ERROR) {
 
         return status;
@@ -302,11 +280,11 @@ status_t AudioStreamInALSA::route()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamInALSA::unroute()
+status_t AudioStreamInALSA::detachRoute()
 {
     freeAllocatedBuffers();
 
-    return base::unroute();
+    return base::detachRoute();
 }
 
 void AudioStreamInALSA::setInputSource(int inputSource)

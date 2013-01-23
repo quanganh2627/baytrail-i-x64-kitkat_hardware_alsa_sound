@@ -1,6 +1,5 @@
-/* Route.h
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -18,11 +17,7 @@
 #pragma once
 
 #include <string>
-
-using namespace std;
-
-#define INPUT        false
-#define OUTPUT       true
+#include "Utils.h"
 
 #include <hardware_legacy/AudioHardwareBase.h>
 
@@ -37,6 +32,14 @@ class CAudioRoute
 
 public:
 
+    enum Port {
+
+        EPortSource = 0,
+        EPortDest,
+
+        ENbPorts
+    };
+
     enum RouteType {
         EStreamRoute,
         EExternalRoute,
@@ -50,43 +53,39 @@ public:
 
     void addPort(CAudioPort* pPort);
 
-    // From AudioRouteManager
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const;
 
-    // From RouteManager
     virtual void resetAvailability();
 
-    // From Route Manager
-    virtual void setBorrowed(bool bIsOut);
+    virtual void setUsed(bool bIsOut);
 
-    // From RouteManager
-    virtual bool currentlyBorrowed(bool bIsOut) const;
+    virtual bool currentlyUsed(bool bIsOut) const;
 
-    virtual bool willBeBorrowed(bool bIsOut) const;
+    virtual bool willBeUsed(bool bIsOut) const;
 
     // From Port
-    void setCondemned();
+    void setBlocked();
 
-    bool isCondemned() const;
+    bool isBlocked() const;
 
-    const string& getName() const { return _strName; }
+    const std::string& getName() const { return _strName; }
 
-    uint32_t getSlaveRoute() const { return _uiSlaveRoutes; }
+    uint32_t getSlaveRoutes() const { return _uiSlaveRoutes; }
 
     virtual RouteType getRouteType() const = 0;
 
     // Route order - for external until Manager under PFW
     virtual status_t route(bool bIsOut);
 
-    // Unroute order - for external until Manager under PFW
+    // UnRoute order - for external until Manager under PFW
     virtual void unroute(bool bIsOut);
 
-    virtual void configure(bool bIsOut) { return ; }
+    virtual void configure(bool __UNUSED bIsOut) { return ; }
 
-    uint32_t getRouteId() const {return _uiRouteId; }
+    uint32_t getRouteId() const { return _uiRouteId; }
 
     // Filters the unroute/route
-    // Returns true if a route is currently borrowed, will be borrowed
+    // Returns true if a route is currently used, will be used
     // after reconsiderRouting but needs to be reconfigured
     virtual bool needReconfiguration(bool bIsOut) const;
 
@@ -95,34 +94,42 @@ protected:
     CAudioRoute& operator = (const CAudioRoute &);
 
 private:
-    string _strName;
+    void initRoute(bool bIsOut, uint32_t uiRouteIndex);
+
+    bool isModeApplicable(int iMode, bool bIsOut) const;
+
+    std::string _strName;
 
     // A route is connected to 2 port, one call be NULL if no mutual exclusion exists on this port
-    CAudioPort* _pPort[2];
+    CAudioPort* _pPort[ENbPorts];
 
-    bool _bCondemned;
+    bool _bBlocked;
 
     uint32_t _uiRouteId;
 
 protected:
-    bool _bCurrentlyBorrowed[2];
+    struct {
 
-    bool _bWillBeBorrowed[2];
+        bool bCurrently;
+        bool bAfterRouting;
+    } _stUsed[CUtils::ENbDirections];
 
 public:
-    uint32_t _uiApplicableDevices[2];
+    struct {
 
-    uint32_t _uiApplicableModes[2];
+        uint32_t uiDevices;
 
-    uint32_t _uiApplicableFlags[2];
+        uint32_t uiModes;
 
-    uint32_t _uiApplicableStreamType[2];
+        uint32_t uiFlags;
+
+        uint32_t uiType;
+
+    } _applicabilityRules[CUtils::ENbDirections];
 
     uint32_t _uiSlaveRoutes;
 
     CAudioPlatformState* _pPlatformState;
 };
-// ----------------------------------------------------------------------------
-
 };        // namespace android
 

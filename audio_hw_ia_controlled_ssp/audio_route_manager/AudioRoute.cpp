@@ -1,6 +1,5 @@
-/* AudioRoute.cpp
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -16,7 +15,7 @@
  */
 
 #define LOG_TAG "RouteManager/Route"
-//#define LOG_NDEBUG 0
+
 #include <utils/Log.h>
 #include <string>
 
@@ -30,26 +29,13 @@ namespace android_audio_legacy
 {
 
 CAudioRoute::CAudioRoute(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
+    _strName(CAudioPlatformHardware::getRouteName(uiRouteIndex)),
+    _uiRouteId(CAudioPlatformHardware::getRouteId(uiRouteIndex)),
+    _uiSlaveRoutes(CAudioPlatformHardware::getSlaveRoutes(uiRouteIndex)),
     _pPlatformState(pPlatformState)
 {
-    _strName = CAudioPlatformHardware::getRouteName(uiRouteIndex);
-    _uiRouteId = CAudioPlatformHardware::getRouteId(uiRouteIndex);
-
-    _uiApplicableDevices[OUTPUT] = CAudioPlatformHardware::getRouteApplicableDevices(uiRouteIndex, OUTPUT);
-    _uiApplicableModes[OUTPUT] = CAudioPlatformHardware::getRouteApplicableModes(uiRouteIndex, OUTPUT);
-    _uiApplicableDevices[INPUT] = CAudioPlatformHardware::getRouteApplicableDevices(uiRouteIndex, INPUT);
-    _uiApplicableModes[INPUT] = CAudioPlatformHardware::getRouteApplicableModes(uiRouteIndex, INPUT);
-    _uiApplicableFlags[INPUT] = CAudioPlatformHardware::getRouteApplicableFlags(uiRouteIndex, INPUT);
-    _uiApplicableFlags[OUTPUT] = CAudioPlatformHardware::getRouteApplicableFlags(uiRouteIndex, OUTPUT);
-    _uiSlaveRoutes = CAudioPlatformHardware::getSlaveRoutes(uiRouteIndex);
-
-    _pPort[OUTPUT] = NULL;
-    _pPort[INPUT] = NULL;
-    _bCurrentlyBorrowed[OUTPUT] = false;
-    _bCurrentlyBorrowed[INPUT] = false;
-    _bWillBeBorrowed[OUTPUT] = false;
-    _bWillBeBorrowed[INPUT] = false;
-
+    initRoute(CUtils::EInput, uiRouteIndex);
+    initRoute(CUtils::EOutput, uiRouteIndex);
 }
 
 CAudioRoute::~CAudioRoute()
@@ -57,134 +43,140 @@ CAudioRoute::~CAudioRoute()
 
 }
 
+void CAudioRoute::initRoute(bool bIsOut, uint32_t uiRouteIndex)
+{
+    _applicabilityRules[bIsOut].uiDevices = CAudioPlatformHardware::getRouteApplicableDevices(uiRouteIndex, bIsOut);
+    _applicabilityRules[bIsOut].uiModes = CAudioPlatformHardware::getRouteApplicableModes(uiRouteIndex, bIsOut);
+    _applicabilityRules[bIsOut].uiFlags = CAudioPlatformHardware::getRouteApplicableFlags(uiRouteIndex, bIsOut);
+
+    _pPort[bIsOut] = NULL;
+    _stUsed[bIsOut].bCurrently =  false;
+    _stUsed[bIsOut].bAfterRouting =  false;
+}
+
 void CAudioRoute::addPort(CAudioPort* pPort)
 {
     if (pPort) {
 
-        ALOGD("%s: %s to route %s", __FUNCTION__, pPort->getName().c_str(), getName().c_str());
+        ALOGV("%s: %d to route %s", __FUNCTION__, pPort->getPortId(), getName().c_str());
         pPort->addRouteToPortUsers(this);
-        if (!_pPort[0]) {
+        if (!_pPort[EPortSource]) {
 
-            _pPort[0]= pPort;
+            _pPort[EPortSource]= pPort;
         }
         else {
 
-            assert(!pPort[1]);
-            _pPort[1] = pPort;
+            assert(!pPort[EPortDest]);
+            _pPort[EPortDest] = pPort;
         }
     }
 }
 
 status_t CAudioRoute::route(bool bIsOut)
 {
-    ALOGD("%s: %s", __FUNCTION__, getName().c_str());
-
-    _bCurrentlyBorrowed[bIsOut] = true;
+    _stUsed[bIsOut].bCurrently = true;
 
     return NO_ERROR;
 }
 
 void CAudioRoute::unroute(bool bIsOut)
 {
-    ALOGD("%s: %s", __FUNCTION__, getName().c_str());
-
-    _bCurrentlyBorrowed[bIsOut] = false;
+    _stUsed[bIsOut].bCurrently = false;
 }
 
 
 
 void CAudioRoute::resetAvailability()
 {
-    _bCondemned = false;
-    _bWillBeBorrowed[0] = false;
-    _bWillBeBorrowed[1] = false;
+    _bBlocked = false;
+    _stUsed[CUtils::EOutput].bAfterRouting = false;
+    _stUsed[CUtils::EInput].bAfterRouting = false;
 }
 
 bool CAudioRoute::isApplicable(uint32_t uiDevices, int iMode, bool bIsOut, uint32_t) const
 {
-    ALOGI("%s: is Route %s applicable?", __FUNCTION__, getName().c_str());
-    ALOGI("%s: \t\t\t (isCondemned()=%d willBeBorrowed(%s)=%d) && ", __FUNCTION__,
-          isCondemned(), bIsOut? "output" : "input", willBeBorrowed(bIsOut));
-    ALOGI("%s: \t\t\t ((1 << iMode)=0x%X & uiApplicableModes[%s]=0x%X) && ", __FUNCTION__,
-          (1 << iMode), bIsOut? "output" : "input", _uiApplicableModes[bIsOut]);
-    ALOGI("%s: \t\t\t (uiDevices=0x%X & _uiApplicableDevices[%s]=0x%X)", __FUNCTION__,
-          uiDevices, bIsOut? "output" : "input", _uiApplicableDevices[bIsOut]);
+    ALOGV("%s: is Route %s applicable?", __FUNCTION__, getName().c_str());
+    ALOGV("%s: \t\t\t (isBlocked()=%d willBeBusy(%s)=%d) && ", __FUNCTION__,
+          isBlocked(), bIsOut? "output" : "input", willBeUsed(bIsOut));
+    ALOGV("%s: \t\t\t ((1 << iMode)=0x%X & uiApplicableModes[%s]=0x%X) && ", __FUNCTION__,
+          (1 << iMode), bIsOut? "output" : "input", _applicabilityRules[bIsOut].uiModes);
+    ALOGV("%s: \t\t\t (uiDevices=0x%X & _uiApplicableDevices[%s]=0x%X)", __FUNCTION__,
+          uiDevices, bIsOut? "output" : "input", _applicabilityRules[bIsOut].uiDevices);
 
-    if (!isCondemned() &&
-            !willBeBorrowed(bIsOut) &&
-            ((1 << iMode) & _uiApplicableModes[bIsOut]) &&
-            (uiDevices & _uiApplicableDevices[bIsOut])) {
+    if (!isBlocked() &&
+            !willBeUsed(bIsOut) &&
+            isModeApplicable(iMode, bIsOut) &&
+            (uiDevices & _applicabilityRules[bIsOut].uiDevices)) {
 
-        ALOGD("%s: Route %s is applicable", __FUNCTION__, getName().c_str());
+        ALOGV("%s: Route %s is applicable", __FUNCTION__, getName().c_str());
         return true;
     }
     return false;
 }
 
-void CAudioRoute::setBorrowed(bool bIsOut)
+bool CAudioRoute::isModeApplicable(int iMode, bool bIsOut) const
 {
-    if (_bWillBeBorrowed[bIsOut]) {
+    return (1 << iMode) & _applicabilityRules[bIsOut].uiModes;
+}
 
-        // Route is already borrowed in in/out, associated port already borrowed
+void CAudioRoute::setUsed(bool bIsOut)
+{
+    if (_stUsed[bIsOut].bAfterRouting) {
+
+        // Route is already in use in in/out, associated port already in use
         // Bailing out
         return ;
     }
 
-    ALOGD("%s: route %s is now borrowed in %s", __FUNCTION__, getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE");
+    ALOGV("%s: route %s is now in use in %s", __FUNCTION__, getName().c_str(), bIsOut? "PLAYBACK" : "CAPTURE");
 
-    _bWillBeBorrowed[bIsOut] = true;
+    _stUsed[bIsOut].bAfterRouting = true;
 
-    // Propagate the borrowed attribute to the ports
+    // Propagate the in use attribute to the ports
     // used by this route
-    for(int i = 0; i < 2 ; i++) {
+    for (int i = 0; i < ENbPorts ; i++) {
 
-        if (!_pPort[i]) {
+        if (_pPort[i]) {
 
-            continue;
+            _pPort[i]->setUsed(this);
         }
-        _pPort[i]->setBorrowed(this);
-
     }
 }
 
 bool CAudioRoute::needReconfiguration(bool bIsOut) const
 {
     //
-    // Base class just check at least that the route is used currently
-    // and will remain borrowed after routing
+    // Base class just check at least that the route is currently used
+    // and will remain used after routing
     //
-    if (currentlyBorrowed(bIsOut) && willBeBorrowed(bIsOut)) {
-
-        return true;
-    }
-    return false;
+    return currentlyUsed(bIsOut) && willBeUsed(bIsOut);
 }
 
-bool CAudioRoute::currentlyBorrowed(bool bIsOut) const
+bool CAudioRoute::currentlyUsed(bool bIsOut) const
 {
-    return _bCurrentlyBorrowed[bIsOut];
+    return _stUsed[bIsOut].bCurrently;
 }
 
-bool CAudioRoute::willBeBorrowed(bool bIsOut) const
+bool CAudioRoute::willBeUsed(bool bIsOut) const
 {
-    return _bWillBeBorrowed[bIsOut];
+    return _stUsed[bIsOut].bAfterRouting;
 }
 
-void CAudioRoute::setCondemned()
+void CAudioRoute::setBlocked()
 {
-    if (_bCondemned) {
+    if (_bBlocked) {
 
         // Bailing out
         return ;
     }
 
-    ALOGD("%s: route %s is now condemned", __FUNCTION__, getName().c_str());
-    _bCondemned = true;
+    ALOGV("%s: route %s is now blocked", __FUNCTION__, getName().c_str());
+    _bBlocked = true;
 }
 
-bool CAudioRoute::isCondemned() const
+bool CAudioRoute::isBlocked() const
 {
-    return _bCondemned;
+    return _bBlocked;
 }
 
 }       // namespace android

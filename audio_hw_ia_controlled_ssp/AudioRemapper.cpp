@@ -1,6 +1,6 @@
-/* AudioRemapper.cpp
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -19,20 +19,16 @@
 #undef LOG_TAG
 #endif
 #define LOG_TAG "AudioRemapper"
-//#define LOG_NDEBUG 0
 
-#include <stdlib.h>
-#include <string.h>
 #include <cutils/log.h>
-
 #include "AudioRemapper.h"
 
 #define base CAudioConverter
 
+using namespace android;
+
 namespace android_audio_legacy{
 
-
-// ----------------------------------------------------------------------------
 
 CAudioRemapper::CAudioRemapper(SampleSpecItem eSampleSpecItem) :
     base(eSampleSpecItem)
@@ -51,12 +47,12 @@ status_t CAudioRemapper::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec
 
     case AUDIO_FORMAT_PCM_16_BIT:
 
-        if (ssSrc.getChannelCount() == 1 && ssDst.getChannelCount() == 2) {
+        if (ssSrc.isMono() && ssDst.isStereo()) {
 
-            _pfnConvertSamples = (ConvertSamples)(&CAudioRemapper::convertMonoToStereoInS16);
-        } else if (ssSrc.getChannelCount() == 2 && ssDst.getChannelCount() == 1) {
+            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertMonoToStereoInS16);
+        } else if (ssSrc.isStereo() && ssDst.isMono()) {
 
-            _pfnConvertSamples = (ConvertSamples)(&CAudioRemapper::convertStereoToMonoInS16);
+            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertStereoToMonoInS16);
         } else {
 
             ret = INVALID_OPERATION;
@@ -65,12 +61,12 @@ status_t CAudioRemapper::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec
 
     case AUDIO_FORMAT_PCM_8_24_BIT:
 
-        if (ssSrc.getChannelCount() == 1 && ssDst.getChannelCount() == 2) {
+        if (ssSrc.isMono() && ssDst.isStereo()) {
 
-            _pfnConvertSamples = (ConvertSamples)(&CAudioRemapper::convertMonoToStereoInS24o32);
-        } else if (ssSrc.getChannelCount() == 2 && ssDst.getChannelCount() == 1) {
+            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertMonoToStereoInS24o32);
+        } else if (ssSrc.isStereo() && ssDst.isMono()) {
 
-            _pfnConvertSamples = (ConvertSamples)(&CAudioRemapper::convertStereoToMonoInS24o32);
+            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertStereoToMonoInS24o32);
         } else {
 
             ret = INVALID_OPERATION;
@@ -86,54 +82,73 @@ status_t CAudioRemapper::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec
     return ret;
 }
 
-status_t CAudioRemapper::convertStereoToMonoInS16(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
+status_t CAudioRemapper::convertStereoToMonoInS16(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
 {
-    const int16_t *src16 = (const int16_t *)src;
+    const int16_t* src16 = (const int16_t* )src;
+    int16_t* dst16 = (int16_t* )dst;
+    size_t frames;
+
+    for (frames = 0; frames < inFrames; frames++) {
+
+        int32_t srcLeft = src16[2 * frames];
+        int32_t srcRight = src16[2 * frames + 1];
+        dst16[frames] = (srcLeft + srcRight) / 2;
+    }
+
+    // Transformation is "iso"frames
+    *outFrames = inFrames;
+    return NO_ERROR;
+}
+
+status_t CAudioRemapper::convertMonoToStereoInS16(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
+{
+    const int16_t* src16 = (const int16_t* )src;
     int16_t *dst16 = (int16_t *)dst;
-    size_t frames = inFrames;
+    size_t frames = 0;
 
-    while (frames > 0) {
+    for (frames = 0; frames < inFrames; frames++) {
 
-        // Average, if DUAL mono, better to take only one channel???
-        *dst16++ = (int16_t)(((int32_t)*src16 + (int32_t)*(src16 + 1)) >> 1);
-        src16 += 2;
-        frames -= 1;
+        int16_t* dstLeft = &dst16[2 * frames];
+        int16_t* dstRight = &dst16[2 * frames + 1];
+        *dstLeft = src16[frames];
+        *dstRight = src16[frames];
     }
+
     // Transformation is "iso"frames
     *outFrames = inFrames;
     return NO_ERROR;
 }
 
-status_t CAudioRemapper::convertMonoToStereoInS16(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
+status_t CAudioRemapper::convertStereoToMonoInS24o32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
 {
-    const int16_t *src16 = (const int16_t *)src;
-    int16_t *dst16 = (int16_t *)dst;
-    size_t frames = inFrames;
+    const int32_t* src32 = (const int32_t* )src;
+    int32_t* dst32 = (int32_t* )dst;
+    size_t frames;
 
-    while (frames > 0) {
+    for (frames = 0; frames < inFrames; frames++) {
 
-        *dst16++ = *src16;
-        *dst16++ = *src16++;
-        frames -= 1;
+        int32_t srcLeft = src32[2 * frames];
+        int32_t srcRight = src32[2 * frames + 1];
+        dst32[frames] = (srcLeft + srcRight) / 2;
     }
     // Transformation is "iso"frames
     *outFrames = inFrames;
+
     return NO_ERROR;
 }
 
-status_t CAudioRemapper::convertStereoToMonoInS24o32(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
+status_t CAudioRemapper::convertMonoToStereoInS24o32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
 {
-    const int32_t *src32 = (const int32_t *)src;
+    const int32_t* src32 = (const int32_t* )src;
     int32_t *dst32 = (int32_t *)dst;
-    size_t frames = inFrames;
+    size_t frames = 0;
 
-    while (frames > 0) {
+    for (frames = 0; frames < inFrames; frames++) {
 
-        // Calculating average value of the two channels.
-        // If a dual mono stream has to be processed, it would be more efficient to take only one of the two channels
-        *dst32++ = (*src32 + (int32_t)*(src32 + 1)) >> 1;
-        src32 += 2;
-        frames -= 1;
+        int32_t* dstLeft = &dst32[2 * frames];
+        int32_t* dstRight = &dst32[2 * frames + 1];
+        *dstLeft = src32[frames];
+        *dstRight = src32[frames];
     }
     // Transformation is "iso"frames
     *outFrames = inFrames;
@@ -141,23 +156,4 @@ status_t CAudioRemapper::convertStereoToMonoInS24o32(const void *src, void *dst,
     return NO_ERROR;
 }
 
-status_t CAudioRemapper::convertMonoToStereoInS24o32(const void* src, void* dst, const uint32_t inFrames, uint32_t *outFrames)
-{
-    const int32_t *src32 = (const int32_t *)src;
-    int32_t *dst32 = (int32_t *)dst;
-    size_t frames = inFrames;
-
-    while (frames > 0) {
-
-        *dst32++ = *src32;
-        *dst32++ = *src32++;
-        frames -= 1;
-    }
-    // Transformation is "iso"frames
-    *outFrames = inFrames;
-
-    return NO_ERROR;
-}
-
-// ----------------------------------------------------------------------------
 }; // namespace android

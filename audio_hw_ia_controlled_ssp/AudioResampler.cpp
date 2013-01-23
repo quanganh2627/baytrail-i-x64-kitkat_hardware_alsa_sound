@@ -1,6 +1,6 @@
-/* AudioResampler.cpp
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -19,10 +19,7 @@
 #undef LOG_TAG
 #endif
 #define LOG_TAG "AudioResampler"
-//#define LOG_NDEBUG 0
 
-#include <stdlib.h>
-#include <string.h>
 #include <cutils/log.h>
 
 #include "AudioResampler.h"
@@ -30,11 +27,11 @@
 
 #define base CAudioConverter
 
+using namespace android;
+
 namespace android_audio_legacy{
 
 const uint32_t CAudioResampler::_guiPivotSampleRate = 48000;
-
-// ----------------------------------------------------------------------------
 
 CAudioResampler::CAudioResampler(SampleSpecItem eSampleSpecItem) :
     base(eSampleSpecItem),
@@ -89,16 +86,15 @@ status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
     }
     _activeResamplerList.push_back(_pResampler);
 
-    return status;
+    return NO_ERROR;
 }
 
-status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames, uint32_t *outFrames)
+status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames)
 {
     void *srcBuf = (void* )src;
     void *dstBuf = NULL;
     size_t srcFrames = inFrames;
     size_t dstFrames = 0;
-    status_t status = NO_ERROR;
 
     ResamplerListIterator it;
     for (it = _activeResamplerList.begin(); it != _activeResamplerList.end(); ++it) {
@@ -111,7 +107,7 @@ status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames
             // Last converter must output within the provided buffer (if provided!!!)
             dstBuf = *dst;
         }
-        status = pConv->convert(srcBuf, &dstBuf, srcFrames, &dstFrames);
+        status_t status = pConv->convert(srcBuf, &dstBuf, srcFrames, &dstFrames);
         if (status != NO_ERROR) {
 
             return status;
@@ -121,8 +117,7 @@ status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames
     }
     *dst = dstBuf;
     *outFrames = dstFrames;
-    return status;
+    return NO_ERROR;
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android

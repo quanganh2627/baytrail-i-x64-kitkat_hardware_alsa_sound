@@ -1,6 +1,5 @@
-/* AudioCompressedStreamRoute.cpp
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -19,9 +18,6 @@
 
 #include "AudioCompressedStreamRoute.h"
 #include "AudioPlatformState.h"
-#include "AudioPlatformHardware.h"
-
-#define base    CAudioRoute
 
 namespace android_audio_legacy
 {
@@ -34,16 +30,19 @@ namespace android_audio_legacy
 // To be implemented by derivated classes if different
 // route policy
 //
-bool CAudioCompressedStreamRoute::needReconfiguration(bool bIsOut) const
+bool CAudioCompressedStreamRoute::needReconfiguration(bool __UNUSED bIsOut) const
 {
     return false;
 }
 
-bool CAudioCompressedStreamRoute::isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags) const
+bool CAudioCompressedStreamRoute::isApplicable(uint32_t uidevices,
+                                               int iMode,
+                                               bool bIsOut,
+                                               uint32_t uiFlags) const
 {
     if (bIsOut && _pPlatformState->hasDirectStreams()) {
 
-        return base::isApplicable(uidevices, iMode, bIsOut, uiFlags);
+        return CAudioRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
     }
     return false;
 }

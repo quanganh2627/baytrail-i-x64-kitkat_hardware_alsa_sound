@@ -8,7 +8,7 @@ LOCAL_PATH := $(call my-dir)
 
   LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 
-  LOCAL_CFLAGS := -D_POSIX_SOURCE -Wno-multichar
+  LOCAL_CFLAGS := -D_POSIX_SOURCE -Wall -Werror
 
   LOCAL_C_INCLUDES += \
         external/tinyalsa/include \

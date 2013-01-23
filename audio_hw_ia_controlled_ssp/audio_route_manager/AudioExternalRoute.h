@@ -1,6 +1,5 @@
-/* ExternalRoute.h
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -16,8 +15,6 @@
  */
 
 #pragma once
-
-using namespace std;
 
 #include "AudioRoute.h"
 
@@ -35,7 +32,5 @@ public:
     // Filters the unroute/route
     virtual bool needReconfiguration(bool bIsOut) const;
 };
-// ----------------------------------------------------------------------------
-
 };        // namespace android
 

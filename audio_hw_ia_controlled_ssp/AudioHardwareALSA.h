@@ -30,22 +30,16 @@
 #include <fm_module.h>
 
 #include <utils/threads.h>
-#include "AudioHardwareALSACommon.h"
 #include "AudioUtils.h"
 #include "SampleSpec.h"
+#include "Utils.h"
 
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 
-using namespace std;
-using namespace android;
-
 namespace android_audio_legacy
 {
-
-using android::List;
-using android::Mutex;
 
 class CParameterMgrPlatformConnectorLogger;
 class AudioHardwareALSA;
@@ -73,33 +67,33 @@ public:
      * check to see if the audio hardware interface has been initialized.
      * return status based on values defined in include/utils/Errors.h
      */
-    virtual status_t    initCheck();
+    virtual android::status_t    initCheck();
 
     /** set the audio volume of a voice call. Range is between 0.0 and 1.0 */
-    virtual status_t    setVoiceVolume(float volume);
+    virtual android::status_t    setVoiceVolume(float volume);
 
     /** set the audio volume of fm rx playback. Range is between 0.0 and 1.0 */
-    virtual status_t    setFmRxVolume(float volume);
+    virtual android::status_t    setFmRxVolume(float volume);
 
     /**
      * set the audio volume for all audio activities other than voice call.
      * Range between 0.0 and 1.0. If any value other than NO_ERROR is returned,
      * the software mixer will emulate this capability.
      */
-    virtual status_t    setMasterVolume(float volume);
+    virtual android::status_t    setMasterVolume(float volume);
 
-    virtual status_t    setFmRxMode(int mode);
+    virtual android::status_t    setFmRxMode(int mode);
 
     // mic mute
-    virtual status_t    setMicMute(bool state);
-    virtual status_t    getMicMute(bool* state);
+    virtual android::status_t    setMicMute(bool state);
+    virtual android::status_t    getMicMute(bool* state);
 
     // set/get global audio parameters
-    virtual status_t    setParameters(const String8& keyValuePairs);
+    virtual android::status_t    setParameters(const String8& keyValuePairs);
     //virtual String8     getParameters(const String8& keys);
 
     // set Stream Parameters
-    virtual status_t    setStreamParameters(ALSAStreamOps* pStream, const String8 &keyValuePairs);
+    virtual android::status_t    setStreamParameters(ALSAStreamOps* pStream, const String8 &keyValuePairs);
 
 
     // Returns audio input buffer size according to parameters passed or 0 if one of the
@@ -109,10 +103,10 @@ public:
     /** This method creates and opens the audio hardware output stream */
     virtual AudioStreamOut* openOutputStream(
             uint32_t devices,
-            int* format=0,
-            uint32_t* channels=0,
-            uint32_t* sampleRate=0,
-            status_t* status=0);
+            int* format = NULL,
+            uint32_t* channels = NULL,
+            uint32_t* sampleRate = NULL,
+            status_t* status = NULL);
     virtual    void        closeOutputStream(AudioStreamOut* out);
 
     /** This method creates and opens the audio hardware input stream */
@@ -136,18 +130,16 @@ public:
     }
 
     // Reconsider the routing
-    status_t startStream(ALSAStreamOps* pStream);
+    android::status_t startStream(ALSAStreamOps* pStream);
 
-    status_t stopStream(ALSAStreamOps *pStream);
+    android::status_t stopStream(ALSAStreamOps *pStream);
 
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
 
 
     // Cast Hw device from mHwDeviceArray to the corresponding hw device type
-    alsa_device_t* getAlsaHwDevice() const;
-    fm_device_t* getFmHwDevice() const;
-    acoustic_device_t* getAcousticHwDevice() const;
+    fm_device_t* getFmHwDevice();
 
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
@@ -172,8 +164,7 @@ private:
     bool mMicMuteState;
 
     enum HW_DEVICE {
-        ALSA_HW_DEV = 0,
-        FM_HW_DEV,
+        FM_HW_DEV = 0,
 
         NB_HW_DEV
     };
@@ -189,23 +180,26 @@ private:
     static const uint32_t DEFAULT_CHANNEL_COUNT;
     static const uint32_t DEFAULT_FORMAT;
 
-    static const char* const mDefaultGainPropName;
-    static const float mDefaultGainValue;
-    static const char* const mAudienceIsPresentPropName;
-    static const bool mAudienceIsPresentDefaultValue;
-    static const char* const mFmSupportedPropName;
-    static const bool mFmSupportedDefaultValue;
-    static const char* const mFmIsAnalogPropName;
-    static const bool mFmIsAnalogDefaultValue;
+    static const int32_t VOICE_GAIN_MAX;
+    static const int32_t VOICE_GAIN_MIN;
+    static const uint32_t VOICE_GAIN_OFFSET;
+    static const uint32_t VOICE_GAIN_SLOPE;
+
+    static const char* const DEFAULT_GAIN_PROP_NAME;
+    static const float DEFAULT_GAIN_VALUE;
+    static const char* const AUDIENCE_IS_PRESENT_PROP_NAME;
+    static const bool AUDIENCE_IS_PRESENT_DEFAULT_VALUE;
+    static const char* const FM_SUPPORTED_PROP_NAME;
+    static const bool FM_SUPPORTED_PROP_DEFAULT_VALUE;
+    static const char* const FM_IS_ANALOG_PROP_NAME;
+    static const bool FM_IS_ANALOG_DEFAUT_VALUE;
 
 private:
     CAudioRouteManager* mRouteMgr;
 
     // HW device array
-    vector<hw_device_t*> mHwDeviceArray;
+    std::vector<hw_device_t*> mHwDeviceArray;
 };
-
-// ----------------------------------------------------------------------------
 
 };        // namespace android
 #endif    // ANDROID_AUDIO_HARDWARE_ALSA_H
