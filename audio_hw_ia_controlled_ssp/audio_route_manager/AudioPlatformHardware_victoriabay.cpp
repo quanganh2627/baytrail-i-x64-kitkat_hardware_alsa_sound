@@ -579,6 +579,14 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const {
 
+        // For Victoria Bay platform, set Bluetooth always enabled when a BT route
+        // is needed. This change will be reverted as soon as the Bluedroid stack
+        // will be integrated as the key telling the audio manager that the Bluetooth
+        // is on comes from the BT service.
+#ifdef VB_HAL_AUDIO_TEMP
+        _pPlatformState->setBtEnabled(true);
+#endif
+
         // BT module must be on and as the BT is on the shared I2S bus
         // the share bus must be available
         if (!_pPlatformState->isBtEnabled() || !_pPlatformState->isSharedI2SBusAvailable()) {
