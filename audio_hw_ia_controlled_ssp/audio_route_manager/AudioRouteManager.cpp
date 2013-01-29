@@ -1578,6 +1578,15 @@ void CAudioRouteManager::configureRoutes(bool bIsOut)
     ALOGD("%s for %s:", __FUNCTION__,
           bIsOut ? "output" : "input");
 
+    RouteListIterator it;
+    for (it = _routeList.begin(); it != _routeList.end(); ++it) {
+
+        CAudioRoute* pRoute = *it;
+
+        if (pRoute->getRouteId() & _uiNeedToReconfigureRoutes[bIsOut]) {
+            pRoute->configure(bIsOut);
+        }
+    }
     // Configure Routes that
     //      -were not enabled but will be enabled
     //      -were previously enabled, will be enabled but need reconfiguration

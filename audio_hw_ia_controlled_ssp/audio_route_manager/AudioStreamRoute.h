@@ -51,6 +51,8 @@ public:
     // UnRoute order - for external until Manager under PFW
     virtual void unRoute(bool bForOutput);
 
+    virtual void configure(bool bIsOut);
+
     // Route order - for external until Manager under PFW
     virtual status_t openStream(bool bForOutput);
 

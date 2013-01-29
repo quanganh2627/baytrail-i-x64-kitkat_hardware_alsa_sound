@@ -74,6 +74,12 @@ void CAudioStreamRoute::unRoute(bool bIsOut)
     closeStream(bIsOut);
 }
 
+void CAudioStreamRoute::configure(bool bIsOut)
+{
+    // Consume the new device(s)
+    _pCurrentStreams[bIsOut]->setCurrentDevice(_pCurrentStreams[bIsOut]->getNewDevice());
+}
+
 status_t CAudioStreamRoute::openStream(bool bIsOut)
 {
     status_t err = NO_ERROR;
