@@ -45,7 +45,7 @@ namespace android_audio_legacy
 {
 
 // Defines the name of the Android property describing the name of the PFW configuration file
-const char* const CAudioRouteManager::mPFWConfigurationFileNamePropertyName = "AudioComms.PFW.ConfPath";
+const char* const CAudioRouteManager::mPFWConfigurationFileNamePropertyName = "ro.AudioComms.PFW.ConfPath";
 
 const uint32_t CAudioRouteManager::_uiTimeoutSec = 2;
 
