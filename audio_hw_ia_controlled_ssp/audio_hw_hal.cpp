@@ -172,6 +172,13 @@ static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
     return out->legacy_out->getNextWriteTimestamp(timestamp);
 }
 
+static int out_flush(const struct audio_stream_out *stream)
+{
+    const struct legacy_stream_out *out =
+        reinterpret_cast<const struct legacy_stream_out *>(stream);
+    return out->legacy_out->flush();
+}
+
 static int out_add_audio_effect(const struct audio_stream __UNUSED *stream, effect_handle_t __UNUSED effect)
 {
     return 0;
@@ -454,6 +461,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.write = out_write;
     out->stream.get_render_position = out_get_render_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
+    out->stream.flush = out_flush;
 
     *stream_out = &out->stream;
     return 0;

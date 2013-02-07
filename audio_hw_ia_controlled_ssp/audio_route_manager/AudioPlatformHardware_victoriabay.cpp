@@ -521,13 +521,13 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const {
 
         if (!_pPlatformState->isSharedI2SBusAvailable()) {
 
             return false;
         }
-        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
+        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
 
     virtual bool needReconfiguration(bool bIsOut) const
@@ -557,7 +557,7 @@ public:
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask = 0) const {
 
         // For Victoria Bay platform, set Bluetooth always enabled when a BT route
         // is needed. This change will be reverted as soon as the Bluedroid stack
@@ -597,7 +597,7 @@ public:
     //
     // This route is applicable in CALL mode, whatever the output device selected
     //
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask = 0) const {
 
         if (!bIsOut) {
 
@@ -616,7 +616,7 @@ public:
     {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags) const
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask) const
     {
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
@@ -636,7 +636,7 @@ public:
     {
     }
 
-    virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut, uint32_t __UNUSED uiFlags) const
+    virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut, uint32_t __UNUSED uiMask) const
     {
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route

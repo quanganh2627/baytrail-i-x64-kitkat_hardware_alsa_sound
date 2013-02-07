@@ -63,7 +63,7 @@ public:
     virtual bool willBeUsed(bool bIsOut) const;
 
     // Inherited for AudioRoute - called from RouteManager
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlagsInputSource = 0) const;
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const;
 
     // Filters the unroute/route
     virtual bool needReconfiguration(bool bIsOut) const;

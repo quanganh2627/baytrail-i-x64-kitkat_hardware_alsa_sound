@@ -53,7 +53,7 @@ public:
 
     void addPort(CAudioPort* pPort);
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const;
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const;
 
     virtual void resetAvailability();
 
@@ -121,7 +121,7 @@ public:
 
         uint32_t uiModes;
 
-        uint32_t uiFlags;
+        uint32_t uiMask;
 
         uint32_t uiType;
 

@@ -305,6 +305,14 @@ size_t AudioStreamOutALSA::bufferSize() const
     return base::bufferSize(mHandle->latency / LATENCY_TO_BUFFER_INTERVAL_RATIO);
 }
 
+// flush the data down the flow. It is similar to drop.
+status_t AudioStreamOutALSA::flush()
+{
+    // Not supported.
+    ALOGW("%s: nothing to do", __FUNCTION__);
+    return NO_ERROR;
+}
+
 status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
 {
     // Give a chance to parent to handle the change

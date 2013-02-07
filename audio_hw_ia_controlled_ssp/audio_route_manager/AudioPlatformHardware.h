@@ -134,8 +134,8 @@ public:
     static uint32_t getRouteApplicableDevices(int iRouteIndex, bool bIsOut) {
         return _astAudioRoutes[iRouteIndex].auiApplicableDevices[bIsOut];
     }
-    static uint32_t getRouteApplicableFlags(int iRouteIndex, bool bIsOut) {
-        return _astAudioRoutes[iRouteIndex].uiApplicableFlags[bIsOut];
+    static uint32_t getRouteApplicableMask(int iRouteIndex, bool bIsOut) {
+        return _astAudioRoutes[iRouteIndex].uiApplicableMask[bIsOut];
     }
     static uint32_t getRouteApplicableModes(int iRouteIndex, bool bIsOut) {
         return _astAudioRoutes[iRouteIndex].uiApplicableModes[bIsOut];
@@ -204,7 +204,7 @@ private:
         CAudioRoute::RouteType uiRouteType;
         const char* pcPortsUsed;                         // separated coma literal list of ports
         uint32_t auiApplicableDevices[CUtils::ENbDirections];           // bit field
-        uint32_t uiApplicableFlags[CUtils::ENbDirections];              // bit field (For Input: InputSource, for output: OutputFlags
+        uint32_t uiApplicableMask[CUtils::ENbDirections];               // bit field (For Input: InputSource, for output: OutputFlags
         uint32_t uiApplicableModes[CUtils::ENbDirections];              // bit field
         uint32_t uiApplicableStates[CUtils::ENbDirections];             // bit field
         const char* pcCardName;

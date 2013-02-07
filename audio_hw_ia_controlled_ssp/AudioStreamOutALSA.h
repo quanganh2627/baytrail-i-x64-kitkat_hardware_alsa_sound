@@ -71,6 +71,17 @@ public:
     // From ALSAStreamOps - specific output stream routing actions
     virtual status_t    attachRoute();
 
+    virtual status_t    flush();
+
+    uint32_t            getFlags() const { return mFlags; }
+    void                setFlags(uint32_t uiFlags);
+
+    /* Applicability mask.
+     * For an output stream, applicability mask is the output flags
+     * @return stream flags
+     */
+    virtual uint32_t    getApplicabilityMask() const { return getFlags(); }
+
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA&);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA&);
@@ -79,13 +90,20 @@ private:
 
     ssize_t             writeFrames(void* buffer, ssize_t frames);
 
+    void                updatePeriodTime();
+
     uint32_t            mFrameCount;
+
+
+    uint32_t            mFlags;
 
     static const uint32_t MAX_AGAIN_RETRY;
     static const uint32_t WAIT_TIME_MS;
     static const uint32_t WAIT_BEFORE_RETRY_US;
     static const uint32_t LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t USEC_PER_MSEC;
+    static const uint32_t DEEP_PLAYBACK_PERIOD_TIME_US;
+    static const uint32_t PLAYBACK_PERIOD_TIME_US;
 };
 
 };        // namespace android

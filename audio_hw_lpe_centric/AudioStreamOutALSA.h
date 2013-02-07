@@ -67,6 +67,8 @@ public:
     status_t            open(int mode);
     status_t            close();
 
+    virtual status_t    flush();
+
 private:
     AudioStreamOutALSA(const AudioStreamOutALSA &);
     AudioStreamOutALSA& operator = (const AudioStreamOutALSA &);

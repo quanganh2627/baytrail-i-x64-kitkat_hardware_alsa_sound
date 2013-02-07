@@ -135,16 +135,16 @@ status_t CAudioStreamRoute::setStream(ALSAStreamOps* pStream)
     return NO_ERROR;
 }
 
-bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int iMode, bool bIsOut, uint32_t uiFlags) const
+bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int iMode, bool bIsOut, uint32_t uiMask) const
 {
     ALOGV("%s: is Route %s applicable? ",__FUNCTION__, getName().c_str());
-    ALOGV("%s: \t\t\t bIsOut=%s && uiFlags=0x%X & _uiApplicableFlags[%s]=0x%X", __FUNCTION__,
+    ALOGV("%s: \t\t\t bIsOut=%s && uiMask=0x%X & _uiApplicableMask[%s]=0x%X", __FUNCTION__,
           bIsOut? "output" : "input",
-          uiFlags,
-          bIsOut? "output" : "input",
-          _applicabilityRules[bIsOut].uiFlags);
+          uiMask,
+          bIsOut ? "output" : "input",
+          _applicabilityRules[bIsOut].uiMask);
 
-    if (!bIsOut && (uiFlags & _applicabilityRules[bIsOut].uiFlags) == 0) {
+    if ((uiMask & _applicabilityRules[bIsOut].uiMask) == 0) {
 
         return false;
     }

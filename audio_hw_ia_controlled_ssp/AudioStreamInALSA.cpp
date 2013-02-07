@@ -47,10 +47,11 @@ namespace android_audio_legacy
 
 const uint32_t AudioStreamInALSA::HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO = 1;
 const uint32_t AudioStreamInALSA::LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
+const uint32_t AudioStreamInALSA::CAPTURE_PERIOD_TIME_US = 40000;
 
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
                                      AudioSystem::audio_in_acoustics audio_acoustics) :
-    base(parent, "AudioInLock"),
+    base(parent, CAPTURE_PERIOD_TIME_US, "AudioInLock"),
     mFramesLost(0),
     mAcoustics(audio_acoustics),
     mInputSource(0),
@@ -103,9 +104,7 @@ void AudioStreamInALSA::releaseBuffer(AudioBufferProvider::Buffer __UNUSED * buf
 
 ssize_t AudioStreamInALSA::readHwFrames(void *buffer, size_t frames)
 {
-    int ret = 0;
-
-    ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
+    int ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
 
     if (ret) {
 

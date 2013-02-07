@@ -22,6 +22,7 @@
 #include <AudioHardwareALSA.h>
 #include <ALSAStreamOps.h>
 #include <AudioStreamInALSA.h>
+#include <AudioStreamOutALSA.h>
 #include "EventThread.h"
 #include "AudioRouteManager.h"
 #include "AudioRoute.h"
@@ -702,17 +703,21 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
     AudioParameter param = AudioParameter(keyValuePairs);
     status_t status;
     bool bForOutput = pStream->isOut();
+    String8 key;
 
     /// Stream Flags
-    int iFlags;
-    String8 key = String8(AudioParameter::keyStreamFlags);
-    status = param.getInt(key, iFlags);
-    if (status == NO_ERROR) {
+    if (bForOutput) {
+        int iFlags;
+        key = String8(AudioParameter::keyStreamFlags);
+        status = param.getInt(key, iFlags);
+        if (status == NO_ERROR) {
 
-        // Remove parameter
-        param.remove(key);
+            // Remove parameter
+            param.remove(key);
 
-        setStreamFlags(pStream, iFlags);
+            AudioStreamOutALSA* pStreamOut = static_cast<AudioStreamOutALSA*>(pStream);
+            setOutputFlags(pStreamOut, iFlags);
+        }
     }
 
     /// Devices (ie routing key)
@@ -737,19 +742,20 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
             int inputSource;
             status = param.getInt(key, inputSource);
 
+            AudioStreamInALSA* pStreamIn = static_cast<AudioStreamInALSA*>(pStream);
             if (status == NO_ERROR) {
 
                 // Remove parameter
                 param.remove(key);
 
                 // Found the input source
-                setInputSource(pStream, inputSource);
+                setInputSource(pStreamIn, inputSource);
             }
             if (devices == 0) {
 
                 // When this function is called with a null device, considers it as
                 // an unrouting request, restore source to default within route manager
-                setInputSource(pStream, AUDIO_SOURCE_DEFAULT);
+                setInputSource(pStreamIn, AUDIO_SOURCE_DEFAULT);
             }
         } else {
 
@@ -1083,11 +1089,9 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 // Assumption: only one active input source at one time.
 // @todo: Does it make sense to keep it in the platform state???
 //
-void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource)
+void CAudioRouteManager::setInputSource(AudioStreamInALSA* pStreamIn, int iInputSource)
 {
-    AutoW lock(_lock);
-
-    pStream->setInputSource(iInputSource);
+    pStreamIn->setInputSource(iInputSource);
 
     ALOGD("%s: inputSource = %s", __FUNCTION__,
           _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(iInputSource).c_str());
@@ -1096,7 +1100,7 @@ void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource
     if (iInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
 
         CAudioBand::Type eBand = CAudioBand::EWide;
-        if (pStream->sampleRate() == VOIP_RATE_FOR_NARROW_BAND_PROCESSING) {
+        if (pStreamIn->sampleRate() == VOIP_RATE_FOR_NARROW_BAND_PROCESSING) {
 
             eBand = CAudioBand::ENarrow;
 
@@ -1105,10 +1109,10 @@ void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource
     }
 }
 
-void CAudioRouteManager::setStreamFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags)
+void CAudioRouteManager::setOutputFlags(AudioStreamOutALSA* pStreamOut, uint32_t uiFlags)
 {
-    uint32_t uiPreviousFlags = (uint32_t)pStream->getFlags();
-    pStream->setFlags((audio_output_flags_t)uiFlags);
+    uint32_t uiPreviousFlags = pStreamOut->getFlags();
+    pStreamOut->setFlags(uiFlags);
 
     ALOGD("%s: output flags = 0x%X (Prev Flags=0x%X)", __FUNCTION__, uiFlags, uiPreviousFlags);
 }
@@ -1422,8 +1426,16 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, con
 
             // Check if the route is applicable
             // Applicability will also check if this route is already busy or not.
-            uint32_t uiFlags = (bIsOut ? pOps->getFlags() : (1 << pOps->getInputSource()));
-            if (pRoute->isApplicable(pOps->getNewDevices(), _pPlatformState->getHwMode(), bIsOut, uiFlags)) {
+
+            // Applicability mask depends on the direction of the stream
+            //  -Output stream: output Flags
+            //  -Input stream: input source
+            uint32_t uiApplicabilityMask = pOps->getApplicabilityMask();
+
+            if (pRoute->isApplicable(pOps->getNewDevices(),
+                                     _pPlatformState->getHwMode(),
+                                     bIsOut,
+                                     uiApplicabilityMask)) {
 
                 ALOGV("%s: route %s is applicable", __FUNCTION__, pRoute->getName().c_str());
 

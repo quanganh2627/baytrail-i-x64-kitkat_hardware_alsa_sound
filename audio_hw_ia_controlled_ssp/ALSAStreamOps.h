@@ -34,7 +34,6 @@ struct alsa_handle_t;
 class ALSAStreamOps
 {
 public:
-    ALSAStreamOps(AudioHardwareALSA* parent, const char* pcLockTag);
     virtual            ~ALSAStreamOps();
 
     android::status_t   set(int* format, uint32_t* channels, uint32_t* rate);
@@ -58,10 +57,6 @@ public:
 
     virtual bool        isOut() const = 0 ;
 
-    virtual void        setInputSource(int __UNUSED iInputSource) { return ; }
-    virtual int         getInputSource() const { return 0; }
-
-
     void                setNewRoute(CAudioStreamRoute* attachRoute);
     void                resetRoute();
 
@@ -71,14 +66,18 @@ public:
     void                setCurrentDevices(uint32_t uiCurrentDevices);
     CAudioStreamRoute*  getCurrentRoute() const { return mCurrentRoute; }
 
-    audio_output_flags_t getFlags() const { return mFlags; }
-    void                setFlags(audio_output_flags_t stFlags);
-
     // Get the current stream state (true=playing, false=standby|stopped)
     bool                isStarted();
     void                setStarted(bool bIsStarted);
 
+    /* Applicability mask.
+     * It depends on the direction of the stream.
+     * @return applicability Mask
+     */
+    virtual uint32_t    getApplicabilityMask() const = 0;
+
 protected:
+    ALSAStreamOps(AudioHardwareALSA* parent, uint32_t uiDefaultPeriodUs, const char* pcLockTag);
     friend class AudioHardwareALSA;
     ALSAStreamOps(const ALSAStreamOps &);
     ALSAStreamOps& operator = (const ALSAStreamOps &);
@@ -90,6 +89,7 @@ protected:
     android::status_t getConvertedBuffer(void* dst, const uint32_t outFrames, android::AudioBufferProvider* pBufferProvider);
 
     uint32_t            latency() const;
+    void                setPeriodTime(uint32_t uiPeriodTimeUs);
 
     AudioHardwareALSA*      mParent;
     pcm*                    mHandle;
@@ -98,8 +98,6 @@ protected:
     uint32_t                mDevices;
     CSampleSpec             mSampleSpec;
     CSampleSpec             mHwSampleSpec;
-
-    audio_output_flags_t    mFlags;
 
 private:
     void        storeAndResetPmDownDelay();
@@ -130,10 +128,8 @@ private:
     // Audio Conversion utility class
     CAudioConversion* mAudioConversion;
 
-    static const uint32_t NB_RING_BUFFER_NORMAL;
-    static const uint32_t PLAYBACK_PERIOD_TIME_US;
-    static const uint32_t CAPTURE_PERIOD_TIME_US;
     static const pcm_config DEFAULT_PCM_CONFIG;
+    static const uint32_t NB_RING_BUFFER;
     static const uint32_t STR_FORMAT_LENGTH;
 };
 

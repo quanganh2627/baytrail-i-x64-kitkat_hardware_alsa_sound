@@ -403,13 +403,14 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const
+    {
 
         if (!_pPlatformState->isSharedI2SBusAvailable()) {
 
             return false;
         }
-        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
+        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
 
     bool needReconfiguration(bool bIsOut) const
@@ -439,7 +440,8 @@ public:
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask = 0) const
+    {
 
         // BT module must be on and as the BT is on the shared I2S bus
         // the share bus must be available
@@ -468,7 +470,8 @@ public:
     //
     // This route is applicable in CALL mode, whatever the output device selected
     //
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask = 0) const
+    {
 
         if (!bIsOut) {
 
@@ -487,7 +490,7 @@ public:
     {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags) const
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask) const
     {
         if (!_pPlatformState->getFmRxHwMode()) {
 

@@ -54,16 +54,14 @@ using namespace android;
 namespace android_audio_legacy
 {
 
-const uint32_t ALSAStreamOps::NB_RING_BUFFER_NORMAL = 2;
-const uint32_t ALSAStreamOps::PLAYBACK_PERIOD_TIME_US = 48000;
-const uint32_t ALSAStreamOps::CAPTURE_PERIOD_TIME_US = 40000;
+const uint32_t ALSAStreamOps::NB_RING_BUFFER = 2;
 const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
 
 const pcm_config ALSAStreamOps::DEFAULT_PCM_CONFIG = {
     channels        : 0,
     rate            : 0,
     period_size     : 0,
-    period_count    : ALSAStreamOps::NB_RING_BUFFER_NORMAL,
+    period_count    : ALSAStreamOps::NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 0,
     stop_threshold  : 0,
@@ -76,18 +74,17 @@ static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//
 static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
 static const char* voicePmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Voice//pmdown_time";
 
-ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
+ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, uint32_t uiDefaultPeriodUs, const char* pcLockTag) :
     mParent(parent),
     mHandle(NULL),
     mStandby(true),
     mDevices(0),
-    mFlags(AUDIO_OUTPUT_FLAG_NONE),
     mIsReset(false),
     mCurrentRoute(NULL),
     mNewRoute(NULL),
     mCurrentDevices(0),
     mNewDevices(0),
-    mLatencyUs(96000),
+    mLatencyUs(uiDefaultPeriodUs * NB_RING_BUFFER),
     mPowerLock(false),
     mPowerLockTag(pcLockTag),
     mAudioConversion(new CAudioConversion)
@@ -99,7 +96,7 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
 
 ALSAStreamOps::~ALSAStreamOps()
 {
-    ALSAStreamOps::setStandby(true);
+    setStandby(true);
 
     delete mAudioConversion;
 }
@@ -201,9 +198,6 @@ status_t ALSAStreamOps::set(int      *format,
         return BAD_VALUE;
     }
 
-    uint32_t uiPeriodTimeUs = isOut() ? PLAYBACK_PERIOD_TIME_US : CAPTURE_PERIOD_TIME_US;
-    mLatencyUs = uiPeriodTimeUs * 2;
-
     mHwSampleSpec = mSampleSpec;
 
     ALOGD("%s() -- OUT", __FUNCTION__);
@@ -238,15 +232,13 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
 //
 size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
 {
-    size_t bytes;
-
     ALOGD("%s: latency = %d divider = %d", __FUNCTION__, mLatencyUs, uiDivider);
 
     size_t size = mSampleSpec.convertUsecToframes(mLatencyUs) / uiDivider;
 
     size = CAudioUtils::alignOn16(size);
 
-    bytes = mSampleSpec.convertFramesToBytes(size);
+    size_t bytes = mSampleSpec.convertFramesToBytes(size);
     ALOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
 
     return bytes;
@@ -255,13 +247,17 @@ size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
 uint32_t ALSAStreamOps::latency() const
 {
     // Android wants latency in milliseconds.
-
     return CAudioUtils::convertUsecToMsec(mLatencyUs);
+}
+
+void ALSAStreamOps::setPeriodTime(uint32_t uiPeriodTimeUs)
+{
+    mLatencyUs = uiPeriodTimeUs * NB_RING_BUFFER;
 }
 
 status_t ALSAStreamOps::setStandby(bool bIsSet)
 {
-    return bIsSet? mParent->stopStream(this) : mParent->startStream(this);
+    return bIsSet ? mParent->stopStream(this) : mParent->startStream(this);
 }
 
 //
@@ -466,11 +462,6 @@ void ALSAStreamOps::setNewDevices(uint32_t uiNewDevices)
 void ALSAStreamOps::setCurrentDevices(uint32_t uiCurrentDevices)
 {
     mCurrentDevices = uiCurrentDevices;
-}
-
-void ALSAStreamOps::setFlags(audio_output_flags_t uiFlags)
-{
-    mFlags = uiFlags;
 }
 
 //

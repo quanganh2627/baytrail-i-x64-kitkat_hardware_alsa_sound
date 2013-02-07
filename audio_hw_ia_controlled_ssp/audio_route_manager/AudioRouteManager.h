@@ -44,6 +44,8 @@ using android::Mutex;
 
 class CParameterMgrPlatformConnectorLogger;
 class AudioHardwareALSA;
+class AudioStreamInALSA;
+class AudioStreamOutALSA;
 class ALSAStreamOps;
 class CAudioRoute;
 class CAudioPortGroup;
@@ -154,9 +156,9 @@ private:
 
     void setDevices(ALSAStreamOps* pStream, uint32_t devices);
 
-    void setInputSource(ALSAStreamOps* pStream, int iInputSource);
+    void setInputSource(AudioStreamInALSA* pStreamIn, int iInputSource);
 
-    void setStreamFlags(ALSAStreamOps* pStream, uint32_t uiFlags);
+    void setOutputFlags(AudioStreamOutALSA* pStreamOut, uint32_t uiFlags);
 
     void reconsiderRouting(bool bIsSynchronous = true);
 

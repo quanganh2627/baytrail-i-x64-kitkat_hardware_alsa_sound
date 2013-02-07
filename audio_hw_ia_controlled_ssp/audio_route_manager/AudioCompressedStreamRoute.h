@@ -28,7 +28,7 @@ public:
 
     virtual RouteType getRouteType() const { return CAudioRoute::ECompressedStreamRoute; }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiFlags = 0) const;
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const;
 
     // Filters the unroute/route
     virtual bool needReconfiguration(bool bIsOut) const;

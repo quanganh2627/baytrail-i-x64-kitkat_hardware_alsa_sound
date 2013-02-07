@@ -243,6 +243,8 @@ public:
     status_t            open(int mode);
     status_t            close();
 
+    virtual status_t    flush();
+
     void addEchoReference(struct echo_reference_itfe * reference);
     void removeEchoReference(struct echo_reference_itfe * reference);
 

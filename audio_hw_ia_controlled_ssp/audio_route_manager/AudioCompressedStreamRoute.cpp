@@ -38,11 +38,11 @@ bool CAudioCompressedStreamRoute::needReconfiguration(bool __UNUSED bIsOut) cons
 bool CAudioCompressedStreamRoute::isApplicable(uint32_t uidevices,
                                                int iMode,
                                                bool bIsOut,
-                                               uint32_t uiFlags) const
+                                               uint32_t uiMask) const
 {
     if (bIsOut && _pPlatformState->hasDirectStreams()) {
 
-        return CAudioRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
+        return CAudioRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
     return false;
 }

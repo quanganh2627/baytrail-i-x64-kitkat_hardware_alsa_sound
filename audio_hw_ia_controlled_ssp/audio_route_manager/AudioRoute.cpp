@@ -47,7 +47,7 @@ void CAudioRoute::initRoute(bool bIsOut, uint32_t uiRouteIndex)
 {
     _applicabilityRules[bIsOut].uiDevices = CAudioPlatformHardware::getRouteApplicableDevices(uiRouteIndex, bIsOut);
     _applicabilityRules[bIsOut].uiModes = CAudioPlatformHardware::getRouteApplicableModes(uiRouteIndex, bIsOut);
-    _applicabilityRules[bIsOut].uiFlags = CAudioPlatformHardware::getRouteApplicableFlags(uiRouteIndex, bIsOut);
+    _applicabilityRules[bIsOut].uiMask = CAudioPlatformHardware::getRouteApplicableMask(uiRouteIndex, bIsOut);
 
     _pPort[bIsOut] = NULL;
     _stUsed[bIsOut].bCurrently =  false;

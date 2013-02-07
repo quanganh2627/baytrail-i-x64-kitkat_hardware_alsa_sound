@@ -202,6 +202,13 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
     return NO_ERROR;
 }
 
+// flush the data down the flow. It is similar to drop.
+status_t AudioStreamOutALSA::flush()
+{
+    // Not supported.
+    return NO_ERROR;
+}
+
 status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
 {
     // Give a chance to parent to handle the change

@@ -80,13 +80,18 @@ public:
     virtual android::status_t    attachRoute();
     virtual android::status_t    detachRoute();
 
-    virtual int         getInputSource() const { return mInputSource; }
-
     // From AudioBufferProvider
     virtual android::status_t getNextBuffer(android::AudioBufferProvider::Buffer* buffer, int64_t pts = kInvalidPTS);
     virtual void releaseBuffer(android::AudioBufferProvider::Buffer* buffer);
 
-    virtual void        setInputSource(int iInputSource);
+    int                 getInputSource() const { return mInputSource; }
+    void                setInputSource(int iInputSource);
+
+    /* Applicability mask.
+     * For an input stream, applicability mask is the ID of the input source
+     * @return ID of input source
+     */
+    virtual uint32_t    getApplicabilityMask() const { return 1 << getInputSource(); }
 
 private:
     AudioStreamInALSA(const AudioStreamInALSA &);
@@ -114,6 +119,7 @@ private:
 
     static const uint32_t HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
+    static const uint32_t CAPTURE_PERIOD_TIME_US;
 };
 
 };        // namespace android
