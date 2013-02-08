@@ -85,7 +85,7 @@ static const pcm_config pcm_config_media_capture = {
 };
 
 static const pcm_config pcm_config_voice_downlink = {
-   /* channels        : */1,
+   /* channels        : */2,
    /* rate            : */SAMPLE_RATE_16000,
    /* period_size     : */VOICE_16000_PERIOD_SIZE,
    /* period_count    : */NB_RING_BUFFER_INCALL,
@@ -97,7 +97,7 @@ static const pcm_config pcm_config_voice_downlink = {
 };
 
 static const pcm_config pcm_config_voice_uplink = {
-   /* channels        : */1,
+   /* channels        : */2,
    /* rate            : */SAMPLE_RATE_16000,
    /* period_size     : */VOICE_16000_PERIOD_SIZE,
    /* period_count    : */NB_RING_BUFFER_INCALL,
