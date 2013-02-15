@@ -74,7 +74,7 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
     };
 
     enum EventType {
-        EUpdateModemAudioBand = 0,
+        EUpdateModemAudioBand,
         EUpdateModemState,
         EUpdateModemAudioStatus,
         EUpdateRouting

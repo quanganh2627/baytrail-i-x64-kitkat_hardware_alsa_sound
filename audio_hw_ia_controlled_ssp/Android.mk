@@ -109,7 +109,6 @@ LOCAL_SHARED_LIBRARIES := \
     libaudioutils \
     libproperty \
     libaudiohalutils \
-    libinterface-provider \
     libinterface-provider-lib
 
 # gcov build
