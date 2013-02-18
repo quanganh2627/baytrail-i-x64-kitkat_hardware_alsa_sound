@@ -35,6 +35,7 @@ const char* const CAudioStreamRoute::POWER_LOCK_TAG[CUtils::ENbDirections] = {"A
 CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
                                      CAudioPlatformState *platformState) :
     CAudioRoute(uiRouteIndex, platformState),
+    _pEffectSupported(0),
     _pcCardName(CAudioPlatformHardware::getRouteCardName(uiRouteIndex))
 {
     for (int iDir = 0; iDir < CUtils::ENbDirections; iDir++) {
@@ -216,6 +217,15 @@ void CAudioStreamRoute::detachCurrentStream(bool bIsOut)
 
     _stStreams[bIsOut].pCurrent->detachRoute();
     _stStreams[bIsOut].pCurrent = NULL;
+}
+
+bool CAudioStreamRoute::isEffectSupported(const effect_uuid_t* uuid) const
+{
+    std::list<const effect_uuid_t*>::const_iterator it;
+    it = std::find_if(_pEffectSupported.begin(), _pEffectSupported.end(),
+                      std::bind2nd(hasEffect(), uuid));
+
+    return it != _pEffectSupported.end();
 }
 
 status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)

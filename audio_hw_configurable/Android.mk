@@ -29,6 +29,7 @@ LOCAL_C_INCLUDES += \
     bionic/libstdc++ \
     bionic/ \
     system/media/audio_utils/include \
+    system/media/audio_effects/include \
     frameworks/av/include/media
 
 LOCAL_C_INCLUDES += \

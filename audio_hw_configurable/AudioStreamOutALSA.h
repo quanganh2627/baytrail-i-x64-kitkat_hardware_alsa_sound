@@ -20,6 +20,8 @@
 #include "AudioHardwareALSA.h"
 #include "ALSAStreamOps.h"
 
+struct echo_reference_itfe;
+
 namespace android_audio_legacy
 {
 
@@ -70,13 +72,33 @@ public:
 
     // From ALSAStreamOps - specific output stream routing actions
     virtual status_t    attachRoute();
+    virtual status_t    detachRoute();
+
+    /**
+     * Request to provide Echo Reference.
+     * Called from Audio Route Manager WLocked context to add the echo reference.
+     *
+     * @param[in] echo reference structure pointer.
+     */
+    void                addEchoReference(struct echo_reference_itfe* reference);
+
+    /**
+     * Cancel the request to provide Echo Reference.
+     * Called from Audio Route Manager WLocked context to remove the echo reference.
+     *
+     * @param[in] echo reference structure pointer.
+     */
+    void                removeEchoReference(struct echo_reference_itfe* reference);
+
+    struct echo_reference_itfe* getEchoReference() { return mEchoReference; }
 
     virtual status_t    flush();
 
     uint32_t            getFlags() const { return mFlags; }
     void                setFlags(uint32_t uiFlags);
 
-    /* Applicability mask.
+    /**
+     * Applicability mask.
      * For an output stream, applicability mask is the output flags
      * @return stream flags
      */
@@ -94,8 +116,13 @@ private:
 
     uint32_t            mFrameCount;
 
-
     uint32_t            mFlags;
+
+    void                pushEchoReference(const void *buffer, ssize_t frames);
+
+    int                 getPlaybackDelay(ssize_t frames, struct echo_reference_buffer * buffer);
+
+    struct echo_reference_itfe* mEchoReference;
 
     static const uint32_t MAX_AGAIN_RETRY;
     static const uint32_t WAIT_TIME_MS;

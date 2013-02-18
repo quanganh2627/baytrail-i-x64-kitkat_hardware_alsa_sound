@@ -21,6 +21,8 @@
 #include "AudioRoute.h"
 #include "SampleSpec.h"
 
+#include <list>
+
 namespace android_audio_legacy
 {
 
@@ -71,6 +73,8 @@ public:
     // Get amount of silence delay upon stream opening
     virtual uint32_t getOutputSilencePrologMs() const { return 0; }
 
+    virtual bool isEffectSupported(const effect_uuid_t* uuid) const;
+
 protected:
     struct {
 
@@ -78,7 +82,20 @@ protected:
         ALSAStreamOps* pNew;
     } _stStreams[CUtils::ENbDirections];
 
+    std::list<const effect_uuid_t*> _pEffectSupported;
+
 private:
+    // Function to be used as the predicate in find_if call.
+    struct hasEffect :
+            public std::binary_function<const effect_uuid_t*, const effect_uuid_t*, bool> {
+
+        bool operator()(const effect_uuid_t* uuid1,
+                           const effect_uuid_t* uuid2) const {
+
+            return memcmp(uuid2, uuid1, sizeof(*uuid2)) == 0;
+        }
+    };
+
     int getPcmDeviceId(bool bIsOut) const;
 
     const pcm_config& getPcmConfig(bool bIsOut) const;

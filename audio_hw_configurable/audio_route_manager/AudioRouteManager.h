@@ -36,6 +36,7 @@ class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 struct IModemAudioManagerInterface;
+struct echo_reference_itfe;
 
 namespace android_audio_legacy
 {
@@ -47,6 +48,7 @@ class AudioHardwareALSA;
 class AudioStreamInALSA;
 class AudioStreamOutALSA;
 class ALSAStreamOps;
+class AudioStreamInALSA;
 class CAudioRoute;
 class CAudioPortGroup;
 class CAudioPort;
@@ -153,6 +155,82 @@ public:
 
     status_t setVoiceVolume(int gain);
 
+    /**
+     * Called by the stream in to request to add an effect.
+     * It appends the effect to the stream list of requested effects
+     * and add the effect only if the stream is already attached to the route.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+
+    /**
+     * Called by an input stream in to request to remove an effect.
+     * It removes the effect from the stream list of requested effects
+     * and add the effect only if the stream is still attached to the route.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t removeAudioEffectRequest(AudioStreamInALSA *pStream, effect_handle_t effect);
+
+    /**
+     * Called by an input stream in to add an effect.
+     * When calling this function, the stream must be already attached to an audio route.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+
+    /**
+     * Called by an input stream in to remove an effect.
+     * When calling this function, the stream must be still attached to an audio route..
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t removeAudioEffect(AudioStreamInALSA *pStream, effect_handle_t effect);
+
+    /**
+     * Reset the Echo Reference.
+     * The purpose of this function is
+     * - to stop the processing (i.e. writing of playback frames as echo reference for
+     * for AEC effect) in AudioSteamOutALSA
+     * - reset locally stored echo reference
+     * @param[in] reference: pointer to echo reference to reset
+     */
+    void resetEchoReference(struct echo_reference_itfe* reference);
+
+    /**
+     * Get an Echo Reference for AEC.
+     * The purpose of this function is
+     *     - create echo_reference_itfe using input stream and output stream parameters
+     *     - add echo_reference_itfs to AudioSteamOutALSA which will use it for
+     *         providing playback frames as echo reference for AEC effect
+     *     - store locally the created reference
+     *     - return created echo_reference_itfe to caller (i.e. AudioSteamInALSA)
+     * Note: created echo_reference_itfe is used as backlink between playback which
+     *         provides reference of output data and record which applies AEC effect
+     * @param[in] format: input stream format
+     * @param[in] channel_count: input stream channels count
+     * @param[in] sampling_rate: input stream sampling rate
+     * @return NULL is creation of echo_reference_itfe failed overwise,
+     *         pointer to created echo_reference_itfe
+     */
+    struct echo_reference_itfe* getEchoReference(int format,
+                                                 uint32_t channel_count,
+                                                 uint32_t sampling_rate);
+
 private:
     CAudioRouteManager(const CAudioRouteManager &);
     CAudioRouteManager& operator = (const CAudioRouteManager &);
@@ -218,6 +296,11 @@ private:
 
     // Start the AT Manager
     void startModemAudioManager();
+
+    bool isAecEffect(const effect_uuid_t *uuid);
+    status_t getAudioEffectUuidFromHandle(effect_handle_t effect, effect_uuid_t* uuid);
+    status_t doAddAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t doRemoveAudioEffect(AudioStreamInALSA *pStream, effect_handle_t effect);
 
     /// Inherited from IModemAudioManagerObserver
     virtual void onModemAudioStatusChanged();
@@ -411,6 +494,8 @@ protected:
 
     // For backup and restore audio parameters
     CAudioParameterHandler* _pAudioParameterHandler;
+
+    struct echo_reference_itfe* _pEchoReference;
 };
 };        // namespace android
 

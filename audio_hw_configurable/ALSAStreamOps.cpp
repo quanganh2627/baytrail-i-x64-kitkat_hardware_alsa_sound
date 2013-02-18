@@ -189,7 +189,7 @@ status_t ALSAStreamOps::set(int      *format,
             *format = AudioHardwareALSA::DEFAULT_FORMAT;
             mSampleSpec.setFormat(*format);
         }
-        ALOGD("%s : set format to %d", __FUNCTION__, *format);
+        ALOGD("%s : set format to %d (%d)", __FUNCTION__, *format, this->format());
     }
 
 

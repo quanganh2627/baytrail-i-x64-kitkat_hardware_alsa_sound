@@ -33,9 +33,15 @@
 #include "SampleSpec.h"
 #include "Utils.h"
 
+#include <hardware/audio_effect.h>
+#include <audio_utils/echo_reference.h>
+#include <audio_effects/effect_aec.h>
+
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
+
+struct echo_reference_itfe;
 
 namespace android_audio_legacy
 {
@@ -53,7 +59,9 @@ class AudioStreamOutALSA;
 class AudioStreamInALSA;
 class ALSAStreamOps;
 
-const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
+const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | \
+        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | \
+        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
 
 
 class AudioHardwareALSA : public AudioHardwareBase
@@ -87,7 +95,8 @@ public:
     //virtual String8     getParameters(const String8& keys);
 
     // set Stream Parameters
-    virtual android::status_t    setStreamParameters(ALSAStreamOps* pStream, const String8 &keyValuePairs);
+    virtual android::status_t    setStreamParameters(ALSAStreamOps* pStream,
+                                                     const String8 &keyValuePairs);
 
 
     // Returns audio input buffer size according to parameters passed or 0 if one of the
@@ -130,6 +139,50 @@ public:
 
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
+
+
+    // Effect helpers functions
+    status_t addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t removeAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+
+    /*
+     * Reset the echo reference.
+     * the purpose of this function is
+     * - to stop the processing (i.e. writing of playback frames as echo reference for
+     * for AEC effect) in AudioSteamOutALSA
+     * - reset locally stored echo reference
+     *
+     * @param[in|out] reference: pointer to echo reference to reset
+     *
+     * @return none
+     */
+    void resetEchoReference(struct echo_reference_itfe* reference);
+
+    /*
+     * Echo reference provider.
+     * the purpose of this function is
+     * - create echo_reference_itfe using input stream and output stream parameters
+     * - add echo_reference_itfs to AudioSteamOutALSA which will use it for providing
+     *         playback frames as echo reference for AEC effect
+     * - store locally the created reference
+     * - return created echo_reference_itfe to caller (i.e. AudioSteamInALSA)
+     * Note: created echo_reference_itfe is used as backlink between playback which
+     *         provides reference of output data and record which applies AEC effect
+     *
+     * @param[in] format: input stream format
+     * @param[in] channel_count: input stream channels count
+     * @param[in] sampling_rate: input stream sampling rate
+     *
+     * @return NULL is creation of echo_reference_itfe failed overwise,
+     *         pointer to created echo_reference_itfe
+     */
+    struct echo_reference_itfe* getEchoReference(int format,
+                                                 uint32_t channel_count,
+                                                 uint32_t sampling_rate);
+
+    struct echo_reference_itfe* mEchoReference;
 
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;

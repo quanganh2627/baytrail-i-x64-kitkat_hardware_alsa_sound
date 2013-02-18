@@ -45,6 +45,11 @@
 #include "ALSAStreamOps.h"
 #include "Utils.h"
 
+
+#include <hardware/audio_effect.h>
+#include <audio_utils/echo_reference.h>
+#include <audio_effects/effect_aec.h>
+
 #include "AudioRouteManager.h"
 #include "AudioAutoRoutingLock.h"
 #include "AudioConversion.h"
@@ -342,5 +347,39 @@ status_t AudioHardwareALSA::stopStream(ALSAStreamOps* pStream)
     }
     return mRouteMgr->stopStream(bIsStreamOut);
 }
+
+
+status_t AudioHardwareALSA::addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->addAudioEffect(pStream, effect);
+}
+
+status_t AudioHardwareALSA::removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->removeAudioEffect(pStream, effect);
+}
+
+status_t AudioHardwareALSA::addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->addAudioEffectRequest(pStream, effect);
+}
+
+status_t AudioHardwareALSA::removeAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->removeAudioEffectRequest(pStream, effect);
+}
+
+void AudioHardwareALSA::resetEchoReference(struct echo_reference_itfe* reference)
+{
+    mRouteMgr->resetEchoReference(reference);
+}
+
+struct echo_reference_itfe* AudioHardwareALSA::getEchoReference(int format,
+                                                                uint32_t channel_count,
+                                                                uint32_t sampling_rate)
+{
+    return mRouteMgr->getEchoReference(format, channel_count, sampling_rate);
+}
+
 
 }       // namespace android

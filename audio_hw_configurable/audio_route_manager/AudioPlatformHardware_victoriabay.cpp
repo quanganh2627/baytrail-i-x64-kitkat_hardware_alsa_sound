@@ -18,6 +18,10 @@
 #include "Property.h"
 
 #include <tinyalsa/asoundlib.h>
+#include <audio_effects/effect_aec.h>
+#include <audio_effects/effect_agc.h>
+#include <audio_effects/effect_ns.h>
+
 
 #define PLABACK_PERIOD_TIME_MS  ((int)24)
 #define CAPTURE_PERIOD_TIME_MS  ((int)24)
@@ -558,6 +562,10 @@ class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 public:
     CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+
+        _pEffectSupported.push_back(FX_IID_AGC);
+        _pEffectSupported.push_back(FX_IID_AEC);
+        _pEffectSupported.push_back(FX_IID_NS);
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const {

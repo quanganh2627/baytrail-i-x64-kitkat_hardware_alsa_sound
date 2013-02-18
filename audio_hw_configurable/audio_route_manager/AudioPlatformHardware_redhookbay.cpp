@@ -18,6 +18,9 @@
 #include "Property.h"
 
 #include <tinyalsa/asoundlib.h>
+#include <audio_effects/effect_aec.h>
+#include <audio_effects/effect_agc.h>
+#include <audio_effects/effect_ns.h>
 
 #define DEEP_PLAYBACK_PERIOD_TIME_MS    ((int)96)
 #define PLAYBACK_PERIOD_TIME_MS         ((int)24)
@@ -646,6 +649,10 @@ class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 public:
     CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+
+        _pEffectSupported.push_back(FX_IID_AGC);
+        _pEffectSupported.push_back(FX_IID_AEC);
+        _pEffectSupported.push_back(FX_IID_NS);
     }
 
     virtual bool needReconfiguration(bool bIsOut) const
@@ -680,6 +687,10 @@ class CAudioStreamRouteBtComm : public CAudioStreamRoute
 public:
     CAudioStreamRouteBtComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+
+        _pEffectSupported.push_back(FX_IID_AGC);
+        _pEffectSupported.push_back(FX_IID_AEC);
+        _pEffectSupported.push_back(FX_IID_NS);
     }
 
     virtual bool needReconfiguration(bool bIsOut) const
