@@ -128,7 +128,7 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
                   (char *)buffer,
                   pcm_frames_to_bytes(mHandle, frames ));
 
-    ALOGV("%s gustave %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
+    ALOGV("%s %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
 
     if (ret) {
 

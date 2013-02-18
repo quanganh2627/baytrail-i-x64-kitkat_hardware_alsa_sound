@@ -100,7 +100,7 @@ public:
 
             uiPorts |= getPortIndexByName(astrItems[i]);
         }
-        LOGD("%s gustave acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
+        LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
         return uiPorts;
     }
 
@@ -128,7 +128,7 @@ public:
 
             uiPorts |= getPortIndexByName(astrItems[i].c_str());
         }
-        LOGD("%s gustave acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
+        LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
         return uiPorts;
     }
     static uint32_t getRouteApplicableDevices(int iRouteIndex, bool bIsOut) {
@@ -161,7 +161,7 @@ public:
 
             uiSlaves |= getRouteIndexByName(astrItems[i]);
         }
-        LOGD("%s gustave acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtSlaveRoutes.c_str(), uiSlaves);
+        LOGD("%s acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtSlaveRoutes.c_str(), uiSlaves);
         return uiSlaves;
     }
 

@@ -449,7 +449,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
     {
         "VirtualASP",
         CAudioRoute::EExternalRoute,
-        NOT_APPLICABLE,
+        "",
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
