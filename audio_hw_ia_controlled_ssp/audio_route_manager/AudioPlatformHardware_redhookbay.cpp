@@ -730,6 +730,31 @@ public:
     }
 };
 
+class CAudioExternalRouteHwCodecMedia : public CAudioExternalRoute
+{
+public:
+    CAudioExternalRouteHwCodecMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioExternalRoute(uiRouteIndex, pPlatformState)
+    {
+    }
+
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - output devices did not change
+        if (bIsOut) {
+
+            return CAudioRoute::needReconfiguration(bIsOut) &&
+                    (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) ||
+                     _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange));
+        }
+        return CAudioRoute::needReconfiguration(bIsOut) &&
+                (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange) ||
+                 _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange) ||
+                 _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange));
+    }
+};
+
 class CAudioExternalRouteVirtualASP : public CAudioExternalRoute
 {
 public:
@@ -798,7 +823,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     } else if (strName == "HwCodecMedia") {
 
-        return new CAudioExternalRoute(uiRouteIndex, pPlatformState);
+        return new CAudioExternalRouteHwCodecMedia(uiRouteIndex, pPlatformState);
 
     } else if (strName == "HwCodecCSV") {
 
