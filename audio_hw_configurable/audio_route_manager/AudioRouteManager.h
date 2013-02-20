@@ -264,6 +264,7 @@ private:
     static const bool BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE;
     static const char* const PFW_CONF_FILE_NAME_PROP_NAME;
     static const char* const PFW_CONF_FILE_DEFAULT_NAME;
+    static const char* const ROUTING_LOCKED_PROP_NAME;
 
     static const char* const gapcLineInToHeadsetLineVolume;
     static const char* const gapcLineInToSpeakerLineVolume;
@@ -403,8 +404,8 @@ private:
     // Started service flag
     bool _bIsStarted;
 
-    // Waiting Client flag
-    bool _bClientWaiting;
+    // Routing is protected
+    bool _bRoutingLocked;
 
     // Routing timeout
     static const uint32_t _uiTimeoutSec;

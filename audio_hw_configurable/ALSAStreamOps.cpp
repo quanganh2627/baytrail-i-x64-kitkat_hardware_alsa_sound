@@ -27,21 +27,24 @@
 #undef LOG_TAG
 #endif
 #define LOG_TAG "ALSAStreamOps"
-//#define LOG_NDEBUG 0
+
 #include <utils/Log.h>
 #include <utils/String8.h>
 
 #include <cutils/properties.h>
+#include <cutils/bitops.h>
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
 
 #include "ALSAStreamOps.h"
 #include "AudioStreamRoute.h"
 #include "AudioConverter.h"
+#include "AudioConversion.h"
 #include "AudioResampler.h"
 #include "AudioReformatter.h"
 #include "AudioRemapper.h"
 #include "AudioConversion.h"
+#include "AudioHardwareALSA.h"
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
@@ -51,18 +54,14 @@ using namespace android;
 namespace android_audio_legacy
 {
 
-// ----------------------------------------------------------------------------
-
-const uint32_t ALSAStreamOps::NB_RING_BUFFER_NORMAL = 2;
-const uint32_t ALSAStreamOps::PLAYBACK_PERIOD_TIME_US = 48000;
-const uint32_t ALSAStreamOps::CAPTURE_PERIOD_TIME_US = 40000;
-
+const uint32_t ALSAStreamOps::NB_RING_BUFFER = 2;
+const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
 
 const pcm_config ALSAStreamOps::DEFAULT_PCM_CONFIG = {
     channels        : 0,
     rate            : 0,
     period_size     : 0,
-    period_count    : ALSAStreamOps::NB_RING_BUFFER_NORMAL,
+    period_count    : ALSAStreamOps::NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 0,
     stop_threshold  : 0,
@@ -75,17 +74,17 @@ static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//
 static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
 static const char* voicePmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Voice//pmdown_time";
 
-ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
+ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, uint32_t uiDefaultPeriodUs, const char* pcLockTag) :
     mParent(parent),
-    mHandle(new alsa_handle_t),
+    mHandle(NULL),
     mStandby(true),
     mDevices(0),
-    mFlags(AUDIO_OUTPUT_FLAG_NONE),
-    isResetted(false),
+    mIsReset(false),
     mCurrentRoute(NULL),
     mNewRoute(NULL),
     mCurrentDevices(0),
     mNewDevices(0),
+    mLatencyUs(uiDefaultPeriodUs * NB_RING_BUFFER),
     mPowerLock(false),
     mPowerLockTag(pcLockTag),
     mAudioConversion(new CAudioConversion)
@@ -97,16 +96,9 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
 
 ALSAStreamOps::~ALSAStreamOps()
 {
-    ALSAStreamOps::setStandby(true);
-
-    delete mHandle;
+    setStandby(true);
 
     delete mAudioConversion;
-}
-
-acoustic_device_t *ALSAStreamOps::acoustics()
-{
-    return NULL;
 }
 
 status_t ALSAStreamOps::set(int      *format,
@@ -117,28 +109,25 @@ status_t ALSAStreamOps::set(int      *format,
     bool bad_rate = false;
     bool bad_format = false;
 
-    ALOGD("%s(format:%d channels:0x%x (popCount returns %d) rate:%d)",
-          __FUNCTION__,
-          (format? *format : 0),
-          (channels? *channels : 0),
-          (channels? CAudioUtils::popCount(*channels) : 0),
-          (rate? *rate : 0));
+    ALOGV("%s() -- IN", __FUNCTION__);
 
     if (channels) {
 
         if (*channels != 0) {
 
+            ALOGD("%s(requested channels: 0x%x (popcount returns %d))",
+                  __FUNCTION__, *channels, popcount(*channels));
             // Always accept the channels requested by the client
             // as far as the channel count is supported
             mSampleSpec.setChannelMask(*channels);
 
-            if (CAudioUtils::popCount(*channels) > 2) {
+            if (popcount(*channels) > 2) {
 
-                ALOGD("%s: channels=(0x%x, %d) not supported", __FUNCTION__, *channels, CAudioUtils::popCount(*channels));
+                ALOGD("%s: channels=(0x%x, %d) not supported", __FUNCTION__, *channels, popcount(*channels));
                 bad_channels = true;
             }
         }
-        if ( (bad_channels) || (*channels == 0) ) {
+        if ((bad_channels) || (*channels == 0)) {
 
             // No channels information was provided by the client
             // or not supported channels
@@ -156,13 +145,14 @@ status_t ALSAStreamOps::set(int      *format,
         ALOGD("%s: set channels to 0x%x", __FUNCTION__, *channels);
 
         // Resampler is always working @ the channel count of the HAL
-        mSampleSpec.setChannelCount(CAudioUtils::popCount(mSampleSpec.getChannelMask()));
+        mSampleSpec.setChannelCount(popcount(mSampleSpec.getChannelMask()));
     }
 
     if (rate) {
 
         if (*rate != 0) {
 
+            ALOGD("%s(requested rate: %d))", __FUNCTION__, *rate);
             // Always accept the rate provided by the client
             mSampleSpec.setSampleRate(*rate);
         }
@@ -181,6 +171,7 @@ status_t ALSAStreamOps::set(int      *format,
 
         if (*format != 0) {
 
+            ALOGD("%s(requested format: %d))", __FUNCTION__, *format);
             // Always accept the rate provided by the client
             // as far as this rate is supported
             if (*format != AUDIO_FORMAT_PCM_16_BIT && *format != AUDIO_FORMAT_PCM_8_24_BIT) {
@@ -201,30 +192,19 @@ status_t ALSAStreamOps::set(int      *format,
         ALOGD("%s : set format to %d", __FUNCTION__, *format);
     }
 
-    status_t status = (bad_channels || bad_rate || bad_format) ? BAD_VALUE : NO_ERROR;
 
-    if (status == NO_ERROR) {
+    if (bad_channels || bad_rate || bad_format) {
 
-        if (mParent->getAlsaHwDevice()) {
-
-            pcm_config stConfig = DEFAULT_PCM_CONFIG;
-
-            stConfig.rate = mSampleSpec.getSampleRate();
-            stConfig.channels = mSampleSpec.getChannelCount();
-            stConfig.format = CAudioUtils::convertHalToTinyFormat(mSampleSpec.getFormat());
-            uint32_t uiPeriodTimeUs = isOut() ? PLAYBACK_PERIOD_TIME_US : CAPTURE_PERIOD_TIME_US;
-            stConfig.period_size = mSampleSpec.convertUsecToframes(uiPeriodTimeUs);
-
-            mParent->getAlsaHwDevice()->initStream(mHandle,
-                                                   isOut(),
-                                                   stConfig);
-            mHwSampleSpec = mSampleSpec;
-        }
+        return BAD_VALUE;
     }
-    return status;
+
+    mHwSampleSpec = mSampleSpec;
+
+    ALOGD("%s() -- OUT", __FUNCTION__);
+    return NO_ERROR;
 }
 
-status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
+status_t ALSAStreamOps::setParameters(const String8 __UNUSED &keyValuePairs)
 {
     return NO_ERROR;
 }
@@ -236,7 +216,8 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
     String8 key = String8(AudioParameter::keyRouting);
 
     if (param.get(key, value) == NO_ERROR) {
-        param.addInt(key, (int)getCurrentDevice());
+
+        param.addInt(key, static_cast<int>(getCurrentDevices()));
     }
 
     LOGV("getParameters() %s", param.toString().string());
@@ -251,15 +232,13 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
 //
 size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
 {
-    size_t bytes;
+    ALOGD("%s: latency = %d divider = %d", __FUNCTION__, mLatencyUs, uiDivider);
 
-    ALOGD("%s: latency = %d divider = %d", __FUNCTION__, mHandle->latencyInUs, uiDivider);
-
-    size_t size = mSampleSpec.convertUsecToframes(mHandle->latencyInUs) / uiDivider;
+    size_t size = mSampleSpec.convertUsecToframes(mLatencyUs) / uiDivider;
 
     size = CAudioUtils::alignOn16(size);
 
-    bytes = mSampleSpec.convertFramesToBytes(size);
+    size_t bytes = mSampleSpec.convertFramesToBytes(size);
     ALOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
 
     return bytes;
@@ -268,110 +247,71 @@ size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
 uint32_t ALSAStreamOps::latency() const
 {
     // Android wants latency in milliseconds.
+    return CAudioUtils::convertUsecToMsec(mLatencyUs);
+}
 
-    return CAudioUtils::convertUsecToMsec(mHandle->latencyInUs);
+void ALSAStreamOps::setPeriodTime(uint32_t uiPeriodTimeUs)
+{
+    mLatencyUs = uiPeriodTimeUs * NB_RING_BUFFER;
 }
 
 status_t ALSAStreamOps::setStandby(bool bIsSet)
 {
-    status_t status = NO_ERROR;
-
-    if (bIsSet) {
-        if (isStarted()) {
-
-            mParent->getAlsaHwDevice()->stop(mHandle);
-            status = mParent->stopStream(this);
-        }
-    } else {
-        if (!isStarted()) {
-
-            ALOGD("%s start the stream now", __FUNCTION__);
-            status = mParent->startStream(this);
-        }
-    }
-    return status;
+    return bIsSet ? mParent->stopStream(this) : mParent->startStream(this);
 }
 
 //
 // Route availability for a stream means a route has been
 // associate with this stream...
 //
-bool ALSAStreamOps::isRouteAvailable()
+bool ALSAStreamOps::isRouteAvailable() const
 {
-    return !!mCurrentRoute;
+    return mCurrentRoute != NULL;
 }
 
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t ALSAStreamOps::doOpen()
+status_t ALSAStreamOps::attachRoute()
 {
-    ALOGD("%s", __FUNCTION__);
+    ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
 
-    status_t err = NO_ERROR;
     CSampleSpec ssSrc;
     CSampleSpec ssDst;
 
-    assert(!mHandle->handle);
-
-    acquirePowerLock();
-
-    err = mParent->getAlsaHwDevice()->open(mHandle,
-                                           mNewRoute->getCardName(),
-                                           mNewRoute->getPcmDeviceId(isOut()),
-                                           mNewRoute->getPcmConfig(isOut()));
-    if (err != NO_ERROR) {
-
-        ALOGE("%s: Cannot open tinyalsa (%s,%d) device for %s stream", __FUNCTION__,
-                                                                       mNewRoute->getCardName(),
-                                                                       mNewRoute->getPcmDeviceId(isOut()),
-                                                                       isOut()? "output" : "input");
-
-        goto fail_open;
-    }
-
     //
-    // Set the new HW sample spec given by the audio route borrowed
+    // Set the new pcm device and sample spec given by the audio stream route
     //
-    mHwSampleSpec.setFormat(CAudioUtils::convertTinyToHalFormat(mHandle->config.format));
-    mHwSampleSpec.setSampleRate(mHandle->config.rate);
-    mHwSampleSpec.setChannelCount(mHandle->config.channels);
+    mHandle = mNewRoute->getPcmDevice(isOut());
+    mHwSampleSpec = mNewRoute->getSampleSpec(isOut());
 
     ssSrc = isOut() ? mSampleSpec : mHwSampleSpec;
     ssDst = isOut() ? mHwSampleSpec : mSampleSpec;
 
-    err = configureAudioConversion(ssSrc, ssDst);
+    status_t err = configureAudioConversion(ssSrc, ssDst);
     if (err != NO_ERROR) {
 
         ALOGE("%s: could not initialize suitable audio conversion chain (err=%d)", __FUNCTION__, err);
-        goto fail_open;
+        return err;
     }
 
     // Open successful - Update current route
     mCurrentRoute = mNewRoute;
+    mCurrentDevices = mNewDevices;
 
     return NO_ERROR;
-
-fail_open:
-    releasePowerLock();
-    return err;
 }
 
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t ALSAStreamOps::doClose()
+status_t ALSAStreamOps::detachRoute()
 {
     ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
 
-    assert(mHandle->handle);
-
-    mParent->getAlsaHwDevice()->close(mHandle);
-
-    releasePowerLock();
-
     // Clear current route pointer
     mCurrentRoute = NULL;
+    mCurrentDevices = 0;
 
     return NO_ERROR;
 }
@@ -384,12 +324,12 @@ int ALSAStreamOps::readSysEntry(const char* filePath)
         ALOGE("Could not open file %s", filePath);
         return 0;
     }
-    char buff[20];
+    char buff[STR_FORMAT_LENGTH];
     int val = 0;
-    uint32_t count;
-    if( (count = ::read(fd, buff, sizeof(buff)-1)) < 1 )
+    int32_t count = ::read(fd, buff, sizeof(buff) - 1);
+    if (count < 1)
     {
-        ALOGE("Could not read file");
+        ALOGE("Could not read file error %s", strerror(errno));
     }
     else
     {
@@ -412,70 +352,50 @@ void ALSAStreamOps::writeSysEntry(const char* filePath, int value)
         ALOGE("Could not open file %s", filePath);
         return ;
     }
-    char buff[20];
-    uint32_t count;
+    char buff[STR_FORMAT_LENGTH + 1];
     snprintf(buff, sizeof(buff), "%d", value);
-    if ((count = ::write(fd, buff, strlen(buff))) != strlen(buff))
+    uint32_t count = ::write(fd, buff, strlen(buff));
+    if (count != strlen(buff)) {
+
         ALOGE("could not write ret=%d", count);
-    else
+    } else {
+
         ALOGD("written %d bytes = %s", count, buff);
+    }
     ::close(fd);
 }
 
 void ALSAStreamOps::storeAndResetPmDownDelay()
 {
-    ALOGD("%s", __FUNCTION__);
+    if (mIsReset) {
 
-    if (!isResetted) {
-
-        LOGD("storeAndResetPmDownDelay not resetted");
-        headsetPmDownDelay = readSysEntry(heasetPmDownDelaySysFile);
-        speakerPmDownDelay = readSysEntry(speakerPmDownDelaySysFile);
-        voicePmDownDelay = readSysEntry(voicePmDownDelaySysFile);
-
-        writeSysEntry(heasetPmDownDelaySysFile, 0);
-        writeSysEntry(speakerPmDownDelaySysFile, 0);
-        writeSysEntry(voicePmDownDelaySysFile, 0);
-
-        isResetted = true;
+        return ;
     }
-    else
-        ALOGD("storeAndResetPmDownDelay already resetted -> nothing to do");
+
+    LOGD("storeAndResetPmDownDelay not resetted");
+    headsetPmDownDelay = readSysEntry(heasetPmDownDelaySysFile);
+    speakerPmDownDelay = readSysEntry(speakerPmDownDelaySysFile);
+    voicePmDownDelay = readSysEntry(voicePmDownDelaySysFile);
+
+    writeSysEntry(heasetPmDownDelaySysFile, 0);
+    writeSysEntry(speakerPmDownDelaySysFile, 0);
+    writeSysEntry(voicePmDownDelaySysFile, 0);
+
+    mIsReset = true;
 }
 
 void ALSAStreamOps::restorePmDownDelay()
 {
-    ALOGD("%s", __FUNCTION__);
+    if (!mIsReset) {
 
-    if (isResetted) {
-
-        ALOGD("restorePmDownDelay restoring");
-        writeSysEntry(heasetPmDownDelaySysFile, headsetPmDownDelay);
-        writeSysEntry(speakerPmDownDelaySysFile, speakerPmDownDelay);
-        writeSysEntry(voicePmDownDelaySysFile, voicePmDownDelay);
-
-        isResetted = false;
+        return ;
     }
-    else
-        ALOGD("restorePmDownDelay -> nothing to do");
-}
+    ALOGD("restorePmDownDelay restoring");
+    writeSysEntry(heasetPmDownDelaySysFile, headsetPmDownDelay);
+    writeSysEntry(speakerPmDownDelaySysFile, speakerPmDownDelay);
+    writeSysEntry(voicePmDownDelaySysFile, voicePmDownDelay);
 
-void ALSAStreamOps::acquirePowerLock()
-{
-    if (!mPowerLock) {
-
-        acquire_wake_lock (PARTIAL_WAKE_LOCK, mPowerLockTag);
-        mPowerLock = true;
-    }
-}
-
-void ALSAStreamOps::releasePowerLock()
-{
-    if (mPowerLock) {
-
-        release_wake_lock (mPowerLockTag);
-        mPowerLock = false;
-    }
+    mIsReset = false;
 }
 
 status_t ALSAStreamOps::configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
@@ -516,19 +436,14 @@ void ALSAStreamOps::resetRoute()
     mNewRoute = NULL;
 }
 
-void ALSAStreamOps::setNewDevice(uint32_t uiNewDevice)
+void ALSAStreamOps::setNewDevices(uint32_t uiNewDevices)
 {
-    mNewDevices = uiNewDevice;
+    mNewDevices = uiNewDevices;
 }
 
-void ALSAStreamOps::setCurrentDevice(uint32_t uiCurrentDevice)
+void ALSAStreamOps::setCurrentDevices(uint32_t uiCurrentDevices)
 {
-    mCurrentDevices = uiCurrentDevice;
-}
-
-void ALSAStreamOps::setFlags(audio_output_flags_t uiFlags)
-{
-    mFlags = uiFlags;
+    mCurrentDevices = uiCurrentDevices;
 }
 
 //

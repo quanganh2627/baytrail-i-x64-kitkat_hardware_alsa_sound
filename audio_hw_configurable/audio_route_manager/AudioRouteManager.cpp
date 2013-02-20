@@ -48,6 +48,8 @@ typedef RWLock::AutoWLock AutoW;
 namespace android_audio_legacy
 {
 
+const char* const CAudioRouteManager::ROUTING_LOCKED_PROP_NAME = "AudioComms.HAL.isLocked";
+
 // Defines the name of the Android property describing the name of the PFW configuration file
 const char* const CAudioRouteManager::PFW_CONF_FILE_NAME_PROP_NAME = "ro.AudioComms.PFW.ConfPath";
 
@@ -329,7 +331,7 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _pPlatformState(new CAudioPlatformState(this)),
     _pEventThread(new CEventThread(this)),
     _bIsStarted(false),
-    _bClientWaiting(false),
+    _bRoutingLocked(TProperty<bool>(ROUTING_LOCKED_PROP_NAME, true)),
     _pParent(pParent),
     _pAudioParameterHandler(new CAudioParameterHandler())
 {
@@ -516,8 +518,7 @@ void CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
     if (!bIsSynchronous) {
 
         // Trigs the processing of the list
-        _pEventThread->trig();
-
+        _pEventThread->trig(EUpdateRouting);
     } else {
 
         // Synchronization semaphore
@@ -776,7 +777,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
               __FUNCTION__,
               pStream->isOut() ? "output": "input");
         // Reconsider the routing now
-        reconsiderRouting();
+        reconsiderRouting(_bRoutingLocked);
 
     } else {
 
@@ -798,8 +799,15 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
 //
 status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 {
-    {
+    if (_bRoutingLocked) {
+
         AutoR lock(_lock);
+        if (pStream->isStarted()) {
+
+            // bailing out
+            return NO_ERROR;
+        }
+    } else {
 
         if (pStream->isStarted()) {
 
@@ -827,8 +835,16 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 //
 status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
 {
-    {
+    if (_bRoutingLocked) {
+
         AutoR lock(_lock);
+        if (!pStream->isStarted()) {
+
+            // bailing out
+            return NO_ERROR;
+        }
+
+    } else {
 
         if (!pStream->isStarted()) {
 
@@ -1049,7 +1065,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         ALOGD("%s: key value pair %s, {+++ RECONSIDER ROUTING +++} due to External parameter change",
               __FUNCTION__,
               keyValuePairs.string());
-        reconsiderRouting();
+        reconsiderRouting(_bRoutingLocked);
     }
 
     // Not a problem if a key does not exist, its value will
@@ -1538,6 +1554,14 @@ void CAudioRouteManager::executeConfigureStage()
     configureRoutes(CUtils::EOutput);
     configureRoutes(CUtils::EInput);
 
+    if (!_bRoutingLocked) {
+
+        // LPE centric arch requires to enable the route (from stream point of view, ie
+        // opening the audio device) before configuring the LPE
+        enableRoutes(CUtils::EOutput);
+        enableRoutes(CUtils::EInput);
+    }
+
     // Warn PFW
     _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
     _apSelectedCriteria[ESelectedFmMode]->setCriterionState(_pPlatformState->getFmRxHwMode());
@@ -1663,9 +1687,12 @@ void CAudioRouteManager::executeEnableStage()
     //
     _pParameterMgrPlatformConnector->applyConfigurations();
 
-    // Connect all streams that need to be connected (starting from output streams)
-    enableRoutes(CUtils::EOutput);
-    enableRoutes(CUtils::EInput);
+    if (_bRoutingLocked) {
+
+        // Connect all streams that need to be connected (starting from output streams)
+        enableRoutes(CUtils::EOutput);
+        enableRoutes(CUtils::EInput);
+    }
 }
 
 void CAudioRouteManager::enableRoutes(bool bIsOut)
@@ -1879,14 +1906,20 @@ bool CAudioRouteManager::onProcess(uint16_t __UNUSED uiEvent)
     return false;
 }
 
-    void CAudioRouteManager::lock()
+void CAudioRouteManager::lock()
 {
-    _lock.readLock();
+    if (_bRoutingLocked) {
+
+        _lock.readLock();
+    }
 }
 
 void CAudioRouteManager::unlock()
 {
-    _lock.unlock();
+    if (_bRoutingLocked) {
+
+        _lock.unlock();
+    }
 }
 
 // Used to fill types for PFW

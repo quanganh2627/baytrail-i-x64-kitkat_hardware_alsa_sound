@@ -82,9 +82,6 @@ protected:
     ALSAStreamOps(const ALSAStreamOps &);
     ALSAStreamOps& operator = (const ALSAStreamOps &);
 
-    void                acquirePowerLock();
-    void                releasePowerLock();
-
     android::status_t applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
     android::status_t getConvertedBuffer(void* dst, const uint32_t outFrames, android::AudioBufferProvider* pBufferProvider);
 

@@ -98,7 +98,7 @@ public:
         uint32_t i;
         for (i = 0; i < astrItems.size(); i++) {
 
-            uiPorts |= getPortIndexByName(astrItems[i]);
+            uiPorts |= getPortIdByName(astrItems[i]);
         }
         LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
         return uiPorts;
@@ -126,7 +126,7 @@ public:
         uint32_t i;
         for (i = 0; i < astrItems.size(); i++) {
 
-            uiPorts |= getPortIndexByName(astrItems[i].c_str());
+            uiPorts |= getPortIdByName(astrItems[i].c_str());
         }
         LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
         return uiPorts;
@@ -159,13 +159,13 @@ public:
         uint32_t i;
         for (i = 0; i < astrItems.size(); i++) {
 
-            uiSlaves |= getRouteIndexByName(astrItems[i]);
+            uiSlaves |= getRouteIdByName(astrItems[i]);
         }
         LOGD("%s acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtSlaveRoutes.c_str(), uiSlaves);
         return uiSlaves;
     }
 
-    static uint32_t getRouteIndexByName(const std::string& strRouteName) {
+    static uint32_t getRouteIdByName(const std::string& strRouteName) {
 
         uint32_t index;
         for (index = 0; index < getNbRoutes(); index++) {
@@ -179,7 +179,7 @@ public:
         return 0;
     }
 
-    static uint32_t getPortIndexByName(const std::string& strPortName) {
+    static uint32_t getPortIdByName(const std::string& strPortName) {
 
         uint32_t index;
         for (index = 0; index < getNbPorts(); index++) {

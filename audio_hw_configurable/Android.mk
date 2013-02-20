@@ -1,5 +1,5 @@
 ifeq ($(BOARD_USES_ALSA_AUDIO),true)
-ifeq ($(BOARD_USES_AUDIO_HAL_IA_CONTROLLED_SSP),true)
+ifeq ($(BOARD_USES_AUDIO_HAL_CONFIGURABLE),true)
 
 #ENABLE_AUDIO_DUMP := true
 LOCAL_PATH := $(call my-dir)
@@ -7,7 +7,7 @@ LOCAL_PATH := $(call my-dir)
 #PHONY PACKAGE DEFINITION#############################################
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := audio_hal_ia_controlled_ssp
+LOCAL_MODULE := audio_hal_configurable
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_REQUIRED_MODULES := \
@@ -117,6 +117,18 @@ ifeq ($($(LOCAL_MODULE).gcov),true)
   LOCAL_CFLAGS += -O0 -fprofile-arcs -ftest-coverage -include GcovFlushWithProp.h
   LOCAL_LDFLAGS += -fprofile-arcs -lgcov
   LOCAL_STATIC_LIBRARIES += gcov_flush_with_prop
+endif
+
+ifeq ($(BOARD_USES_GTI_FRAMEWORK),true)
+LOCAL_C_INCLUDES += \
+    hardware/intel/PRIVATE/gti/GtiService \
+    hardware/intel/PRIVATE/gti/include \
+    hardware/intel/PRIVATE/uta_os/include \
+    hardware/intel/PRIVATE/gti/uta_inc
+
+LOCAL_SHARED_LIBRARIES += libgtisrv
+
+LOCAL_CFLAGS += -DUSE_FRAMEWORK_GTI
 endif
 
 include $(BUILD_SHARED_LIBRARY)

@@ -26,6 +26,10 @@
 #include <cutils/properties.h>
 
 
+#ifdef USE_FRAMEWORK_GTI
+#include "gtiservice/GtiService.h"
+#endif
+
 #define LOG_TAG "AudioHardwareALSA"
 
 #include <utils/Log.h>
@@ -89,7 +93,7 @@ const bool AudioHardwareALSA::FM_IS_ANALOG_DEFAUT_VALUE = false;
 
 AudioHardwareInterface *AudioHardwareALSA::create() {
 
-    ALOGD("Using Audio IA CONTROLLED SSP HAL");
+    ALOGD("Using Audio HAL Configurable");
 
     return new AudioHardwareALSA();
 }
@@ -97,6 +101,10 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 AudioHardwareALSA::AudioHardwareALSA() :
     mRouteMgr(new CAudioRouteManager(this))
 {
+#ifdef USE_FRAMEWORK_GTI
+    GtiService::Start();
+#endif
+
     // HW Modules initialisation
     hw_module_t* module;
     hw_device_t* device;
