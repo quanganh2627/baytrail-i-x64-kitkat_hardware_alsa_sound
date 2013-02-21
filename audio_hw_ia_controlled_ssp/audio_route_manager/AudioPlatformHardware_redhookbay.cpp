@@ -772,7 +772,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     if (strName == "Media") {
 
-        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioStreamRouteMedia(uiRouteIndex, pPlatformState);
 
     } else if (strName == "CompressedMedia") {
 
