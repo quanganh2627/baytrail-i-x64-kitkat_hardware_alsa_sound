@@ -73,7 +73,7 @@ LOCAL_C_INCLUDES += \
     audio_route_manager/AudioStreamRoute.cpp \
     audio_route_manager/AudioExternalRoute.cpp \
     audio_route_manager/AudioCompressedStreamRoute.cpp \
-    audio_route_manager/AudioPlatformHardware_$(TARGET_DEVICE).cpp \
+    audio_route_manager/AudioPlatformHardware_$(REF_PRODUCT_NAME).cpp \
     audio_route_manager/AudioParameterHandler.cpp \
     audio_route_manager/VolumeKeys.cpp
 
