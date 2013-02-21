@@ -1,4 +1,5 @@
 ifeq ($(BOARD_USES_ALSA_AUDIO),true)
+ifeq ($(BOARD_USES_AUDIO_HAL_LPE_CENTRIC),true)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -27,4 +28,5 @@ LOCAL_PATH := $(call my-dir)
   LOCAL_MODULE_TAGS := optional
 
   include $(BUILD_SHARED_LIBRARY)
+endif
 endif
