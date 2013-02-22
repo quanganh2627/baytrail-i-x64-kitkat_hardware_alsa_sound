@@ -499,8 +499,6 @@ CAudioRouteManager::~CAudioRouteManager()
 
 status_t CAudioRouteManager::start()
 {
-    AutoW lock(_lock);
-
     assert(!_bIsStarted);
 
     status_t status = NO_ERROR;
