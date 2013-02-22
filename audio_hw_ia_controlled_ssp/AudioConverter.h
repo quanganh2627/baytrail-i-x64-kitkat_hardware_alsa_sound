@@ -1,6 +1,6 @@
-/* AudioConverter.h
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -16,30 +16,23 @@
  */
 #pragma once
 
-#include <stdint.h>
-#include <sys/types.h>
 #include <utils/Errors.h>
-
-#include "AudioHardwareALSA.h"
-
-using namespace android;
+#include "SampleSpec.h"
 
 namespace android_audio_legacy {
-
-// ----------------------------------------------------------------------------
 
 class CAudioConverter {
 
 public:
 
-    typedef status_t (CAudioConverter::*ConvertSamples)(const void* src, void* dst, uint32_t inFrames, uint32_t *outFrames);
+    typedef android::status_t (CAudioConverter::*SampleConverter)(const void* src, void* dst, uint32_t inFrames, uint32_t* outFrames);
 
     CAudioConverter(SampleSpecItem eSampleSpecItem);
     virtual ~CAudioConverter();
 
-    virtual status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
-    virtual status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t *outFrames);
+    virtual android::status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
 
 protected:
 
@@ -47,7 +40,7 @@ protected:
 
     size_t convertSrcToDstInFrames(ssize_t frames) const;
 
-    ConvertSamples _pfnConvertSamples;
+    SampleConverter _pfnConvertSamples;
 
     CSampleSpec   _ssSrc;
     CSampleSpec   _ssDst;
@@ -58,7 +51,7 @@ private:
     CAudioConverter& operator =(const CAudioConverter &);
 
     void* getOutputBuffer(ssize_t inFrames);
-    status_t allocateConvertBuffer(ssize_t bytes);
+     android::status_t allocateConvertBuffer(ssize_t bytes);
 
     char*           _pConvertBuf;
     size_t          _pConvertBufSize;
@@ -67,6 +60,5 @@ private:
     SampleSpecItem  _eSampleSpecItem;
 };
 
-// ----------------------------------------------------------------------------
 }; // namespace android
 

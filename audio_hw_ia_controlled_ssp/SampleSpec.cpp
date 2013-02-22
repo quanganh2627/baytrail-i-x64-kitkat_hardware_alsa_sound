@@ -1,62 +1,67 @@
+/*
+ **
+ ** Copyright 2013 Intel Corporation
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ **      http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ */
+
+#include <cutils/log.h>
 #include "SampleSpec.h"
-#include "AudioUtils.h"
-
-#include <system/audio.h>
-#include <utils/Log.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-using namespace android;
-using namespace std;
-
 
 namespace android_audio_legacy {
 
-// ----------------------------------------------------------------------------
-
 const uint32_t CSampleSpec::USEC_PER_SEC = 1000000;
+
+#define SAMPLE_SPEC_ITEM_IS_VALID(eSampleSpecItem) LOG_ALWAYS_FATAL_IF(eSampleSpecItem < 0 || eSampleSpecItem >= ENbSampleSpecItems)
 
 // Generic Accessor
 void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue)
 {
-    assert(eSampleSpecItem < ENbSampleSpecItems);
+    SAMPLE_SPEC_ITEM_IS_VALID(eSampleSpecItem);
     _auiSampleSpec[eSampleSpecItem] = uiValue;
 }
 
 uint32_t CSampleSpec::getSampleSpecItem(SampleSpecItem eSampleSpecItem) const
 {
-    assert(eSampleSpecItem < ENbSampleSpecItems);
+    SAMPLE_SPEC_ITEM_IS_VALID(eSampleSpecItem);
     return _auiSampleSpec[eSampleSpecItem];
 }
 
-ssize_t CSampleSpec::getFrameSize() const
+size_t CSampleSpec::getFrameSize() const
 {
-    return CAudioUtils::formatSize(getFormat()) * getChannelCount();
+    return audio_bytes_per_sample(getFormat()) * getChannelCount();
 }
 
-ssize_t CSampleSpec::convertBytesToFrames(ssize_t bytes) const
+size_t CSampleSpec::convertBytesToFrames(size_t bytes) const
 {
-    assert(getFrameSize());
+    LOG_ALWAYS_FATAL_IF(getFrameSize() == 0);
     return bytes / getFrameSize();
 }
 
-ssize_t CSampleSpec::convertFramesToBytes(ssize_t frames) const
+size_t CSampleSpec::convertFramesToBytes(size_t frames) const
 {
     return frames * getFrameSize();
 }
 
-float CSampleSpec::convertFramesToMs(uint32_t uiFrames) const
+size_t CSampleSpec::convertFramesToUsec(uint32_t uiFrames) const
 {
-    return 1000.0 * (float)(uiFrames) / getSampleRate();
+    return USEC_PER_SEC * (uint64_t)uiFrames / getSampleRate();
 }
 
-ssize_t CSampleSpec::convertUsecToframes(uint32_t uiIntervalUsec) const
+size_t CSampleSpec::convertUsecToframes(uint32_t uiIntervalUsec) const
 {
     return (uint64_t)uiIntervalUsec * getSampleRate() / USEC_PER_SEC;
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android
 

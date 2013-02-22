@@ -1,5 +1,4 @@
-/* Port.h
- **
+/*
  ** Copyright 2011 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,34 +19,31 @@
 #include <string>
 #include <list>
 
-using namespace std;
-
 namespace android_audio_legacy
 {
-class ALSAStreamOps;
 class CAudioPortGroup;
 class CAudioRoute;
 
 class CAudioPort
 {
-    typedef list<CAudioPortGroup*>::iterator PortGroupListIterator;
-    typedef list<CAudioPortGroup*>::const_iterator PortGroupListConstIterator;
-    typedef list<CAudioRoute*>::iterator RouteListIterator;
-    typedef list<CAudioRoute*>::const_iterator RouteListConstIterator;
+    typedef std::list<CAudioPortGroup*>::iterator PortGroupListIterator;
+    typedef std::list<CAudioPortGroup*>::const_iterator PortGroupListConstIterator;
+    typedef std::list<CAudioRoute*>::iterator RouteListIterator;
+    typedef std::list<CAudioRoute*>::const_iterator RouteListConstIterator;
 
 public:
     CAudioPort(uint32_t uiPortIndex);
     virtual           ~CAudioPort();
 
     // From PortGroup
-    void setCondemned(bool isCondemned);
+    void setBlocked(bool bBlocked);
 
-    // From Route: this port is now borrowed
-    void setBorrowed(CAudioRoute* pRoute);
+    // From Route: this port is now used
+    void setUsed(CAudioRoute* pRoute);
 
     void resetAvailability();
 
-    const string& getName() const { return _acName; }
+    const std::string& getName() const { return _strName; }
 
     uint32_t getPortId() const { return _uiPortId; }
 
@@ -57,27 +53,25 @@ public:
     // From Group Port
     void addGroupToPort(CAudioPortGroup* portGroup);
 
-protected:
+private:
     CAudioPort(const CAudioPort &);
     CAudioPort& operator = (const CAudioPort &);
 
-private:
-    string _acName;
+    std::string _strName;
 
     uint32_t _uiPortId;
 
     // list of Port groups to which this port belongs - can be null if this port does not have
     // any mutual exclusion issue
-    list<CAudioPortGroup*> _portGroupList;
+    std::list<CAudioPortGroup*> _portGroupList;
 
     CAudioRoute* _pRouteAttached;
 
-    list<CAudioRoute*> mRouteList;
+    std::list<CAudioRoute*> mRouteList;
 
-    bool _bCondemned;
-    bool _bBorrowed;
+    bool _bBlocked;
+    bool _bUsed;
 };
-// ----------------------------------------------------------------------------
 
 };        // namespace android
 

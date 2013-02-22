@@ -202,16 +202,16 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
         1 << HWCODEC_OIA_OFFSET,
         CAudioRoute::EExternalRoute,
         {
-            DEVICE_IN_BUILTIN_ALL,
-            DEVICE_OUT_MM_ALL
+            AudioSystem::DEVICE_IN_BACK_MIC | AudioSystem::DEVICE_IN_AUX_DIGITAL | AudioSystem::DEVICE_IN_BUILTIN_MIC,
+            AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER
         },
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
         },
         {
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL),
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL)
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
         NOT_APPLICABLE,
         {
@@ -232,16 +232,16 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
         1 << HWCODEC_1IA_OFFSET,
         CAudioRoute::EExternalRoute,
         {
-            NOT_APPLICABLE,     // Why? because there are no input stream for the BT CSV UL!!!
-            DEVICE_OUT_BLUETOOTH_SCO_ALL
+            AudioSystem::DEVICE_IN_WIRED_HEADSET,
+            AudioSystem::DEVICE_OUT_WIRED_HEADPHONE | AudioSystem::DEVICE_OUT_WIRED_HEADSET
         },
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
         },
         {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
         NOT_APPLICABLE,
         {
@@ -252,7 +252,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astrAudioRoutes
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
-        NOT_APPLICABLE
+        (1 << MODEM_IA_OFFSET) | (1 << MEDIA_OFFSET)
     },
     //
     // ModemIA route
@@ -373,13 +373,7 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiInputSource = 0) const {
 
-        // This route is applicable if:
-        //  -either At least one stream must be active to enable this route
-        //  -or a voice call on Codec is on going
-        if (!_pPlatformState->isModemAudioAvailable()) {
-
-            return false;
-        }
+        // Currently calling the super method only
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
 };

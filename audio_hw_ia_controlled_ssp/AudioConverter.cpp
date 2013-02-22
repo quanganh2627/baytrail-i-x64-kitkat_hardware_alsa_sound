@@ -1,6 +1,6 @@
-/* AudioConverter.cpp
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -16,17 +16,14 @@
  */
 
 #define LOG_TAG "AudioConverter"
-//#define LOG_NDEBUG 0
 
-#include <stdlib.h>
-#include <string.h>
 #include <cutils/log.h>
-
+#include "AudioUtils.h"
 #include "AudioConverter.h"
 
-namespace android_audio_legacy{
+using namespace android;
 
-// ----------------------------------------------------------------------------
+namespace android_audio_legacy{
 
 CAudioConverter::CAudioConverter(SampleSpecItem eSampleSpecItem) :
     _pfnConvertSamples(NULL),
@@ -68,7 +65,7 @@ status_t CAudioConverter::allocateConvertBuffer(ssize_t bytes)
 {
     status_t ret = NO_ERROR;
     // Allocate one more frame for resampler
-    _pConvertBufSize = bytes + (CAudioUtils::formatSize(_ssDst.getFormat()) * _ssDst.getChannelCount());
+    _pConvertBufSize = bytes + (audio_bytes_per_sample(_ssDst.getFormat()) * _ssDst.getChannelCount());
 
     delete []_pConvertBuf;
     _pConvertBuf = NULL;
@@ -96,7 +93,6 @@ status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
 
                 // The Sample spec items on which the converter is working
                 // are the same...
-                LOGE("%s: no need for resample!!!", __FUNCTION__);
                 return INVALID_OPERATION;
             }
             continue;
@@ -124,14 +120,8 @@ status_t CAudioConverter::convert(const void* src, void** dst, const uint32_t in
     void* outBuf;
     status_t ret = NO_ERROR;
 
-    if (*dst != NULL) {
-
-        // Use output buffer provided by the caller
-        outBuf = *dst;
-    } else {
-
-        outBuf = getOutputBuffer(inFrames);
-    }
+    // output buffer might be provided by the caller
+    outBuf = *dst != NULL ? *dst : getOutputBuffer(inFrames);
     if (!outBuf) {
 
         return NO_MEMORY;
@@ -155,5 +145,4 @@ size_t CAudioConverter::convertSrcFromDstInFrames(ssize_t frames) const
     return CAudioUtils::convertSrcToDstInFrames(frames, _ssDst, _ssSrc);
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android

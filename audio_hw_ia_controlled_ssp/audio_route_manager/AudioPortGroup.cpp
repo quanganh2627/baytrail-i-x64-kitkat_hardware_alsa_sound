@@ -1,5 +1,4 @@
-/* RouteManager.cpp
- **
+/*
  ** Copyright 2011 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +25,7 @@
 namespace android_audio_legacy
 {
 
-CAudioPortGroup::CAudioPortGroup(uint32_t uiPortGroupIndex) :
-    mName(CAudioPlatformHardware::getPortGroupName(uiPortGroupIndex)),
+CAudioPortGroup::CAudioPortGroup() :
     mPortList(0)
 {
 
@@ -40,8 +38,7 @@ CAudioPortGroup::~CAudioPortGroup()
 
 void CAudioPortGroup::addPortToGroup(CAudioPort* port)
 {
-    ALOGD("%s", __FUNCTION__);
-    if(!port) {
+    if (!port) {
 
         return ;
     }
@@ -51,13 +48,13 @@ void CAudioPortGroup::addPortToGroup(CAudioPort* port)
     // Give the pointer on Group port back to the port
     port->addGroupToPort(this);
 
-    ALOGD("%s: added %s to %s", __FUNCTION__, port->getName().c_str(), this->getName().c_str());
+    ALOGV("%s: added %d to port group", __FUNCTION__, port->getPortId());
 }
 
 void CAudioPortGroup::condemnMutualExclusivePort(const CAudioPort* port)
 {
-    ALOGD("%s of port %s", __FUNCTION__, port->getName().c_str());
-    if(!port) {
+    ALOGV("%s of port %d", __FUNCTION__, port->getPortId());
+    if (!port) {
 
         return ;
     }
@@ -66,12 +63,11 @@ void CAudioPortGroup::condemnMutualExclusivePort(const CAudioPort* port)
     // Find the applicable route for this route request
     for (it = mPortList.begin(); it != mPortList.end(); ++it) {
 
-        CAudioPort* aPort = *it;
-        if(aPort == port) {
+        CAudioPort* pPort = *it;
+        if (pPort != port) {
 
-            continue ;
+            pPort->setBlocked(true);
         }
-        aPort->setCondemned(true);
     }
 }
 

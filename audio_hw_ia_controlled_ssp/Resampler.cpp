@@ -1,6 +1,6 @@
-/* Resampler.cpp
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -16,27 +16,21 @@
  */
 
 #define LOG_TAG "Resampler"
-//#define LOG_NDEBUG 0
 
-#include <stdlib.h>
-#include <string.h>
 #include <cutils/log.h>
-
-#include "Resampler.h"
-#include <tinyalsa/asoundlib.h>
-
 #include <iasrc_resampler.h>
+#include "Resampler.h"
 
 #define base CAudioConverter
 
-namespace android_audio_legacy{
+using namespace android;
 
-// ----------------------------------------------------------------------------
+namespace android_audio_legacy{
 
 CResampler::CResampler(SampleSpecItem eSampleSpecItem) :
     base(eSampleSpecItem),
     mMaxFrameCnt(0),
-    mContext(NULL), mFloatInp(0), mFloatOut(0)
+    mContext(NULL), mFloatInp(NULL), mFloatOut(NULL)
 {
 }
 
@@ -66,7 +60,11 @@ status_t CResampler::allocateBuffer()
     mFloatOut = new float[(mMaxFrameCnt + 1) * _ssSrc.getChannelCount()];
 
     if (!mFloatInp || !mFloatOut) {
+
         LOGE("cannot allocate resampler tmp buffers.\n");
+        delete []mFloatInp;
+        delete []mFloatOut;
+
         return NO_MEMORY;
     }
     return NO_ERROR;
@@ -107,7 +105,7 @@ status_t CResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ss
         return BAD_VALUE;
     }
 
-    _pfnConvertSamples = (ConvertSamples)(&CResampler::resampleFrames);
+    _pfnConvertSamples = (SampleConverter)(&CResampler::resampleFrames);
     return NO_ERROR;
 }
 
@@ -155,5 +153,4 @@ status_t CResampler::resampleFrames(const void *in, void *out, const uint32_t in
     return NO_ERROR;
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android

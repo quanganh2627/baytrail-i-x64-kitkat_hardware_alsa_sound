@@ -2,23 +2,22 @@
 **
 ** Copyright 2007, The Android Open Source Project
 **
-** Licensed under the Apache License, Version 2.0 (the "License"); 
-** you may not use this file except in compliance with the License. 
-** You may obtain a copy of the License at 
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+*
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
-**     http://www.apache.org/licenses/LICENSE-2.0 
-**
-** Unless required by applicable law or agreed to in writing, software 
+** Unless required by applicable law or agreed to in writing, software
 ** distributed under the License is distributed on an "AS IS" BASIS, 
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-** See the License for the specific language governing permissions and 
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
 
 #include <cutils/properties.h>
 #include <string.h>
 #include <unistd.h>
-//#define LOG_NDEBUG 0
 
 #define LOG_TAG "AudioHardwareInterface"
 #include <utils/Log.h>
@@ -55,8 +54,6 @@ static const char* routingModeStrings[] =
     "IN_COMMUNICATION"
 };
 
-static const char* routeNone = "NONE";
-
 static const char* displayMode(int mode)
 {
     if ((mode < AudioSystem::MODE_INVALID) || (mode >= AudioSystem::NUM_MODES))
@@ -64,8 +61,6 @@ static const char* displayMode(int mode)
     return routingModeStrings[mode+3];
 }
 #endif
-
-// ----------------------------------------------------------------------------
 
 AudioHardwareInterface* AudioHardwareInterface::create()
 {
@@ -77,7 +72,7 @@ AudioStreamOut::~AudioStreamOut()
 }
 
 // default implementation is unsupported
-status_t AudioStreamOut::getNextWriteTimestamp(int64_t *timestamp)
+status_t AudioStreamOut::getNextWriteTimestamp(int64_t __UNUSED *timestamp)
 {
     return INVALID_OPERATION;
 }
@@ -119,7 +114,7 @@ status_t AudioHardwareBase::setFmRxMode(int mode)
 }
 
 // default implementation
-status_t AudioHardwareBase::setParameters(const String8& keyValuePairs)
+status_t AudioHardwareBase::setParameters(const String8 __UNUSED &keyValuePairs)
 {
     return NO_ERROR;
 }
@@ -151,7 +146,7 @@ size_t AudioHardwareBase::getInputBufferSize(uint32_t sampleRate, int format, in
 }
 
 // default implementation is unsupported
-status_t AudioHardwareBase::getMasterVolume(float *volume)
+status_t AudioHardwareBase::getMasterVolume(float __UNUSED *volume)
 {
     return INVALID_OPERATION;
 }
@@ -169,7 +164,5 @@ status_t AudioHardwareBase::dumpState(int fd, const Vector<String16>& args)
     dump(fd, args);  // Dump the state of the concrete child.
     return NO_ERROR;
 }
-
-// ----------------------------------------------------------------------------
 
 }; // namespace android

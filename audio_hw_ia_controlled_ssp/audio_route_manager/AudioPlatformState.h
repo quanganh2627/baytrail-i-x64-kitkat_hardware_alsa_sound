@@ -1,6 +1,5 @@
-/* AudioPlatformState.h
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -17,8 +16,6 @@
 #pragma once
 #include "AudioBand.h"
 
-#define INPUT        false
-#define OUTPUT       true
 #define ADD_EVENT(eventName) E##eventName = 1 << eventName
 
 namespace android_audio_legacy
@@ -31,6 +28,20 @@ class CAudioRouteManager;
 
 class CAudioPlatformState
 {
+    enum Direction {
+
+        EInput = 0,
+        EOutput,
+
+        ENbDirections
+    };
+
+    enum TtyDirection {
+
+        ETtyDownlink    = 0x1,
+        ETtyUplink      = 0x2
+    };
+
 public:
     enum ComponentStateName_t {
         FmHwMode,
@@ -127,7 +138,7 @@ public:
     void setModemEmbedded(bool bIsPresent);
 
     // Check if the Modem Shared I2S is safe to use
-    bool isSharedI2SBusAvailable();
+    bool isSharedI2SBusAvailable() const;
 
     // Set telephony mode
     void setMode(int iMode);
@@ -166,7 +177,7 @@ public:
     bool isBtHeadsetNrEcEnabled() const { return _bBtHeadsetNrEcEnabled; }
 
     // Set BT Enabled flag
-    void setBtEnabled(bool bIsBTEnabled);
+    void setBtEnabled(bool bIsBtEnabled);
 
     // Get BT Enabled flag
     bool isBtEnabled() const { return _bIsBtEnabled; }
@@ -213,15 +224,6 @@ private:
     // Check if Fm Hw mode has changed
     void checkAndSetFmRxHwMode();
 
-    static inline uint32_t popCount(uint32_t u)
-    {
-        u = ((u&0x55555555) + ((u>>1)&0x55555555));
-        u = ((u&0x33333333) + ((u>>2)&0x33333333));
-        u = ((u&0x0f0f0f0f) + ((u>>4)&0x0f0f0f0f));
-        u = ((u&0x00ff00ff) + ((u>>8)&0x00ff00ff));
-        u = ( u&0x0000ffff) + (u>>16);
-        return u;
-    }
     // Modem Call state
     bool _bModemAudioAvailable;
 
@@ -251,7 +253,7 @@ private:
     bool _bIsBtEnabled;
 
     // Input/output Devices bit field
-    uint32_t _uiDevices[2];
+    uint32_t _uiDevices[ENbDirections];
 
     uint32_t _uiInputSource;
 
@@ -278,7 +280,5 @@ private:
 
     CAudioRouteManager* _pAudioRouteManager;
 };
-// ----------------------------------------------------------------------------
-
 };        // namespace android
 

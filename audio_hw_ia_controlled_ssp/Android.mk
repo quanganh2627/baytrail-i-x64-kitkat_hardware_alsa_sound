@@ -13,19 +13,11 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := \
     audio.primary.$(TARGET_DEVICE) \
     audio_policy.$(TARGET_DEVICE) \
-    libaudiohalutils \
-    tinyalsa.$(TARGET_DEVICE)
+    libaudiohalutils
 
 include $(BUILD_PHONY_PACKAGE)
 
 #######################################################################
-
-include $(CLEAR_VARS)
-LOCAL_COPY_HEADERS_TO := alsa-sound
-LOCAL_COPY_HEADERS := \
-    AudioHardwareALSACommon.h
-include $(BUILD_COPY_HEADERS)
-
 
 include $(CLEAR_VARS)
 
@@ -85,7 +77,7 @@ LOCAL_C_INCLUDES += \
     audio_route_manager/AudioParameterHandler.cpp \
     audio_route_manager/VolumeKeys.cpp
 
-LOCAL_CFLAGS := -D_POSIX_SOURCE
+LOCAL_CFLAGS := -D_POSIX_SOURCE -Wall -Werror
 
 ifeq ($(ENABLE_AUDIO_DUMP),true)
   LOCAL_CFLAGS += -DENABLE_AUDIO_DUMP

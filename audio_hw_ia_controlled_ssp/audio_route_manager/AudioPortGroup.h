@@ -1,5 +1,4 @@
-/* PortGroup.h
- **
+/*
  ** Copyright 2011 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,22 +21,18 @@
 
 #include "AudioPortGroup.h"
 
-using namespace std;
-
 namespace android_audio_legacy
 {
 
-class ALSAStreamOps;
-class CAudioRoute;
 class CAudioPort;
 
 class CAudioPortGroup
 {
-    typedef list<CAudioPort*>::iterator PortListIterator;
-    typedef list<CAudioPort*>::const_iterator PortListConstIterator;
+    typedef std::list<CAudioPort*>::iterator PortListIterator;
+    typedef std::list<CAudioPort*>::const_iterator PortListConstIterator;
 
 public:
-    CAudioPortGroup(uint32_t uiPortGroupIndex);
+    CAudioPortGroup();
     virtual           ~CAudioPortGroup();
 
     // Add route to group
@@ -46,15 +41,12 @@ public:
     // Condamns all the other port from this group
     void condemnMutualExclusivePort(const CAudioPort *port);
 
-    const string& getName() const { return mName; }
 private:
-    string mName;
 
     // List of Ports that belongs to this PortGroup
     // All these port are mutual exlusive
-    list<CAudioPort*> mPortList;
+    std::list<CAudioPort*> mPortList;
 };
-// ----------------------------------------------------------------------------
 
 };        // namespace android
 

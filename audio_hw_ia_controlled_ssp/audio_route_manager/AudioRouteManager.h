@@ -1,6 +1,5 @@
-/* RouteManager.h
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -24,11 +23,11 @@
 
 #include "AudioRoute.h"
 #include "SyncSemaphoreList.h"
+#include "Utils.h"
 #include "ModemAudioManagerObserver.h"
 #include "AudioPlatformState.h"
 #include "EventListener.h"
 
-#define NOT_SET (-1)
 
 class CEventThread;
 
@@ -80,16 +79,6 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EUpdateModemAudioStatus,
         EUpdateRouting
     };
-
-    static inline uint32_t popCount(uint32_t u)
-    {
-        u = ((u&0x55555555) + ((u>>1)&0x55555555));
-        u = ((u&0x33333333) + ((u>>2)&0x33333333));
-        u = ((u&0x0f0f0f0f) + ((u>>4)&0x0f0f0f0f));
-        u = ((u&0x00ff00ff) + ((u>>8)&0x00ff00ff));
-        u = ( u&0x0000ffff) + (u>>16);
-        return u;
-    }
 
     enum RoutingStage {
         EMute = 0,
@@ -144,7 +133,7 @@ public:
     void removeStream(ALSAStreamOps* pStream);
 
     // Set FM mode
-    void setFmRxMode(int fmMode);
+    status_t setFmRxMode(bool bIsFmOn);
 
     // Start route manager service
     status_t start();
@@ -165,21 +154,9 @@ private:
 
     void setDevices(ALSAStreamOps* pStream, uint32_t devices);
 
-    void setInputSource(android_audio_legacy::ALSAStreamOps *pStream, int iInputSource);
+    void setInputSource(ALSAStreamOps* pStream, int iInputSource);
 
-    void setStreamFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags);
-
-    // Set TTY mode
-    void setTtyDirection(int iTtyDirection);
-
-    // Set HAC mode
-    void setHacMode(bool bEnabled);
-
-    // Set BT_NREC
-    void setBtNrEc(bool bIsAcousticSupportedOnBT);
-
-    // Set BT Enabled
-    void setBtEnable(bool bIsBTEnabled);
+    void setStreamFlags(ALSAStreamOps* pStream, uint32_t uiFlags);
 
     void reconsiderRouting(bool bIsSynchronous = true);
 
@@ -187,31 +164,31 @@ private:
     void doReconsiderRouting();
 
     // Virtually connect routes
-    bool virtuallyConnectRoutes();
-    bool virtuallyConnectRoutes(bool bIsOut);
-    void virtuallyConnectRoute(CAudioRoute* pRoute, bool bIsOut);
+    bool prepareRouting();
+    bool prepareRouting(bool bIsOut);
+    void prepareRoute(CAudioRoute* pRoute, bool bIsOut);
 
     // Route stage dispatcher
-    void executeRoutingStage(int iRouteStage);
+    void executeRouting(int iRouteStage);
 
     // Mute the routes
-    void muteRoutingStage();
+    void executeMuteStage();
     void muteRoutes(bool bIsOut);
 
     // Unmute the routes
-    void unmuteRoutingStage();
+    void executeUnmuteStage();
     void unmuteRoutes(bool bIsOut);
 
     // Configure the routes
-    void configureRoutingStage();
+    void executeConfigureStage();
     void configureRoutes(bool bIsOut);
 
     // Disable the routes
-    void disableRoutingStage();
+    void executeDisableStage();
     void disableRoutes(bool bIsOut);
 
     // Enable the routes
-    void enableRoutingStage();
+    void executeEnableStage();
     void enableRoutes(bool bIsOut);
 
     // unsigned integer parameter value retrieval
@@ -221,10 +198,10 @@ private:
     status_t setIntegerParameterValue(const string& strParameterPath, uint32_t uiValue);
 
     // unsigned integer parameter value setter
-    status_t setIntegerArrayParameterValue(const string& strParameterPath, std::vector<uint32_t>& uiArray) const;
+    status_t setIntegerArrayParameterValue(const string& strParameterPath, vector<uint32_t>& uiArray) const;
 
     // For a given streamroute, find an applicable in/out stream
-    ALSAStreamOps* findApplicableStreamForRoute(bool bIsOut, android_audio_legacy::CAudioRoute *pRoute);
+    ALSAStreamOps* findApplicableStreamForRoute(bool bIsOut, const CAudioRoute* pRoute);
 
     // Retrieve route pointer from its name
     CAudioRoute* findRouteById(uint32_t uiRouteId);
@@ -257,17 +234,10 @@ private:
 
     void createAudioHardwarePlatform();
 
-    const string print_criteria(int32_t iValue, CriteriaType eCriteriaType) const;
-
     // Used to fill types for PFW
     ISelectionCriterionTypeInterface* createAndFillSelectionCriterionType(CriteriaType eCriteriaType) const;
 
-    static const char* const gapcVoicePortEnable[2];
-
-    static const char* gpcVoiceVolume;
-
-    static const uint32_t ENABLED;
-    static const uint32_t DISABLED;
+    static const char* const gpcVoiceVolume;
 
     static const uint32_t DEFAULT_FM_RX_VOL_MAX;
     static const uint32_t FM_RX_STREAM_MAX_VOLUME;
@@ -278,19 +248,27 @@ private:
 
         FM_RX_NB_DEVICE
     };
+
+    static const char* const LINE_IN_TO_HEADSET_LINE_VOLUME;
+    static const char* const LINE_IN_TO_SPEAKER_LINE_VOLUME;
+    static const char* const LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME;
+    static const char* const DEFAULT_FM_RX_MAX_VOLUME[FM_RX_NB_DEVICE];
+
+    static const char* const FM_SUPPORTED_PROP_NAME;
+    static const bool FM_SUPPORTED_DEFAULT_VALUE;
+    static const char* const FM_IS_ANALOG_PROP_NAME;
+    static const bool FM_IS_ANALOG_DEFAULT_VALUE;
+    static const char* const BLUETOOTH_HFP_SUPPORTED_PROP_NAME;
+    static const bool BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE;
+    static const char* const PFW_CONF_FILE_NAME_PROP_NAME;
+    static const char* const PFW_CONF_FILE_DEFAULT_NAME;
+
     static const char* const gapcLineInToHeadsetLineVolume;
     static const char* const gapcLineInToSpeakerLineVolume;
     static const char* const gapcLineInToEarSpeakerLineVolume;
     static const char* const gapcDefaultFmRxMaxVolume[FM_RX_NB_DEVICE];
 
-    static const char* const mModemLibPropertyName;
-    static const char* const mFmSupportedPropName;
-    static const bool mFmSupportedDefaultValue;
-    static const char* const mFmIsAnalogPropName;
-    static const bool mFmIsAnalogDefaultValue;
-    static const char* const mBluetoothHFPSupportedPropName;
-    static const bool mBluetoothHFPSupportedDefaultValue;
-    static const char* const mPFWConfigurationFileNamePropertyName;
+    static const char* const MODEM_LIB_PROP_NAME;
 
     // Indicate if platform supports FM Radio
     bool _bFmSupported;
@@ -310,32 +288,30 @@ private:
     CParameterMgrPlatformConnectorLogger* _pParameterMgrPlatformConnectorLogger;
 
     // Mode type
-    static const SSelectionCriterionTypeValuePair _stModeValuePairs[];
+    static const SSelectionCriterionTypeValuePair MODE_VALUE_PAIRS[];
     // Band type
-    static const SSelectionCriterionTypeValuePair _stBandTypeValuePairs[];
+    static const SSelectionCriterionTypeValuePair BAND_TYPE_VALUE_PAIRS[];
     // FM Mode type
-    static const SSelectionCriterionTypeValuePair _stFmModeValuePairs[];
+    static const SSelectionCriterionTypeValuePair FM_MODE_VALUE_PAIRS[];
     // TTY Mode
-    static const SSelectionCriterionTypeValuePair _stTTYDirectionValuePairs[];
+    static const SSelectionCriterionTypeValuePair TTY_DIRECTION_VALUE_PAIRS[];
     // Band Ringing
-    static const SSelectionCriterionTypeValuePair _stBandRingingValuePairs[];
+    static const SSelectionCriterionTypeValuePair BAND_RINGING_VALUE_PAIRS[];
     // Routing Mode
-    static const SSelectionCriterionTypeValuePair _stRoutingStageValuePairs[];
+    static const SSelectionCriterionTypeValuePair ROUTING_STAGE_VALUE_PAIRS[];
     // Audio Source
-    static const SSelectionCriterionTypeValuePair _stAudioSourceValuePairs[];
+    static const SSelectionCriterionTypeValuePair AUDIO_SOURCE_VALUE_PAIRS[];
     // BT Headset NrEc
-    static const SSelectionCriterionTypeValuePair _stBtHeadsetNrEcValuePairs[];
+    static const SSelectionCriterionTypeValuePair BT_HEADSET_NREC_VALUE_PAIRS[];
     // HAC mode
-    static const SSelectionCriterionTypeValuePair _stHACModeValuePairs[];
+    static const SSelectionCriterionTypeValuePair HAC_MODE_VALUE_PAIRS[];
     // Screen State
-    static const SSelectionCriterionTypeValuePair _stScreenStateValuePairs[];
+    static const SSelectionCriterionTypeValuePair SCREEN_STATE_VALUE_PAIRS[];
     // Route
     // Selected Input Device type
-    static const SSelectionCriterionTypeValuePair _stInputDeviceValuePairs[];
+    static const SSelectionCriterionTypeValuePair INPUT_DEVICE_VALUE_PAIRS[];
     // Selected Output Device type
-    static const SSelectionCriterionTypeValuePair _stOutputDeviceValuePairs[];
-    // Selected Route type
-    SSelectionCriterionTypeValuePair* _stSelectedRouteValuePairs;
+    static const SSelectionCriterionTypeValuePair OUTPUT_DEVICE_VALUE_PAIRS[];
 
     struct SSelectionCriterionTypeInterface
     {
@@ -345,7 +321,7 @@ private:
         bool _bIsInclusive;
     };
 
-    static const SSelectionCriterionTypeInterface _asCriteriaType[ENbCriteriaTypes];
+    static const SSelectionCriterionTypeInterface ARRAY_CRITERIA_TYPES[];
 
     ISelectionCriterionTypeInterface* _apCriteriaTypeInterface[ENbCriteriaTypes];
 
@@ -374,7 +350,7 @@ private:
         const char* pcName;
         CriteriaType eCriteriaType;
     };
-    static const CriteriaInterface _apCriteriaInterface[ENbCriteria];
+    static const CriteriaInterface ARRAY_CRITERIA_INTERFACE[ENbCriteria];
 
     ISelectionCriterionInterface* _apSelectedCriteria[ENbCriteria];
 
@@ -397,7 +373,7 @@ private:
     }
 
     // Input/Output Streams list
-    list<ALSAStreamOps*> _streamsList[2];
+    list<ALSAStreamOps*> _streamsList[CUtils::ENbDirections];
 
     // List of route
     list<CAudioRoute*> _routeList;
@@ -432,15 +408,16 @@ private:
     // Routing lock protection
     RWLock _lock;
 
-    // Bitfield of route that needs reconfiguration, it includes route
-    // that were enabled and need to be disabled
-    uint32_t _uiNeedToReconfigureRoutes[2];
+    struct {
 
-    //  Bitfield of enabled route
-    uint32_t _uiEnabledRoutes[2];
-
-    //  Bitfield of previously enabled route
-    uint32_t _uiPreviousEnabledRoutes[2];
+        // Bitfield of route that needs reconfiguration, it includes route
+        // that were enabled and need to be disabled
+        uint32_t uiNeedReconfig;
+        // Bitfield of enabled route
+        uint32_t uiEnabled;
+        // Bitfield of previously enabled route
+        uint32_t uiPrevEnabled;
+    } _stRoutes[CUtils::ENbDirections];
 
 protected:
     friend class AudioHardwareALSA;
@@ -450,7 +427,5 @@ protected:
     // For backup and restore audio parameters
     CAudioParameterHandler* _pAudioParameterHandler;
 };
-// ----------------------------------------------------------------------------
-
 };        // namespace android
 

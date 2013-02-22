@@ -1,6 +1,5 @@
-/* StreamRoute.cpp
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -18,31 +17,38 @@
 #define LOG_TAG "RouteManager/StreamRoute"
 #include <utils/Log.h>
 
-#include "AudioStreamRoute.h"
 #include <ALSAStreamOps.h>
-
 #include "AudioPlatformHardware.h"
+#include "AudioUtils.h"
+#include <tinyalsa/asoundlib.h>
+#include <hardware_legacy/power.h>
 
+#include "AudioStreamRoute.h"
 
 #define base    CAudioRoute
 
 namespace android_audio_legacy
 {
 
+const char* const CAudioStreamRoute::POWER_LOCK_TAG[CUtils::ENbDirections] = {"AudioInLock","AudioOutLock"};
+
 CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
                                      CAudioPlatformState *platformState) :
-    CAudioRoute(uiRouteIndex, platformState)
+    CAudioRoute(uiRouteIndex, platformState),
+    _pcCardName(CAudioPlatformHardware::getRouteCardName(uiRouteIndex))
 {
-    _pcCardName = CAudioPlatformHardware::getRouteCardName(uiRouteIndex);
-    _iPcmDeviceId[OUTPUT] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, OUTPUT);
-    _iPcmDeviceId[INPUT] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, INPUT);
-    _pcmConfig[OUTPUT] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, OUTPUT);
-    _pcmConfig[INPUT] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, INPUT);
+    for (int iDir = 0; iDir < CUtils::ENbDirections; iDir++) {
 
-    _pNewStreams[INPUT] = NULL;
-    _pNewStreams[OUTPUT] = NULL;
-    _pCurrentStreams[INPUT] = NULL;
-    _pCurrentStreams[OUTPUT] = NULL;
+       _stStreams[iDir].pCurrent = NULL;
+       _stStreams[iDir].pNew = NULL;
+       _aiPcmDeviceId[iDir] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, iDir);
+       _astPcmConfig[iDir] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, iDir);
+       _acPowerLockTag[iDir] = POWER_LOCK_TAG[iDir];
+
+       _routeSampleSpec[iDir].setFormat(CAudioUtils::convertTinyToHalFormat(_astPcmConfig[iDir].format));
+       _routeSampleSpec[iDir].setSampleRate(_astPcmConfig[iDir].rate);
+       _routeSampleSpec[iDir].setChannelCount(_astPcmConfig[iDir].channels);
+    }
 }
 
 //
@@ -54,11 +60,12 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
 {
     // TBD: what conditions will lead to set the need reconfiguration flag for this route???
     // The route needs reconfiguration except if:
-    //      - still borrowed by the same stream
+    //      - still used by the same stream
     //      - the stream is using the same device
     if (base::needReconfiguration(bIsOut) &&
-            ((_pCurrentStreams[bIsOut] != _pNewStreams[bIsOut]) ||
-             (_pCurrentStreams[bIsOut]->getCurrentDevice() != _pNewStreams[bIsOut]->getNewDevice()))) {
+            ((_stStreams[bIsOut].pCurrent != _stStreams[bIsOut].pNew) ||
+             (_stStreams[bIsOut].pCurrent->getCurrentDevices() != _stStreams[bIsOut].pNew->getNewDevices()))) {
+
         return true;
     }
     return false;
@@ -66,117 +73,118 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
 
 status_t CAudioStreamRoute::route(bool bIsOut)
 {
-    status_t err = NO_ERROR;
+    status_t err = openPcmDevice(bIsOut);
+    if (err != NO_ERROR) {
 
-    if (_pNewStreams[bIsOut]) {
-
-        err = _pNewStreams[bIsOut]->route();
-
-        if (err != NO_ERROR) {
-
-            // Failed to open output stream -> bailing out
-            return err;
-        }
-        _pCurrentStreams[bIsOut] = _pNewStreams[bIsOut];
-
-        // Consume the new device(s)
-        _pCurrentStreams[bIsOut]->setCurrentDevice(_pCurrentStreams[bIsOut]->getNewDevice());
+        // Failed to open PCM device -> bailing out
+        return err;
     }
 
-    return NO_ERROR;
+    return attachNewStream(bIsOut);
 }
 
 void CAudioStreamRoute::unroute(bool bIsOut)
 {
-    // First unroute input stream
-    if (_pCurrentStreams[bIsOut]) {
+    closePcmDevice(bIsOut);
 
-        _pCurrentStreams[bIsOut]->unroute();
-
-        _pCurrentStreams[bIsOut] = NULL;
-    }
+    detachCurrentStream(bIsOut);
 }
 
 void CAudioStreamRoute::configure(bool bIsOut)
 {
-    // Consume the new device(s)
-    _pCurrentStreams[bIsOut]->setCurrentDevice(_pCurrentStreams[bIsOut]->getNewDevice());
+    // Same stream is attached to this route, consumme the new device
+    if (_stStreams[bIsOut].pCurrent == _stStreams[bIsOut].pNew) {
+
+        // Consume the new device(s)
+        _stStreams[bIsOut].pCurrent->setCurrentDevices(_stStreams[bIsOut].pCurrent->getNewDevices());
+    } else {
+
+        // Route is still in use, but the stream attached to this route has changed...
+        // Unroute previous stream
+        detachCurrentStream(bIsOut);
+
+        // route new stream
+        attachNewStream(bIsOut);
+    }
 }
 
 void CAudioStreamRoute::resetAvailability()
 {
-    if (_pNewStreams[INPUT]) {
+    for (int iDir = 0; iDir < CUtils::ENbDirections; iDir++) {
 
-        _pNewStreams[INPUT]->resetRoute();
-        _pNewStreams[INPUT] = NULL;
+        if (_stStreams[iDir].pNew) {
+
+            _stStreams[iDir].pNew->resetRoute();
+            _stStreams[iDir].pNew = NULL;
+        }
     }
-
-    if (_pNewStreams[OUTPUT]) {
-
-        _pNewStreams[OUTPUT]->resetRoute();
-        _pNewStreams[OUTPUT] = NULL;
-    }
-
-
     base::resetAvailability();
 }
 
 status_t CAudioStreamRoute::setStream(ALSAStreamOps* pStream)
 {
-    ALOGD("%s to %s route", __FUNCTION__, getName().c_str());
+    ALOGV("%s to %s route", __FUNCTION__, getName().c_str());
     bool bIsOut = pStream->isOut();
 
-    assert(!_pNewStreams[bIsOut]);
+    assert(!_stStreams[bIsOut].pNew);
 
-    _pNewStreams[bIsOut] = pStream;
+    _stStreams[bIsOut].pNew = pStream;
 
-    _pNewStreams[bIsOut]->setNewRoute(this);
+    _stStreams[bIsOut].pNew->setNewRoute(this);
 
     return NO_ERROR;
 }
 
-bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int mode, bool bIsOut, uint32_t uiFlags) const
+bool CAudioStreamRoute::isApplicable(uint32_t uiDevices, int iMode, bool bIsOut, uint32_t uiFlags) const
 {
-    ALOGI("%s: is Route %s applicable? ",__FUNCTION__, getName().c_str());
-    ALOGI("%s: \t\t\t bIsOut=%s && uiFlags=0x%X & _uiApplicableFlags[%s]=0x%X", __FUNCTION__,
+    ALOGV("%s: is Route %s applicable? ",__FUNCTION__, getName().c_str());
+    ALOGV("%s: \t\t\t bIsOut=%s && uiFlags=0x%X & _uiApplicableFlags[%s]=0x%X", __FUNCTION__,
           bIsOut? "output" : "input",
           uiFlags,
           bIsOut? "output" : "input",
-          _uiApplicableFlags[bIsOut]);
+          _applicabilityRules[bIsOut].uiFlags);
 
-    if (!bIsOut && (uiFlags & _uiApplicableFlags[bIsOut]) == 0) {
+    if (!bIsOut && (uiFlags & _applicabilityRules[bIsOut].uiFlags) == 0) {
 
         return false;
     }
     // Base class does not have much work to do than checking
     // if no stream is already using it and if not condemened
-    return base::isApplicable(uiDevices, mode, bIsOut);
+    return base::isApplicable(uiDevices, iMode, bIsOut);
 }
 
 bool CAudioStreamRoute::available(bool bIsOut)
 {
     // A route is available if no stream is already using it and if not condemened
-    return (!isCondemned() && !_pNewStreams[bIsOut]);
+    return !isBlocked() && !_stStreams[bIsOut].pNew;
 }
 
-bool CAudioStreamRoute::currentlyBorrowed(bool bIsOut) const
+bool CAudioStreamRoute::currentlyUsed(bool bIsOut) const
 {
-    return !!_pCurrentStreams[bIsOut];
+    return _stStreams[bIsOut].pCurrent != NULL;
 }
 
-bool CAudioStreamRoute::willBeBorrowed(bool bIsOut) const
+bool CAudioStreamRoute::willBeUsed(bool bIsOut) const
 {
-    return !!_pNewStreams[bIsOut];
+    return _stStreams[bIsOut].pNew != NULL;
 }
 
 int CAudioStreamRoute::getPcmDeviceId(bool bIsOut) const
 {
-    return _iPcmDeviceId[bIsOut];
+    return _aiPcmDeviceId[bIsOut];
+}
+
+pcm* CAudioStreamRoute::getPcmDevice(bool bIsOut) const
+{
+    LOG_ALWAYS_FATAL_IF(_astPcmDevice[bIsOut] == NULL);
+
+    return _astPcmDevice[bIsOut];
+
 }
 
 const pcm_config& CAudioStreamRoute::getPcmConfig(bool bIsOut) const
 {
-    return _pcmConfig[bIsOut];
+    return _astPcmConfig[bIsOut];
 }
 
 const char* CAudioStreamRoute::getCardName() const
@@ -184,4 +192,106 @@ const char* CAudioStreamRoute::getCardName() const
     return _pcCardName;
 }
 
+status_t CAudioStreamRoute::attachNewStream(bool bIsOut)
+{
+    LOG_ALWAYS_FATAL_IF(_stStreams[bIsOut].pNew == NULL);
+
+    status_t err = _stStreams[bIsOut].pNew->attachRoute();
+
+    if (err != NO_ERROR) {
+
+        // Failed to open output stream -> bailing out
+        return err;
+    }
+    _stStreams[bIsOut].pCurrent = _stStreams[bIsOut].pNew;
+
+    return NO_ERROR;
+}
+
+void CAudioStreamRoute::detachCurrentStream(bool bIsOut)
+{
+    LOG_ALWAYS_FATAL_IF(_stStreams[bIsOut].pCurrent == NULL);
+
+    _stStreams[bIsOut].pCurrent->detachRoute();
+    _stStreams[bIsOut].pCurrent = NULL;
+}
+
+status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)
+{
+    LOG_ALWAYS_FATAL_IF(_astPcmDevice[bIsOut] != NULL);
+
+    acquirePowerLock(bIsOut);
+
+    pcm_config config = getPcmConfig(bIsOut);
+    ALOGD("%s called for card (%s,%d)",
+                                __FUNCTION__,
+                                getCardName(),
+                                getPcmDeviceId(bIsOut));
+    ALOGD("%s\t\t config=rate(%d), format(%d), channels(%d))",
+                                __FUNCTION__,
+                                config.rate,
+                                config.format,
+                                config.channels);
+    ALOGD("%s\t\t period_size=%d, period_count=%d",
+                                __FUNCTION__,
+                                config.period_size,
+                                config.period_count);
+    ALOGD("%s\t\t startTh=%d, stop Th=%d silence Th=%d",
+                                __FUNCTION__,
+                                config.start_threshold,
+                                config.stop_threshold,
+                                config.silence_threshold);
+
+    //
+    // Opens the device in BLOCKING mode (default)
+    // No need to check for NULL handle, tiny alsa
+    // guarantee to return a pcm structure, even when failing to open
+    // it will return a reference on a "bad pcm" structure
+    //
+    uint32_t uiFlags= (bIsOut ? PCM_OUT : PCM_IN);
+    _astPcmDevice[bIsOut] = pcm_open(CAudioUtils::getCardNumberByName(getCardName()), getPcmDeviceId(bIsOut), uiFlags, &config);
+    if (_astPcmDevice[bIsOut] && !pcm_is_ready(_astPcmDevice[bIsOut])) {
+
+        ALOGE("%s: Cannot open tinyalsa (%s,%d) device for %s stream (error=%s)", __FUNCTION__,
+              getCardName(),
+              getPcmDeviceId(bIsOut),
+              bIsOut? "output" : "input",
+              pcm_get_error(_astPcmDevice[bIsOut]));
+        pcm_close(_astPcmDevice[bIsOut]);
+        _astPcmDevice[bIsOut] = NULL;
+        releasePowerLock(bIsOut);
+        return NO_MEMORY;
+    }
+    return NO_ERROR;
+}
+
+void CAudioStreamRoute::closePcmDevice(bool bIsOut)
+{
+    LOG_ALWAYS_FATAL_IF(_astPcmDevice[bIsOut] == NULL);
+
+    ALOGD("%s called for card (%s,%d)",
+                                __FUNCTION__,
+                                getCardName(),
+                                getPcmDeviceId(bIsOut));
+    pcm_close(_astPcmDevice[bIsOut]);
+    _astPcmDevice[bIsOut] = NULL;
+
+    releasePowerLock(bIsOut);
+}
+
+void CAudioStreamRoute::acquirePowerLock(bool bIsOut)
+{
+    LOG_ALWAYS_FATAL_IF(_bPowerLock[bIsOut]);
+
+    acquire_wake_lock(PARTIAL_WAKE_LOCK, _acPowerLockTag[bIsOut]);
+    _bPowerLock[bIsOut] = true;
+}
+
+void CAudioStreamRoute::releasePowerLock(bool bIsOut)
+{
+    LOG_ALWAYS_FATAL_IF(!_bPowerLock[bIsOut]);
+
+    release_wake_lock(_acPowerLockTag[bIsOut]);
+    _bPowerLock[bIsOut] = false;
+}
 }       // namespace android

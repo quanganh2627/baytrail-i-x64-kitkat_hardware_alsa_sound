@@ -1,4 +1,5 @@
-/*
+/* SyncSemaphore.h
+ **
  ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,24 +14,22 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+
 #pragma once
 
-#include "AudioConverter.h"
+#define MASK_32_BITS_MSB    0x7FFFFFFF
+#define REMOVE_32_BITS_MSB(bitfield) bitfield & MASK_32_BITS_MSB
 
-namespace android_audio_legacy {
+#define __UNUSED __attribute__((unused))
 
-class CAudioReformatter : public CAudioConverter {
-
+class CUtils
+{
 public:
-    CAudioReformatter(SampleSpecItem eSampleSpecItem);
+    enum Direction {
 
-private:
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+        EInput = 0,
+        EOutput,
 
-    android::status_t convertS16toS24over32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
-
-    android::status_t convertS24over32toS16(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
+        ENbDirections
+    };
 };
-
-}; // namespace android
-

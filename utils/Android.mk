@@ -6,11 +6,14 @@ LOCAL_PATH := $(call my-dir)
 utils_exported_includes_folder := audio_hal_utils
 utils_exported_includes_files := \
     SyncSemaphore.h \
-    SyncSemaphoreList.h
+    SyncSemaphoreList.h \
+    Utils.h \
+    Tokenizer.h
 
 utils_src_files := \
     SyncSemaphore.cpp \
-    SyncSemaphoreList.cpp
+    SyncSemaphoreList.cpp \
+    Tokenizer.cpp
 
 
 # build for target
@@ -20,7 +23,7 @@ include $(CLEAR_VARS)
 LOCAL_COPY_HEADERS_TO := $(utils_exported_includes_folder)
 LOCAL_COPY_HEADERS := $(utils_exported_includes_files)
 
-LOCAL_CFLAGS := -DDEBUG
+LOCAL_CFLAGS := -DDEBUG -Wall -Werror
 
 LOCAL_SRC_FILES := $(utils_src_files)
 

@@ -1,11 +1,24 @@
-#include "AudioUtils.h"
-#include <system/audio.h>
-#include <utils/Log.h>
-#include "SampleSpec.h"
+/*
+ ** Copyright 2013 Intel Corporation
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ **      http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ */
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <utils/Log.h>
+#include <system/audio.h>
+#include "SampleSpec.h"
+#include "AudioUtils.h"
 
 #ifdef LOG_TAG
 #undef LOG_TAG
@@ -16,8 +29,6 @@ using namespace android;
 using namespace std;
 
 namespace android_audio_legacy {
-
-// ----------------------------------------------------------------------------
 
 #define FRAME_ALIGNEMENT_ON_16  16
 
@@ -33,33 +44,8 @@ ssize_t CAudioUtils::convertSrcToDstInBytes(ssize_t bytes, const CSampleSpec& ss
 
 ssize_t CAudioUtils::convertSrcToDstInFrames(ssize_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    assert(ssSrc.getSampleRate());
-    return (frames * ssDst.getSampleRate() + ssSrc.getSampleRate() - 1) / ssSrc.getSampleRate();
-}
-
-// This function retrieves the number of bytes
-// for one sample (per channel) according to the format
-size_t CAudioUtils::formatSize(int format)
-{
-    size_t sz;
-    switch(format) {
-
-    case AUDIO_FORMAT_PCM_8_BIT:
-        sz = 1;
-        break;
-    case AUDIO_FORMAT_PCM_16_BIT:
-        sz = 2;
-        break;
-    case AUDIO_FORMAT_PCM_8_24_BIT:
-    case AUDIO_FORMAT_PCM_32_BIT:
-        sz = 4;
-        break;
-    default:
-        LOGE("%s: format not recognized", __FUNCTION__);
-        sz = AUDIO_FORMAT_INVALID;
-        break;
-    }
-    return sz;
+    LOG_ALWAYS_FATAL_IF(ssSrc.getSampleRate() == 0);
+    return ((uint64_t)frames * ssDst.getSampleRate() + ssSrc.getSampleRate() - 1) / ssSrc.getSampleRate();
 }
 
 // This fonction translates the format from tiny ALSA
@@ -104,12 +90,37 @@ pcm_format CAudioUtils::convertHalToTinyFormat(int format)
     return convFormat;
 }
 
+// This function return the card number associated with the card ID (name)
+// passed as argument
+int CAudioUtils::getCardNumberByName(const char* name)
+
+{
+    char id_filepath[PATH_MAX] = {0};
+    char number_filepath[PATH_MAX] = {0};
+    ssize_t written;
+
+    snprintf(id_filepath, sizeof(id_filepath), "/proc/asound/%s", name);
+
+    written = readlink(id_filepath, number_filepath, sizeof(number_filepath));
+    if (written < 0) {
+        ALOGE("Sound card %s does not exist", name);
+        return written;
+    } else if (written >= (ssize_t)sizeof(id_filepath)) {
+        // This will probably never happen
+        return -ENAMETOOLONG;
+    }
+
+    // We are assured, because of the check in the previous elseif, that this
+    // buffer is null-terminated.  So this call is safe.
+    // 4 == strlen("card")
+    return atoi(number_filepath + 4);
+}
+
 uint32_t CAudioUtils::convertUsecToMsec(uint32_t uiTimeUsec)
 {
     // Round up to the nearest Msec
     return ((uiTimeUsec + 999) / 1000);
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android
 

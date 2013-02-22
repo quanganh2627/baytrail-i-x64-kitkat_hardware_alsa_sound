@@ -1,6 +1,5 @@
 /*
- **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -24,11 +23,11 @@
 namespace android_audio_legacy
 {
 
-#define GPIO_KEYS_WAKEUP_ENABLE  "/sys/devices/platform/gpio-keys/enabled_wakeup"
-#define GPIO_KEYS_WAKEUP_DISABLE "/sys/devices/platform/gpio-keys/disabled_wakeup"
+const char* const CVolumeKeys::GPIO_KEYS_WAKEUP_ENABLE = "/sys/devices/platform/gpio-keys/enabled_wakeup";
+const char* const CVolumeKeys::GPIO_KEYS_WAKEUP_DISABLE = "/sys/devices/platform/gpio-keys/disabled_wakeup";
 
-#define KEY_VOLUMEDOWN "114"
-#define KEY_VOLUMEUP   "115"
+const char* const CVolumeKeys::KEY_VOLUMEDOWN = "114";
+const char* const CVolumeKeys::KEY_VOLUMEUP = "115";
 
 bool CVolumeKeys::_bWakeupEnabled = false;
 

@@ -1,6 +1,5 @@
-/* AudioPlatformHardware.h
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -25,8 +24,7 @@
 #include "AudioExternalRoute.h"
 #include "AudioRoute.h"
 #include "AudioRouteManager.h"
-
-using namespace std;
+#include "Tokenizer.h"
 
 namespace android_audio_legacy
 {
@@ -50,16 +48,18 @@ namespace android_audio_legacy
 
 #define NOT_APPLICABLE  (0)
 
+//extern "C" static const pcm_config pcm_config_not_applicable;
+
 static const pcm_config pcm_config_not_applicable = {
-   /* channels        : */0,
-   /* rate            : */0,
-   /* period_size     : */0,
-   /* period_count    : */0,
-   /* format          : */PCM_FORMAT_S16_LE,
-   /* start_threshold : */0 ,
-   /* stop_threshold  : */0 ,
-   /* silence_threshold : */0,
-   /* avail_min       : */0,
+   channels             : 0,
+   rate                 : 0,
+   period_size          : 0,
+   period_count         : 0,
+   format               : PCM_FORMAT_S16_LE,
+   start_threshold      : 0 ,
+   stop_threshold       : 0 ,
+   silence_threshold    : 0,
+   avail_min            : 0,
 };
 
 class CAudioPlatformHardware {
@@ -68,7 +68,7 @@ public:
     static const CAudioRouteManager::SSelectionCriterionTypeValuePair _stRouteValuePairs[];
     static const uint32_t _uiNbRouteValuePairs;
 
-    static CAudioRoute *createAudioRoute(uint32_t uiRouteId, CAudioPlatformState* pPlatformState);
+    static CAudioRoute* createAudioRoute(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState);
 
     static uint32_t getNbPorts() { return _uiNbPorts; }
 
@@ -79,60 +79,138 @@ public:
     //
     // Port helpers
     //
-    static const char* getPortName(uint32_t uiPortIndex) { return _apcAudioPorts[uiPortIndex].acPortName; }
-    static uint32_t getPortId(uint32_t uiPortIndex) { return _apcAudioPorts[uiPortIndex].uiPortId; }
+    static const char* getPortName(int uiPortIndex) {
+        return _acPorts[uiPortIndex];
+    }
+
+    static uint32_t getPortId(uint32_t uiPortIndex) { return (uint32_t)1 << uiPortIndex; }
 
     //
     // Port group helpers
     //
-    static const char* getPortGroupName(uint32_t uiPortGroupIndex) { return _astrPortGroups[uiPortGroupIndex].acPortGroupName; }
-    static uint32_t getPortGroupNbPorts(uint32_t uiPortGroupIndex) { return _astrPortGroups[uiPortGroupIndex].uiNbPort; }
-    static uint32_t getPortsUsedByPortGroup(uint32_t uiPortGroupIndex) { return _astrPortGroups[uiPortGroupIndex].auiPortsIdList; }
+    static uint32_t getPortsUsedByPortGroup(uint32_t uiPortGroupIndex) {
+
+        std::string srtPorts(_astAudioRoutes[uiPortGroupIndex].pcPortsUsed);
+        uint32_t uiPorts = 0;
+        Tokenizer tokenizer(srtPorts, ",");
+        std::vector<std::string> astrItems = tokenizer.split();
+
+        uint32_t i;
+        for (i = 0; i < astrItems.size(); i++) {
+
+            uiPorts |= getPortIndexByName(astrItems[i]);
+        }
+        LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
+        return uiPorts;
+    }
 
     //
     // Route helpers
     //
-    static const char* getRouteName(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].pcRouteName; }
-    static uint32_t getRouteId(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiRouteId; }
-    static uint32_t getRouteType(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiRouteType; }
-    static uint32_t getPortsUsedByRoute(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].port_used; }
-    static uint32_t getRouteApplicableDevices(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].auiApplicableDevices[bIsOut]; }
-    static uint32_t getRouteApplicableFlags(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].uiApplicableFlags[bIsOut]; }
-    static uint32_t getRouteApplicableModes(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].uiApplicableModes[bIsOut]; }
-    static const char* getRouteCardName(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].pcCardName; }
-    static int32_t getRouteDeviceId(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].aiDeviceId[bIsOut]; }
-    static const pcm_config& getRoutePcmConfig(int iRouteIndex, bool bIsOut) { return _astrAudioRoutes[iRouteIndex].astrPcmConfig[bIsOut]; }
-    static uint32_t getSlaveRoutes(int iRouteIndex) { return _astrAudioRoutes[iRouteIndex].uiSlaveRoutes; }
+    static std::string getRouteName(int iRouteIndex) {
+        return _astAudioRoutes[iRouteIndex].pcRouteName;
+    }
+    static uint32_t getRouteId(int iRouteIndex) {
+        return (uint32_t)1 << iRouteIndex;
+    }
+    static uint32_t getRouteType(int iRouteIndex) {
+        return _astAudioRoutes[iRouteIndex].uiRouteType;
+    }
+    static uint32_t getPortsUsedByRoute(int iRouteIndex) {
+
+        std::string srtPorts(_astAudioRoutes[iRouteIndex].pcPortsUsed);
+        uint32_t uiPorts = 0;
+        Tokenizer tokenizer(srtPorts, ",");
+        std::vector<std::string> astrItems = tokenizer.split();
+
+        uint32_t i;
+        for (i = 0; i < astrItems.size(); i++) {
+
+            uiPorts |= getPortIndexByName(astrItems[i].c_str());
+        }
+        LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
+        return uiPorts;
+    }
+    static uint32_t getRouteApplicableDevices(int iRouteIndex, bool bIsOut) {
+        return _astAudioRoutes[iRouteIndex].auiApplicableDevices[bIsOut];
+    }
+    static uint32_t getRouteApplicableFlags(int iRouteIndex, bool bIsOut) {
+        return _astAudioRoutes[iRouteIndex].uiApplicableFlags[bIsOut];
+    }
+    static uint32_t getRouteApplicableModes(int iRouteIndex, bool bIsOut) {
+        return _astAudioRoutes[iRouteIndex].uiApplicableModes[bIsOut];
+    }
+    static const char* getRouteCardName(int iRouteIndex) {
+        return _astAudioRoutes[iRouteIndex].pcCardName;
+    }
+    static int32_t getRouteDeviceId(int iRouteIndex, bool bIsOut) {
+        return _astAudioRoutes[iRouteIndex].aiDeviceId[bIsOut];
+    }
+    static const pcm_config& getRoutePcmConfig(int iRouteIndex, bool bIsOut) {
+        return _astAudioRoutes[iRouteIndex].astPcmConfig[bIsOut];
+    }
+    static uint32_t getSlaveRoutes(int iRouteIndex) {
+
+        std::string srtSlaveRoutes(_astAudioRoutes[iRouteIndex].pcSlaveRoutes);
+        uint32_t uiSlaves = 0;
+        Tokenizer tokenizer(srtSlaveRoutes, ",");
+        std::vector<std::string> astrItems = tokenizer.split();
+
+        uint32_t i;
+        for (i = 0; i < astrItems.size(); i++) {
+
+            uiSlaves |= getRouteIndexByName(astrItems[i]);
+        }
+        LOGD("%s acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtSlaveRoutes.c_str(), uiSlaves);
+        return uiSlaves;
+    }
+
+    static uint32_t getRouteIndexByName(const std::string& strRouteName) {
+
+        uint32_t index;
+        for (index = 0; index < getNbRoutes(); index++) {
+
+            std::string strRouteAtIndexName(_astAudioRoutes[index].pcRouteName);
+            if (strRouteName == strRouteAtIndexName) {
+
+                return 1 << index;
+            }
+        }
+        return 0;
+    }
+
+    static uint32_t getPortIndexByName(const std::string& strPortName) {
+
+        uint32_t index;
+        for (index = 0; index < getNbPorts(); index++) {
+
+            std::string strPortAtIndexName(_acPorts[index]);
+            if (strPortName == strPortAtIndexName) {
+
+                return 1 << index;
+            }
+        }
+        return 0;
+    }
 
     // Property name indicating time to write silence before first write
     static const char* CODEC_DELAY_PROP_NAME;
 
 private:
 
-    struct s_port_t {
-        uint32_t uiPortId;
-        const char* acPortName;
-    };
-
-    struct s_port_group_t {
-        const char* acPortGroupName;
-        const int uiNbPort;
-        uint32_t auiPortsIdList; // Bitfield
-    };
-
     struct s_route_t {
-        const char* pcRouteName;
-        uint32_t uiRouteId;
+
+        const string pcRouteName;
         CAudioRoute::RouteType uiRouteType;
-        uint32_t port_used;                         // bit field
-        uint32_t auiApplicableDevices[2];           // bit field
-        uint32_t uiApplicableFlags[2];              // bit field (For Input: InputSource, for output: OutputFlags
-        uint32_t uiApplicableModes[2];              // bit field
-        uint32_t uiApplicableStates[2];             // bit field
+        const char* pcPortsUsed;                         // separated coma literal list of ports
+        uint32_t auiApplicableDevices[CUtils::ENbDirections];           // bit field
+        uint32_t uiApplicableFlags[CUtils::ENbDirections];              // bit field (For Input: InputSource, for output: OutputFlags
+        uint32_t uiApplicableModes[CUtils::ENbDirections];              // bit field
+        uint32_t uiApplicableStates[CUtils::ENbDirections];             // bit field
         const char* pcCardName;
-        int32_t aiDeviceId[2];
-        pcm_config astrPcmConfig[2];
-        uint32_t uiSlaveRoutes;                     // bit field (slave routes used by this route)
+        int32_t aiDeviceId[CUtils::ENbDirections];
+        pcm_config astPcmConfig[CUtils::ENbDirections];
+        const char* pcSlaveRoutes;                  // separated coma literal list of routes
     };
 
     static const uint32_t _uiNbPorts;
@@ -141,13 +219,11 @@ private:
 
     static const uint32_t _uiNbRoutes;
 
-    static const s_port_t _apcAudioPorts[];//_uiNbPorts];
+    static const char* const _acPorts[];
 
-    static const int _gstrNbPortByGroup[];//_uiNbPortGroups];
+    static const char* const _acPortGroups[];
 
-    static const s_port_group_t _astrPortGroups[];//_uiNbPortGroups];
-
-    static const s_route_t _astrAudioRoutes[];//_uiNbRoutes];
+    static const s_route_t _astAudioRoutes[];
 };
 };        // namespace android
 

@@ -1,6 +1,6 @@
-/* AudioReformatter.cpp
+/*
  **
- ** Copyright 2012 Intel Corporation
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -19,19 +19,15 @@
 #undef LOG_TAG
 #endif
 #define LOG_TAG "AudioReformatter"
-//#define LOG_NDEBUG 0
 
-#include <stdlib.h>
-#include <string.h>
 #include <cutils/log.h>
-
 #include "AudioReformatter.h"
 
 #define base CAudioConverter
 
-namespace android_audio_legacy{
+using namespace android;
 
-// ----------------------------------------------------------------------------
+namespace android_audio_legacy{
 
 CAudioReformatter::CAudioReformatter(SampleSpecItem eSampleSpecItem) :
     base(eSampleSpecItem)
@@ -48,11 +44,11 @@ status_t CAudioReformatter::doConfigure(const CSampleSpec& ssSrc, const CSampleS
 
     if (ssSrc.getFormat() == AUDIO_FORMAT_PCM_16_BIT && ssDst.getFormat() == AUDIO_FORMAT_PCM_8_24_BIT) {
 
-        _pfnConvertSamples = (ConvertSamples)(&CAudioReformatter::convertS16toS24over32);
+        _pfnConvertSamples = (SampleConverter)(&CAudioReformatter::convertS16toS24over32);
 
     } else if (ssSrc.getFormat() == AUDIO_FORMAT_PCM_8_24_BIT && ssDst.getFormat() == AUDIO_FORMAT_PCM_16_BIT) {
 
-        _pfnConvertSamples = (ConvertSamples)(&CAudioReformatter::convertS24over32toS16);
+        _pfnConvertSamples = (SampleConverter)(&CAudioReformatter::convertS24over32toS16);
 
     } else {
 
@@ -62,7 +58,7 @@ status_t CAudioReformatter::doConfigure(const CSampleSpec& ssSrc, const CSampleS
     return NO_ERROR;
 }
 
-status_t CAudioReformatter::convertS16toS24over32(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
+status_t CAudioReformatter::convertS16toS24over32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
 {
     uint32_t i;
     const int16_t *src16 = (const int16_t *)src;
@@ -79,7 +75,7 @@ status_t CAudioReformatter::convertS16toS24over32(const void *src, void *dst, co
     return NO_ERROR;
 }
 
-status_t CAudioReformatter::convertS24over32toS16(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
+status_t CAudioReformatter::convertS24over32toS16(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
 {
     const uint32_t *src32 = (const uint32_t *)src;
     int16_t *dst16 = (int16_t *)dst;
@@ -97,5 +93,4 @@ status_t CAudioReformatter::convertS24over32toS16(const void *src, void *dst, co
     return NO_ERROR;
 }
 
-// ----------------------------------------------------------------------------
 }; // namespace android

@@ -15,14 +15,6 @@
  ** limitations under the License.
  */
 
-#include <errno.h>
-#include <stdarg.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <dlfcn.h>
-
 #include <utils/Log.h>
 #ifdef LOG_TAG
 #undef LOG_TAG
@@ -34,6 +26,8 @@
 #include <cutils/properties.h>
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
+
+#include <tinyalsa/asoundlib.h>
 
 #include "AudioStreamOutALSA.h"
 #include "AudioAutoRoutingLock.h"
@@ -48,7 +42,7 @@ namespace android_audio_legacy
 const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
 const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
 const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
-const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
+const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 2;
 const uint32_t AudioStreamOutALSA ::USEC_PER_MSEC = 1000;
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
@@ -64,18 +58,17 @@ AudioStreamOutALSA::~AudioStreamOutALSA()
 
 uint32_t AudioStreamOutALSA::channels() const
 {
-    int c = ALSAStreamOps::channels();
-    return c;
+    return ALSAStreamOps::channels();
 }
 
-status_t AudioStreamOutALSA::setVolume(float left, float right)
+status_t AudioStreamOutALSA::setVolume(float __UNUSED left, float __UNUSED right)
 {
     return NO_ERROR;
 }
 
 size_t AudioStreamOutALSA::generateSilence(size_t bytes)
 {
-    ALOGD("%s: on alsa device(0x%x)", __FUNCTION__, getCurrentDevice());
+    ALOGD("%s: on alsa device(0x%x)", __FUNCTION__, getCurrentDevices());
 
     usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
     mStandby = false;
@@ -84,8 +77,6 @@ size_t AudioStreamOutALSA::generateSilence(size_t bytes)
 
 ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
-    acquirePowerLock();
-
     setStandby(false);
 
     CAudioAutoRoutingLock lock(mParent);
@@ -96,23 +87,14 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
         return generateSilence(bytes);
     }
 
-    assert(mHandle->handle);
-
-    acoustic_device_t *aDev = acoustics();
-
-    // For output, we will pass the data on to the acoustics module, but the actual
-    // data is expected to be sent to the audio device directly as well.
-    if (aDev && aDev->write)
-        aDev->write(aDev, buffer, bytes);
-
+    LOG_ALWAYS_FATAL_IF(mHandle == NULL);
 
     ssize_t srcFrames = mSampleSpec.convertBytesToFrames(bytes);
     size_t dstFrames = 0;
-    char *srcBuf = (char* )buffer;
     char *dstBuf = NULL;
     status_t status;
 
-    status = applyAudioConversion(srcBuf, (void**)&dstBuf, srcFrames, &dstFrames);
+    status = applyAudioConversion(buffer, (void**)&dstBuf, srcFrames, &dstFrames);
 
     if (status != NO_ERROR) {
 
@@ -124,7 +106,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
     if (ret < 0) {
 
-
         if (ret != -EPIPE) {
 
             // Returns asap to catch up the broken pipe error else, trash the audio data
@@ -134,23 +115,24 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
         return ret;
     }
-    ALOGV("%s: returns %lu", __FUNCTION__, CAudioUtils::convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec));
+    ALOGV("%s: returns %lu", __FUNCTION__,
+          CAudioUtils::convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec));
     return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec));
 }
 
 ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
 {
-    int ret = 0;
+    int ret;
 
-    ret = pcm_write(mHandle->handle,
+    ret = pcm_write(mHandle,
                   (char *)buffer,
-                  pcm_frames_to_bytes(mHandle->handle, frames ));
+                  pcm_frames_to_bytes(mHandle, frames ));
 
-    ALOGV("%s gustave %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle->handle, frames));
+    ALOGV("%s %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
 
     if (ret) {
 
-        ALOGE("%s: write error: %s", __FUNCTION__, pcm_get_error(mHandle->handle));
+        ALOGE("%s: write error: %s", __FUNCTION__, pcm_get_error(mHandle));
         return ret;
     }
 
@@ -162,7 +144,7 @@ status_t AudioStreamOutALSA::dump(int , const Vector<String16>& )
     return NO_ERROR;
 }
 
-status_t AudioStreamOutALSA::open(int mode)
+status_t AudioStreamOutALSA::open(int __UNUSED mode)
 {
     return setStandby(false);
 }
@@ -170,16 +152,16 @@ status_t AudioStreamOutALSA::open(int mode)
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamOutALSA::route()
+status_t AudioStreamOutALSA::attachRoute()
 {
-    status_t status = base::route();
+    status_t status = base::attachRoute();
     if (status != NO_ERROR) {
 
         return status;
     }
 
     // Need to generate silence?
-    assert(getCurrentRoute() && mHandle->handle);
+    LOG_ALWAYS_FATAL_IF(getCurrentRoute() == NULL || mHandle == NULL);
 
     uint32_t uiSilenceMs = getCurrentRoute()->getOutputSilencePrologMs();
     if (uiSilenceMs) {
@@ -192,7 +174,7 @@ status_t AudioStreamOutALSA::route()
         uint32_t uiMsCount;
         for (uiMsCount = 0; uiMsCount < uiSilenceMs; uiMsCount++) {
 
-            pcm_write(mHandle->handle,
+            pcm_write(mHandle,
                           (const char*)pSilenceBuffer,
                           uiBufferSize);
         }
@@ -209,13 +191,9 @@ status_t AudioStreamOutALSA::close()
 
 status_t AudioStreamOutALSA::standby()
 {
-    LOGD("%s", __FUNCTION__);
-
-    status_t status = setStandby(true);
-
     mFrameCount = 0;
 
-    return status;
+    return setStandby(true);
 }
 
 uint32_t AudioStreamOutALSA::latency() const

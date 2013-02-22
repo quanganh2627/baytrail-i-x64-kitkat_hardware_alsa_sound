@@ -1,3 +1,18 @@
+/*
+ ** Copyright 2013 Intel Corporation
+ **
+ ** Licensed under the Apache License, Version 2.0 (the "License");
+ ** you may not use this file except in compliance with the License.
+ ** You may obtain a copy of the License at
+ **
+ **      http://www.apache.org/licenses/LICENSE-2.0
+ **
+ ** Unless required by applicable law or agreed to in writing, software
+ ** distributed under the License is distributed on an "AS IS" BASIS,
+ ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ** See the License for the specific language governing permissions and
+ ** limitations under the License.
+ */
 #include <utils/Log.h>
 #include <utils/String8.h>
 #include <utils/Errors.h>
@@ -5,11 +20,13 @@
 
 #include "AudioParameterHandler.h"
 
+using namespace android;
+
 namespace android_audio_legacy
 {
 
-static const char kFilePath[] = "/mnt/asec/media/audio_param.dat";
-static const int kReadBufSize = 500;
+const char CAudioParameterHandler::FILE_PATH[] = "/mnt/asec/media/audio_param.dat";
+const int CAudioParameterHandler::READ_BUF_SIZE = 500;
 
 CAudioParameterHandler::CAudioParameterHandler()
 {
@@ -20,11 +37,7 @@ status_t CAudioParameterHandler::saveParameters(const String8& keyValuePairs)
 {
     add(keyValuePairs);
 
-    if (save() != NO_ERROR) {
-
-        return UNKNOWN_ERROR;
-    }
-    return NO_ERROR;
+    return save();
 }
 
 void CAudioParameterHandler::add(const String8& keyValuePairs)
@@ -46,15 +59,21 @@ void CAudioParameterHandler::add(const String8& keyValuePairs)
 
 status_t CAudioParameterHandler::save()
 {
-    FILE *fp = fopen(kFilePath, "w+");
-    if(!fp){
+    FILE *fp = fopen(FILE_PATH, "w+");
+    if (!fp) {
 
+        ALOGE("%s: error %s", __FUNCTION__, strerror(errno));
         return UNKNOWN_ERROR;
     }
 
     String8 param = mAudioParameter.toString();
 
-    fwrite(param.string(), sizeof(char), param.length(), fp);
+    if (fwrite(param.string(), sizeof(char), param.length(), fp) != param.length()) {
+
+        ALOGE("%s: write failed with error %s", __FUNCTION__, strerror(errno));
+        fclose(fp);
+        return UNKNOWN_ERROR;
+    }
 
     fclose(fp);
     return NO_ERROR;
@@ -62,20 +81,21 @@ status_t CAudioParameterHandler::save()
 
 status_t CAudioParameterHandler::restore()
 {
-    FILE *fp = fopen(kFilePath, "r");
+    FILE *fp = fopen(FILE_PATH, "r");
     if (!fp) {
 
+        ALOGE("%s: error %s", __FUNCTION__, strerror(errno));
         return UNKNOWN_ERROR;
     }
-    char str[kReadBufSize];
-    int readSize = fread(str, sizeof(char), kReadBufSize - 1, fp);
+    char str[READ_BUF_SIZE];
+    int readSize = fread(str, sizeof(char), READ_BUF_SIZE - 1, fp);
 
     if (readSize < 0) {
 
+        ALOGE("%s: read failed with error %s", __FUNCTION__, strerror(errno));
         fclose(fp);
         return UNKNOWN_ERROR;
     }
-    // 0 terminate
     str[readSize] = '\0';
     fclose(fp);
 

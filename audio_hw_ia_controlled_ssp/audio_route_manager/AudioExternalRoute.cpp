@@ -1,6 +1,5 @@
-/* AudioExternalRoute.cpp
- **
- ** Copyright 2012 Intel Corporation
+/*
+ ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -20,8 +19,6 @@
 #include "AudioExternalRoute.h"
 #include "AudioPlatformState.h"
 
-#define base    CAudioRoute
-
 namespace android_audio_legacy
 {
 //
@@ -35,11 +32,7 @@ namespace android_audio_legacy
 //
 bool CAudioExternalRoute::needReconfiguration(bool bIsOut) const
 {
-    if (base::needReconfiguration(bIsOut) && _pPlatformState->hasPlatformStateChanged()) {
-
-        return true;
-    }
-    return false;
+   return CAudioRoute::needReconfiguration(bIsOut) && _pPlatformState->hasPlatformStateChanged();
 }
 
 }       // namespace android
