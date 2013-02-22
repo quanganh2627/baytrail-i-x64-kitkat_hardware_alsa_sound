@@ -38,8 +38,8 @@ public:
 
     // Set the device availability depending on its connection state
     virtual status_t setDeviceConnectionState(AudioSystem::audio_devices device,
-                                     AudioSystem::device_connection_state state,
-                                     const char *device_address);
+                                              AudioSystem::device_connection_state state,
+                                              const char *device_address);
 
     virtual status_t startOutput(audio_io_handle_t output,
                                  AudioSystem::stream_type stream,
@@ -59,12 +59,27 @@ public:
                                           audio_devices_t device);
 
     virtual float computeVolume(int stream,
-                                                        int index,
-                                                        audio_io_handle_t output,
-                                                        audio_devices_t device);
+                                int index,
+                                audio_devices_t device);
 
     virtual audio_devices_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
+
  private:
+    // Is voice volume applied after mixing while in mode IN_COMM ?
+    bool mVoiceVolumeAppliedAfterMixInComm;
+    // Is voice volume applied after mixing while in mode IN_CALL ?
+    bool mVoiceVolumeAppliedAfterMixInCall;
+    // Music attenuation in dB while in call (csv or voip)
+    float mInCallMusicAttenuation_dB;
+
+    /// audio_policy.conf file custom properies
+    //  Is voice volume applied after mixing while in mode IN_COMM ?
+    static const String8 mVoiceVolumeAppliedAfterMixInCommPropName;
+    // Is voice volume applied after mixing while in mode IN_CALL ?
+    static const String8 mVoiceVolumeAppliedAfterMixInCallPropName;
+    // Music attenuation in dB while in call (csv or voip)
+    static const String8 mInCallMusicAttenuation_dBPropName;
+
     // true if current platform implements a back microphone
     inline bool hasBackMicrophone() const { return mAvailableInputDevices & AudioSystem::DEVICE_IN_BACK_MIC; }
     // true if current platform implements an earpiece
