@@ -657,6 +657,19 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
+
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - output devices did not change
+        return CAudioRoute::needReconfiguration(bIsOut) &&
+                _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange |
+                                                         CAudioPlatformState::EInputDevicesChange |
+                                                         CAudioPlatformState::EHacModeChange |
+                                                         CAudioPlatformState::ETtyDirectionChange |
+                                                         CAudioPlatformState::EBandTypeChange |
+                                                         CAudioPlatformState::EInputDevicesChange);
+    }
 };
 
 class CAudioExternalRouteBtCSV : public CAudioExternalRoute
@@ -680,6 +693,20 @@ public:
             return willBeUsed(CUtils::EOutput);
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+    }
+
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - output devices did not change
+        return CAudioRoute::needReconfiguration(bIsOut) &&
+                _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange |
+                                                         CAudioPlatformState::EInputDevicesChange |
+                                                         CAudioPlatformState::EHacModeChange |
+                                                         CAudioPlatformState::ETtyDirectionChange |
+                                                         CAudioPlatformState::EBandTypeChange |
+                                                         CAudioPlatformState::EInputDevicesChange |
+                                                         CAudioPlatformState::EBtHeadsetNrEcChange);
     }
 };
 
