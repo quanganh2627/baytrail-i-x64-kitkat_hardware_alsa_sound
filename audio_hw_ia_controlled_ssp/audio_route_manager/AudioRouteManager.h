@@ -270,6 +270,8 @@ private:
 
     static const char* const MODEM_LIB_PROP_NAME;
 
+    static const uint32_t VOIP_RATE_FOR_NARROW_BAND_PROCESSING;
+
     // Indicate if platform supports FM Radio
     bool _bFmSupported;
 

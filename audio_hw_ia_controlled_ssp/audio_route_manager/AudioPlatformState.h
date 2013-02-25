@@ -196,9 +196,26 @@ public:
     // Set devices
     void setInputSource(uint32_t inputSource);
 
-    void setBandType(CAudioBand::Type eBandType);
 
-    CAudioBand::Type getBandType() { return _eBandType; }
+    /**
+      * Set the Band Type.
+      * Band Type may come from either the modem (CSV) or from the stream (VoIP).
+      *
+      * @param[in] eBandType: the band to set
+      * @param[in] iForMode: mode to identify the source of the band change
+      *
+      */
+    void setBandType(CAudioBand::Type eBandType, int iForMode);
+
+    /**
+      * Get the Band Type.
+      * Band Type is unique and depending on the use case (telephony mode)
+      * it may return from either the modem (CSV) or from the stream (VoIP) band
+      *
+      * @return Band of the active voice use case, default is CSV band
+      *
+      */
+    CAudioBand::Type getBandType() const;
 
     void setScreenState(bool _bScreenOn);
 
@@ -264,7 +281,8 @@ private:
     // Hw Mode: translate the use case, indeed it implies the audio route to follow
     int32_t _iHwMode;
 
-    CAudioBand::Type _eBandType;
+    CAudioBand::Type _eCsvBandType;
+    CAudioBand::Type _eVoipBandType;
 
     // Glitch safe flag for the shared I2S bus
     bool _bIsSharedI2SGlitchSafe;

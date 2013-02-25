@@ -41,7 +41,8 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _uiInputSource(0),
     _uiDirectStreamsRefCount(0),
     _iHwMode(AudioSystem::MODE_NORMAL),
-    _eBandType(CAudioBand::ENarrow),
+    _eCsvBandType(CAudioBand::ENarrow),
+    _eVoipBandType(CAudioBand::ENarrow),
     _bIsSharedI2SGlitchSafe(false),
     _bScreenOn(true),
     _uiPlatformEventChanged(false),
@@ -254,13 +255,29 @@ void CAudioPlatformState::setInputSource(uint32_t inputSource)
     setPlatformStateEvent(EInputSourceChange);
 }
 
-void CAudioPlatformState::setBandType(CAudioBand::Type eBandType)
+CAudioBand::Type CAudioPlatformState::getBandType() const
 {
-    if (_eBandType == eBandType) {
+    return getHwMode() == AudioSystem::MODE_IN_COMMUNICATION ? _eVoipBandType : _eCsvBandType ;
+}
+
+void CAudioPlatformState::setBandType(CAudioBand::Type eBandType, int iForMode)
+{
+    CAudioBand::Type ePreviousBandType = getBandType();
+    if (iForMode == AudioSystem::MODE_IN_COMMUNICATION) {
+
+        _eVoipBandType = eBandType;
+    } else if (iForMode == AudioSystem::MODE_IN_CALL) {
+
+        _eCsvBandType = eBandType;
+    } else {
 
         return ;
     }
-    _eBandType = eBandType;
+
+    if (ePreviousBandType == getBandType()) {
+
+        return ;
+    }
     setPlatformStateEvent(EBandTypeChange);
 }
 
