@@ -275,10 +275,20 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
     ALOGV("setStreamVolumeIndex() stream %d, device %04x, index %d",
           stream, device, index);
 
+    bool forceSetVolume = false;
+
     // if device is AUDIO_DEVICE_OUT_DEFAULT set default value and
     // clear all device specific values
     if (device == AUDIO_DEVICE_OUT_DEFAULT) {
         mStreams[stream].mIndexCur.clear();
+
+        // force volume setting at media server starting
+        // (i.e. when device == AUDIO_DEVICE_OUT_DEFAULT)
+        //
+        // If the volume is not set at media server starting then it is applied at
+        // next applyStreamVolumes() call, for example during media playback,
+        // which can lead to performance issue.
+        forceSetVolume = true;
     }
     mStreams[stream].mIndexCur.add(device, index);
 
@@ -287,7 +297,8 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
     for (size_t i = 0; i < mOutputs.size(); i++) {
         audio_devices_t curDevice =
                 getDeviceForVolume((audio_devices_t)mOutputs.valueAt(i)->device());
-        if (device == curDevice) {
+
+        if ((device == curDevice) || forceSetVolume) {
             status_t volStatus = checkAndSetVolume(stream, index, mOutputs.keyAt(i), curDevice);
             if (volStatus != NO_ERROR) {
                 status = volStatus;
