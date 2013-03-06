@@ -46,6 +46,9 @@ namespace android_audio_legacy
 
 #define DEVICE_IN_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET)
 
+#define DEVICE_BLUETOOTH_SCO_ALL(bIsOut) (bIsOut ? DEVICE_OUT_BLUETOOTH_SCO_ALL : \
+                                                   DEVICE_IN_BLUETOOTH_SCO_ALL)
+
 #define NOT_APPLICABLE  (0)
 
 //extern "C" static const pcm_config pcm_config_not_applicable;

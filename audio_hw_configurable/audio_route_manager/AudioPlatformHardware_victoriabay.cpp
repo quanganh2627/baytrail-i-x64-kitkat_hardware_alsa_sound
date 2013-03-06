@@ -413,7 +413,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
-        ""
+        "HwCodecCSV,HwCodecComm"
     },
     //
     // FM route
@@ -520,7 +520,7 @@ private:
 class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 {
 public:
-    CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+    CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
@@ -529,6 +529,11 @@ public:
         if (!_pPlatformState->isSharedI2SBusAvailable()) {
 
             return false;
+        }
+        // This case cannot be handled through the route structure
+        if ((iMode == AudioSystem::MODE_NORMAL) && (uidevices & DEVICE_BLUETOOTH_SCO_ALL(bIsOut))) {
+
+            return true;
         }
         return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
@@ -556,7 +561,7 @@ public:
 class CAudioExternalRouteHwCodecBt : public CAudioExternalRoute
 {
 public:
-    CAudioExternalRouteHwCodecBt(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+    CAudioExternalRouteHwCodecBt(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
 
@@ -572,7 +577,7 @@ public:
 
         // BT module must be on and as the BT is on the shared I2S bus
         // the share bus must be available
-        if (!_pPlatformState->isBtEnabled() || !_pPlatformState->isSharedI2SBusAvailable()) {
+        if (!_pPlatformState->isBtEnabled()) {
 
             return false;
         }
