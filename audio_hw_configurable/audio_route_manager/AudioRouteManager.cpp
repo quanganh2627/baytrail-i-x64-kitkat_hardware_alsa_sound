@@ -1853,7 +1853,7 @@ bool CAudioRouteManager::onHangup(int __UNUSED iFd)
 //
 // Worker thread context
 //
-void CAudioRouteManager::onTimeout()
+void CAudioRouteManager::onAlarm()
 {
     ALOGD("%s", __FUNCTION__);
 }
