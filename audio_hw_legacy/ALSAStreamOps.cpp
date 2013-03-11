@@ -51,9 +51,9 @@ namespace android_audio_legacy
 
 // ----------------------------------------------------------------------------
 
-static const char* heasetPmDownDelaySysFile = "//sys//devices//platform//msic_audio//Medfield Headset//pmdown_time";
-static const char* speakerPmDownDelaySysFile = "//sys//devices//platform//msic_audio//Medfield Speaker//pmdown_time";
-static const char* voicePmDownDelaySysFile = "//sys//devices//platform//msic_audio//Medfield Voice//pmdown_time";
+static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Headset//pmdown_time";
+static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
+static const char* voicePmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Voice//pmdown_time";
 
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, alsa_handle_t *handle, const char* pcLockTag) :
     mParent(parent),
