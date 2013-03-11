@@ -74,7 +74,7 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
     };
 
     enum EventType {
-        EUpdateModemAudioBand = 0,
+        EUpdateModemAudioBand,
         EUpdateModemState,
         EUpdateModemAudioStatus,
         EUpdateRouting
@@ -269,6 +269,8 @@ private:
     static const char* const gapcDefaultFmRxMaxVolume[FM_RX_NB_DEVICE];
 
     static const char* const MODEM_LIB_PROP_NAME;
+
+    static const uint32_t VOIP_RATE_FOR_NARROW_BAND_PROCESSING;
 
     // Indicate if platform supports FM Radio
     bool _bFmSupported;

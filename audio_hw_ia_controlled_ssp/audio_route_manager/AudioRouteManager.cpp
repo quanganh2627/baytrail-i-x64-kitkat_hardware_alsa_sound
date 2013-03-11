@@ -56,6 +56,8 @@ const uint32_t CAudioRouteManager::_uiTimeoutSec = 2;
 
 const char* const CAudioRouteManager::gpcVoiceVolume = "/Audio/IMC/SOUND_CARD/PORTS/I2S1/TX/VOLUME/LEVEL";
 
+const uint32_t CAudioRouteManager::VOIP_RATE_FOR_NARROW_BAND_PROCESSING = 8000;
+
 /// PFW related definitions
 // Logger
 class CParameterMgrPlatformConnectorLogger : public CParameterMgrPlatformConnector::ILogger
@@ -512,7 +514,7 @@ void CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
 
     if (!bIsSynchronous) {
 
-        // Trig the processing of the list
+        // Trigs the processing of the list
         _pEventThread->trig();
 
     } else {
@@ -1090,6 +1092,17 @@ void CAudioRouteManager::setInputSource(ALSAStreamOps* pStream, int iInputSource
     ALOGD("%s: inputSource = %s", __FUNCTION__,
           _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(iInputSource).c_str());
     _pPlatformState->setInputSource(iInputSource);
+
+    if (iInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+
+        CAudioBand::Type eBand = CAudioBand::EWide;
+        if (pStream->sampleRate() == VOIP_RATE_FOR_NARROW_BAND_PROCESSING) {
+
+            eBand = CAudioBand::ENarrow;
+
+        }
+        _pPlatformState->setBandType(eBand, AudioSystem::MODE_IN_COMMUNICATION);
+    }
 }
 
 void CAudioRouteManager::setStreamFlags(android_audio_legacy::ALSAStreamOps *pStream, uint32_t uiFlags)
@@ -1734,7 +1747,7 @@ void CAudioRouteManager::startModemAudioManager()
     // Modem audio availability
     _pPlatformState->setModemAudioAvailable(_pModemAudioManagerInterface->isModemAudioAvailable());
     // Modem band
-    _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand());
+    _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand(), AudioSystem::MODE_IN_CALL);
 
     ALOGE("%s: success", __FUNCTION__);
 }
@@ -1826,7 +1839,7 @@ bool CAudioRouteManager::onProcess(uint16_t __UNUSED uiEvent)
 
         ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to Modem Band change", __FUNCTION__);
         // Update the platform state
-        _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand());
+        _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand(), AudioSystem::MODE_IN_CALL);
         break;
 
     case EUpdateModemState:
