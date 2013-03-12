@@ -575,6 +575,10 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -Platform Screen State = %s %s", __FUNCTION__,
              _apCriteriaTypeInterface[EScreenStateCriteriaType]->getFormattedState(_pPlatformState->isScreenOn()).c_str(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange),
+             "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
+             _apCriteriaTypeInterface[EContextAwarenessCriteriaType]->getFormattedState(_pPlatformState->isContextAwarenessEnabled()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
 
     if (bRoutesWillChange) {
 
@@ -942,6 +946,29 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         }
 
         _pPlatformState->setScreenState(bIsScreenOn);
+    }
+
+    // Search context awareness parameter
+    String8 strContextAwarenessStatus;
+    key = String8(AUDIO_PARAMETER_KEY_CONTEXT_AWARENESS_STATUS);
+    status = param.get(key, strContextAwarenessStatus);
+
+    // get context awareness status
+    if (status == NO_ERROR) {
+        bool bContextAwarenessEnabled = false;
+        if(strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_ON) {
+            LOGV("Context awareness is turned on");
+            bContextAwarenessEnabled = true;
+        }
+        else if(strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_OFF) {
+            LOGV("Context awareness is turned off");
+            bContextAwarenessEnabled = false;
+        }
+
+        _pPlatformState->setContextAwarenessStatus(bContextAwarenessEnabled);
+
+        // Remove parameter
+        param.remove(key);
     }
 
     // Reconsider the routing now

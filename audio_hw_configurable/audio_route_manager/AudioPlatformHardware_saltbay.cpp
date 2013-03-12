@@ -191,7 +191,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Media"
+        "ModemIA,Media,ContextAwareness"
     },
     //
     // HWCODEC 1 route
@@ -344,7 +344,50 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable
         },
         ""
-    }
+    },
+    ////////////////////////////////////////////////////////////////////////
+    //
+    // Virtual routes
+    //
+    ////////////////////////////////////////////////////////////////////////
+    //
+    // Context Awareness
+    //
+    {
+        "ContextAwareness",
+        CAudioRoute::EExternalRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            pcm_config_not_applicable,
+            pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
 };
 
 const uint32_t CAudioPlatformHardware::_uiNbPortGroups = sizeof(CAudioPlatformHardware::_acPortGroups) /
@@ -365,6 +408,10 @@ public:
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+        if (!bIsOut && _pPlatformState->isContextAwarenessEnabled()) {
+            //this route is always applicable in capture/context awareness mode
+            return true;
+        }
 
         if (!bIsOut && (iMode == AudioSystem::MODE_IN_CALL)) {
 
@@ -448,6 +495,19 @@ public:
     }
 };
 
+class CAudioVirtualRouteContextAwareness : public CAudioExternalRoute
+{
+public:
+    CAudioVirtualRouteContextAwareness(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioExternalRoute(uiRouteIndex, pPlatformState) {
+    }
+
+    virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut,
+                              uint32_t __UNUSED uiFlags = 0) const {
+        return !bIsOut && _pPlatformState->isContextAwarenessEnabled();
+    }
+};
+
 //
 // Once all deriavated class exception has been removed
 // replace this function by a generic route creator according to the route type
@@ -485,6 +545,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "VOICE") {
 
         return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "ContextAwareness") {
+
+        return new CAudioVirtualRouteContextAwareness(uiRouteIndex, pPlatformState);
 
     }
     ALOGE("%s: wrong route index=%d", __FUNCTION__, uiRouteIndex);

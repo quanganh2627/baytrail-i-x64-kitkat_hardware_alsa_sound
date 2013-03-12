@@ -86,6 +86,7 @@ public:
         SharedI2SStateChange,
         StreamEvent,
         ScreenStateChange,
+        ContextAwarenessStateChange,
 
         NbEvents
     };
@@ -107,7 +108,8 @@ public:
         ADD_EVENT(InputSourceChange),
         ADD_EVENT(SharedI2SStateChange),
         ADD_EVENT(StreamEvent),
-        ADD_EVENT(ScreenStateChange)
+        ADD_EVENT(ScreenStateChange),
+        ADD_EVENT(ContextAwarenessStateChange)
     };
 
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
@@ -181,6 +183,19 @@ public:
     // Set devices
     void setInputSource(uint32_t inputSource);
 
+    /**
+     * Set Context Awareness status
+     *
+     * @param[in] bEnabled if true, enables the context awareness feature
+     */
+    void setContextAwarenessStatus(bool bEnabled);
+
+    /**
+     * Get Context Awareness status
+     *
+     * @return true if the context awareness feature is enabled
+     */
+    bool isContextAwarenessEnabled() const { return _bIsContextAwarenessEnabled; }
 
     /**
       * Set the Band Type.
@@ -267,6 +282,9 @@ private:
 
     // Screen State
     bool _bScreenOn;
+
+    //Context Awareness status
+    bool _bIsContextAwarenessEnabled;
 
     uint32_t _uiPlatformEventChanged;
 
