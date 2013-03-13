@@ -216,18 +216,33 @@ private:
 
     struct s_route_t {
 
+        /**< Name of the route */
         const string pcRouteName;
+        /**< Type of the route, e.g. EExternalRoute */
         CAudioRoute::RouteType uiRouteType;
-        const char* pcPortsUsed;                         // separated coma literal list of ports
-        uint32_t auiApplicableDevices[CUtils::ENbDirections];           // bit field
-        uint32_t uiApplicableMask[CUtils::ENbDirections];               // bit field (For Input: InputSource, for output: OutputFlags
-        uint32_t uiApplicableModes[CUtils::ENbDirections];              // bit field
-        uint32_t uiApplicableStates[CUtils::ENbDirections];             // bit field
+        /**< I2S or codec port, e.g. IA_I2S1_PORT */
+        const char* pcPortsUsed;
+        /**< Bit field list - applicable devices per direction:  0 : EInput, 1 : EOutput */
+        uint32_t auiApplicableDevices[CUtils::ENbDirections];
+        /**< Bit field list - input sources (e.g. AUDIO_SOURCE_MIC) and
+           output flags (e.g. AUDIO_OUTPUT_FLAG_PRIMARY) */
+        uint32_t uiApplicableMask[CUtils::ENbDirections];
+        /**< Bit field list of applicable modes per direction: 0 : EInput, 1 : EOutput */
+        uint32_t uiApplicableModes[CUtils::ENbDirections];
+        /**< Bit field list of applicable states (e.g. EBtHeadsetNrEcChange)
+           per direction: 0 : EInput, 1 : EOutput */
+        uint32_t uiApplicableStates[CUtils::ENbDirections];
+        /**< Audio card name used by the route */
         const char* pcCardName;
+        /**< Device ID used by the route */
         int32_t aiDeviceId[CUtils::ENbDirections];
+        /**< Structure of the capture or uplink config and playback
+           or downlink config per direction: 0 : EInput, 1 : EOutput */
         pcm_config astPcmConfig[CUtils::ENbDirections];
+      /**< Channels policy used in case of remap operation , e.g. EAverage */
         CSampleSpec::ChannelsPolicy aChannelsPolicy[CUtils::ENbDirections][MAX_CHANNELS];
-        const char* pcSlaveRoutes;                  // separated coma literal list of routes
+        /**< Literal coma list separated of slave routes */
+        const char* pcSlaveRoutes;
     };
 
     static const uint32_t _uiNbPorts;
@@ -243,4 +258,3 @@ private:
     static const s_route_t _astAudioRoutes[];
 };
 };        // namespace android
-
