@@ -41,6 +41,7 @@ CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
 
        _stStreams[iDir].pCurrent = NULL;
        _stStreams[iDir].pNew = NULL;
+       _astPcmDevice[iDir] = NULL;
        _aiPcmDeviceId[iDir] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, iDir);
        _astPcmConfig[iDir] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, iDir);
        _acPowerLockTag[iDir] = POWER_LOCK_TAG[iDir];
