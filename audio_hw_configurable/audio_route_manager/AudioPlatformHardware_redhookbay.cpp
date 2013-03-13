@@ -239,6 +239,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_media_capture,
             pcm_config_media_playback
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
     {
@@ -270,6 +274,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_deep_media_playback
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
     {
@@ -300,6 +308,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     },
@@ -335,6 +347,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_mixing_capture,
             pcm_config_voice_mixing_playback,
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::EAverage, CSampleSpec::EIgnore }
+        },
         ""
     },
     {
@@ -366,6 +382,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_hwcodec_uplink,
             pcm_config_voice_hwcodec_downlink,
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
     {
@@ -396,6 +416,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_voice_bt_uplink,
             pcm_config_voice_bt_downlink,
+        },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
         },
         ""
     },
@@ -433,6 +457,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         "CompressedMedia,Media,DeepMedia"
     },
     {
@@ -463,6 +491,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     },
@@ -495,6 +527,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
     },
     {
@@ -526,6 +562,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
     },
     {
@@ -556,6 +596,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     }

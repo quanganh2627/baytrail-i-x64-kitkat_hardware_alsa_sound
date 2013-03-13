@@ -51,6 +51,8 @@ namespace android_audio_legacy
 
 #define NOT_APPLICABLE  (0)
 
+#define channel_policy_not_applicable {}
+
 //extern "C" static const pcm_config pcm_config_not_applicable;
 
 static const pcm_config pcm_config_not_applicable = {
@@ -199,7 +201,18 @@ public:
     // Property name indicating time to write silence before first write
     static const char* CODEC_DELAY_PROP_NAME;
 
+    static const vector<CSampleSpec::ChannelsPolicy> getChannelsPolicy(int iRouteIndex, bool bIsOut) {
+
+        std::vector<CSampleSpec::ChannelsPolicy> channelsPolicyVector(
+                    _astAudioRoutes[iRouteIndex].aChannelsPolicy[bIsOut],
+                    _astAudioRoutes[iRouteIndex].aChannelsPolicy[bIsOut] +
+                            getRoutePcmConfig(iRouteIndex, bIsOut).channels);
+
+        return channelsPolicyVector;
+    }
+
 private:
+    static const uint32_t MAX_CHANNELS = 32;
 
     struct s_route_t {
 
@@ -213,6 +226,7 @@ private:
         const char* pcCardName;
         int32_t aiDeviceId[CUtils::ENbDirections];
         pcm_config astPcmConfig[CUtils::ENbDirections];
+        CSampleSpec::ChannelsPolicy aChannelsPolicy[CUtils::ENbDirections][MAX_CHANNELS];
         const char* pcSlaveRoutes;                  // separated coma literal list of routes
     };
 

@@ -49,6 +49,7 @@ CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
        _routeSampleSpec[iDir].setFormat(CAudioUtils::convertTinyToHalFormat(_astPcmConfig[iDir].format));
        _routeSampleSpec[iDir].setSampleRate(_astPcmConfig[iDir].rate);
        _routeSampleSpec[iDir].setChannelCount(_astPcmConfig[iDir].channels);
+       _routeSampleSpec[iDir].setChannelsPolicy(CAudioPlatformHardware::getChannelsPolicy(uiRouteIndex, iDir));
     }
 }
 

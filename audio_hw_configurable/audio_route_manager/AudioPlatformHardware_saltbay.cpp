@@ -144,42 +144,12 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_media_capture,
             pcm_config_media_playback
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::EIgnore },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
-    //
-    // Voice Route
-    //
-//    {
-//        "VOICE",
-//        CAudioRoute::EStreamRoute,
-//          "",
-//        {
-//            DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
-//            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
-//        },
-//        {
-//            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) | (1 << AUDIO_SOURCE_VOICE_CALL),
-//            AUDIO_OUTPUT_FLAG_PRIMARY,
-//        },
-//        {
-//            (1 << AudioSystem::MODE_IN_CALL),
-//            (1 << AudioSystem::MODE_IN_CALL)
-//        },
-//        {
-//            NOT_APPLICABLE,
-//            NOT_APPLICABLE
-//        },
-//        VOICE_CARD_NAME,
-//        {
-//            VOICE_UPLINK_DEVICE_ID,
-//            VOICE_DOWNLINK_DEVICE_ID,
-//        },
-//        {
-//            pcm_config_voice_downlink,
-//            pcm_config_voice_uplink,
-//        },
-//        ""
-//    },
     ////////////////////////////////////////////////////////////////////////
     //
     // External routes
@@ -217,6 +187,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         "ModemIA,Media"
     },
     //
@@ -250,6 +224,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         "ModemIA,Media"
     },
@@ -285,6 +263,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
     },
     //
@@ -319,6 +301,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         "ModemIA,Media"
     },
     //
@@ -352,6 +338,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     }
