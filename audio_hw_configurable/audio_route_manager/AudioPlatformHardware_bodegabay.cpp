@@ -184,6 +184,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
     {
         "HWCODEC_OIA",
         CAudioRoute::EExternalRoute,
+        "",
         {
             DEVICE_IN_BUILTIN_ALL,
             DEVICE_OUT_MM_ALL
@@ -254,7 +255,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "",
         {
             NOT_APPLICABLE,
-            ALL
+            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         {
             NOT_APPLICABLE,
