@@ -195,7 +195,41 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
-
+    {
+        "CompressedMedia",
+        CAudioRoute::ECompressedStreamRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            DEVICE_OUT_MM_ALL
+        },
+        {
+            NOT_APPLICABLE,
+            AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD
+        },
+        {
+            NOT_APPLICABLE,
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            pcm_config_not_applicable,
+            pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
     ////////////////////////////////////////////////////////////////////////
     //
     // External routes
@@ -237,7 +271,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,ContextAwareness"
+        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia"
     },
     //
     // HWCODEC 1 route
@@ -275,7 +309,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media"
+        "ModemIA,Voice,Media,CompressedMedia"
     },
     //
     // ModemIA route
@@ -631,6 +665,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "Voice") {
 
         return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "CompressedMedia") {
+
+        return new CAudioCompressedStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "ContextAwareness") {
 
