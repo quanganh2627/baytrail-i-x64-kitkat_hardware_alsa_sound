@@ -25,15 +25,14 @@
 #include <string>
 #include <cutils/properties.h>
 
-
-#ifdef USE_FRAMEWORK_GTI
-#include "gtiservice/GtiService.h"
-#endif
-
 #define LOG_TAG "AudioHardwareALSA"
 
 #include <utils/Log.h>
 #include <utils/String8.h>
+
+#ifdef USE_FRAMEWORK_GTI
+#include "gtiservice/GtiService.h"
+#endif
 
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
