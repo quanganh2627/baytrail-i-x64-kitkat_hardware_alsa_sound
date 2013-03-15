@@ -133,8 +133,7 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::I
     { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_WIRED_HEADSET),         "Headset" },
     { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_AUX_DIGITAL),           "AuxDigital" },
     { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_VOICE_CALL),            "VoiceCall" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BACK_MIC),              "Back" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_FM_RECORD),             "FmRecord" }
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BACK_MIC),              "Back" }
 };
 
 // Selected Output Device type
@@ -498,24 +497,6 @@ status_t CAudioRouteManager::start()
     return NO_ERROR;
 }
 
-// From AudioHardwareALSA, set FM mode
-// must be called with AudioHardwareALSA::mLock held
-status_t CAudioRouteManager::setFmRxMode(bool bIsFmOn)
-{
-    AutoW lock(_lock);
-
-    // Update the platform state: fmmode
-    _pPlatformState->setFmRxMode(bIsFmOn);
-
-    ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to FM Mode change", __FUNCTION__);
-    //
-    // ASYNCHRONOUS RECONSIDERATION of the routing in case of FM Mode
-    //
-    reconsiderRouting(false);
-
-    return NO_ERROR;
-}
-
 //
 // Must be called from WLocked context
 //
@@ -588,14 +569,6 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -RTE MGR HW Mode = %s %s", __FUNCTION__,
           _apCriteriaTypeInterface[EModeCriteriaType]->getFormattedState(_pPlatformState->getHwMode()).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange) ? "[has changed]" : "");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange),
-             "%s:          -Android FM Mode = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EFmModeCriteriaType]->getFormattedState(_pPlatformState->getFmRxHwMode()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange) ? "[has changed]" : "");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange),
-             "%s:          -RTE MGR FM HW Mode = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EFmModeCriteriaType]->getFormattedState(_pPlatformState->getFmRxMode()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange),
              "%s:          -BT Enabled = %d %s", __FUNCTION__, _pPlatformState->isBtEnabled(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange) ? "[has changed]" : "");
@@ -754,8 +727,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
     /// Process pending platform changes
     if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange | CAudioPlatformState::EInputDevicesChange |
                                                  CAudioPlatformState::EStreamEvent | CAudioPlatformState::EInputSourceChange |
-                                                 CAudioPlatformState::EAndroidModeChange | CAudioPlatformState::EHwModeChange |
-                                                 CAudioPlatformState::EFmModeChange | CAudioPlatformState::EFmHwModeChange)) {
+                                                 CAudioPlatformState::EAndroidModeChange | CAudioPlatformState::EHwModeChange)) {
 
         ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to %s stream parameter change",
               __FUNCTION__,
@@ -1485,7 +1457,6 @@ void CAudioRouteManager::executeConfigureStage()
 
     // Change here the devices, the mode, ... all the criteria required for the routing
     _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
-    _apSelectedCriteria[ESelectedFmMode]->setCriterionState(_pPlatformState->getFmRxHwMode());
     _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(_pPlatformState->getTtyDirection());
     _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
     _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
@@ -1979,56 +1950,5 @@ status_t CAudioRouteManager::setVoiceVolume(int gain)
 {
     return setIntegerParameterValue(gpcVoiceVolume, gain);
 }
-
-status_t CAudioRouteManager::setFmRxVolume(float volume)
-{
-    uint32_t headsetVolume = 0;
-    uint32_t speakerVolume = 0;
-    vector<uint32_t> pfwVolumeArray;
-    //computed values (in float): {002172, 0.004660, 0.010000, 0.014877, 0.023646, 0.037584, 0.055912, 0.088869, 0.141254, 0.189453, 0.266840, 0.375838, 0.504081, 0.709987, 1.000000}
-    //FM_RX_STREAM_MAX_VOLUME levels of volumes - must be aligned with MAX_STREAM_VOLUME of STREAM_FM_RX in AudioService.java
-    float volumeLevels[FM_RX_STREAM_MAX_VOLUME]={0.001, 0.003, 0.005, 0.011, 0.015, 0.024, 0.04, 0.06, 0.09, 0.15, 0.2, 0.3, 0.4, 0.6, 0.8};
-    uint32_t integerVolume = 0;
-
-    AutoW lock(_lock);
-
-    // Update volume only if FM is ON and analog
-    if ((_pPlatformState->getFmRxHwMode() == AudioSystem::MODE_FM_ON) && (_bFmIsAnalog)) {
-
-        while ((integerVolume < FM_RX_STREAM_MAX_VOLUME) && (volume > volumeLevels[integerVolume])) {
-
-            integerVolume++;
-        }
-
-        // Framework forces speaker use
-        if (_pPlatformState->getDevices(CUtils::EOutput) == AudioSystem::DEVICE_OUT_SPEAKER) {
-            headsetVolume = (uint32_t) (0);
-            speakerVolume = (uint32_t) (integerVolume * _uiFmRxSpeakerMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
-        }
-        // Else use wired accessory for FM
-        else if ((_pPlatformState->getDevices(CUtils::EOutput) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-                 (_pPlatformState->getDevices(CUtils::EOutput) & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)) {
-
-            headsetVolume = (uint32_t) (integerVolume * _uiFmRxHeadsetMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
-            speakerVolume = (uint32_t) 0;
-        }
-
-        ALOGV("%s: FM Rx volume applied on speaker %d and on headset %d", __FUNCTION__, speakerVolume, headsetVolume);
-        //apply calculated volumes into audio codec
-        //left and right channels of stereo headset - only one value for speaker (mono speaker)
-        pfwVolumeArray.push_back(headsetVolume);
-        pfwVolumeArray.push_back(headsetVolume);
-
-        if ((setIntegerArrayParameterValue(LINE_IN_TO_HEADSET_LINE_VOLUME, pfwVolumeArray) != NO_ERROR) ||
-           (setIntegerParameterValue(LINE_IN_TO_SPEAKER_LINE_VOLUME, (uint32_t)speakerVolume) != NO_ERROR) ||
-           (setIntegerParameterValue(LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME, (uint32_t)speakerVolume)!= NO_ERROR)) {
-
-            return INVALID_OPERATION;
-        }
-    }
-
-    return NO_ERROR;
-}
-
 
 }       // namespace android
