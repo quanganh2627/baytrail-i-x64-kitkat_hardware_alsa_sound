@@ -514,7 +514,7 @@ void CAudioRouteManager::reconsiderRouting(bool bIsSynchronous)
 
     if (!bIsSynchronous) {
 
-        // Trigs the processing of the list
+        // Trig the processing of the list
         _pEventThread->trig();
 
     } else {
