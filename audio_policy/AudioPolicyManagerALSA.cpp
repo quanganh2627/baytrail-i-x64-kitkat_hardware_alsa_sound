@@ -29,6 +29,13 @@ namespace android_audio_legacy {
 #define MASK_DEVICE_NO_DIR    ((unsigned int)~AUDIO_DEVICE_BIT_IN)
 #define REMOVE_DEVICE_DIR(device) ((unsigned int)device & MASK_DEVICE_NO_DIR)
 
+//  Is voice volume applied after mixing while in mode IN_COMM ?
+const String8 AudioPolicyManagerALSA::mVoiceVolumeAppliedAfterMixInCommPropName("voice_volume_applied_after_mixing_in_communication");
+// Is voice volume applied after mixing while in mode IN_CALL ?
+const String8 AudioPolicyManagerALSA::mVoiceVolumeAppliedAfterMixInCallPropName("voice_volume_applied_after_mixing_in_call");
+// Music attenuation in dB while in call (csv or voip)
+const String8 AudioPolicyManagerALSA::mInCallMusicAttenuation_dBPropName("in_call_music_attenuation_dB");
+
 // ----------------------------------------------------------------------------
 // AudioPolicyManagerALSA
 // ----------------------------------------------------------------------------
@@ -275,10 +282,20 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
     ALOGV("setStreamVolumeIndex() stream %d, device %04x, index %d",
           stream, device, index);
 
+    bool forceSetVolume = false;
+
     // if device is AUDIO_DEVICE_OUT_DEFAULT set default value and
     // clear all device specific values
     if (device == AUDIO_DEVICE_OUT_DEFAULT) {
         mStreams[stream].mIndexCur.clear();
+
+        // force volume setting at media server starting
+        // (i.e. when device == AUDIO_DEVICE_OUT_DEFAULT)
+        //
+        // If the volume is not set at media server starting then it is applied at
+        // next applyStreamVolumes() call, for example during media playback,
+        // which can lead to performance issue.
+        forceSetVolume = true;
     }
     mStreams[stream].mIndexCur.add(device, index);
 
@@ -287,7 +304,8 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
     for (size_t i = 0; i < mOutputs.size(); i++) {
         audio_devices_t curDevice =
                 getDeviceForVolume((audio_devices_t)mOutputs.valueAt(i)->device());
-        if (device == curDevice) {
+
+        if ((device == curDevice) || forceSetVolume) {
             status_t volStatus = checkAndSetVolume(stream, index, mOutputs.keyAt(i), curDevice);
             if (volStatus != NO_ERROR) {
                 status = volStatus;
@@ -299,30 +317,47 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
 
 float AudioPolicyManagerALSA::computeVolume(int stream,
                                             int index,
-                                            audio_io_handle_t output,
                                             audio_devices_t device)
 {
-    float volume = 1.0;
-
-    // For CSV voice call, DTMF stream attenuation is only applied in the modem
     // Force volume to max for bluetooth SCO as volume is managed by the headset
-    if ( ((stream == AudioSystem::DTMF) && (mPhoneState == AudioSystem::MODE_IN_CALL)) || (stream == AudioSystem::BLUETOOTH_SCO) ) {
-        return volume;
+    if (stream == AudioSystem::BLUETOOTH_SCO) {
+        return 1.0f;
+    }
+
+    // Process in call DTMF volume
+    if (isInCall() && stream == AudioSystem::DTMF) {
+
+        LOG_ALWAYS_FATAL_IF((mPhoneState != AudioSystem::MODE_IN_COMMUNICATION) &&
+                            (mPhoneState != AudioSystem::MODE_IN_CALL));
+
+        bool mVoiceVolumeAppliedAfterMix = (mPhoneState == AudioSystem::MODE_IN_COMMUNICATION) ?
+                    mVoiceVolumeAppliedAfterMixInComm : mVoiceVolumeAppliedAfterMixInCall;
+
+        if (mVoiceVolumeAppliedAfterMix) {
+
+            //set the DTMF volume to 1.0 to avoid double attenuation when the voice
+            //volume will be applied after mix DTMF/voice.
+            return 1.0f;
+        }
     }
 
     // Compute SW attenuation
-    volume = baseClass::computeVolume(stream, index, output, device);
+    float volume = baseClass::computeVolume(stream, index, device);
 
+    // Reduce music volume in voice call
+    if (isInCall() && stream == AudioSystem::MUSIC) {
+        volume *= pow(10.0, -mInCallMusicAttenuation_dB / 10.0);
+    }
 
     return volume;
 }
 
 audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
 {
-
     uint32_t device = 0;
 
     device = baseClass::getDeviceForStrategy(strategy, fromCache);
+
     AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
     uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
 
@@ -362,16 +397,17 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
         case STRATEGY_MEDIA:
             // We want to supersede the default policy when we are in call, so that we can change the volume
             // settings for MEDIA streams when in call, on BT SCO, SPEAKER or EARPIECE.
-            if (isInCall()){
+            if (isInCall()) {
                 // Retrieve the device in use for the call
                 AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
                 uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
-                if ((currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
+                if (((currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
                     || (currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET)
                     || (currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO)
                     || (currentDevice == AudioSystem::DEVICE_OUT_SPEAKER)
-                    || (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE)){
-                    ALOGV("%s- superseding STRATEGY_MEDIA policy while in call from device 0x%x to 0x%x", __FUNCTION__, device, currentDevice);
+                    || (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE))
+                    && ((device != AUDIO_DEVICE_OUT_REMOTE_BGM_SINK))) {
+                    ALOGD("%s- superseding STRATEGY_MEDIA policy while in call from device 0x%x to 0x%x", __FUNCTION__, device, currentDevice);
                     device = currentDevice;
                 }
             }
@@ -402,13 +438,30 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
     return (audio_devices_t)device;
 }
 
-AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface)
-    : baseClass(clientInterface)
+AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface) :
+    baseClass(clientInterface),
+    mVoiceVolumeAppliedAfterMixInComm(false),
+    mVoiceVolumeAppliedAfterMixInCall(false),
+    mInCallMusicAttenuation_dB(0.0)
 {
     // check if earpiece device is supported
 //    updateDeviceSupport("audiocomms.dev.earpiece.present", AUDIO_DEVICE_OUT_EARPIECE);
 //    // check if back mic device is supported
 //    updateDeviceSupport("audiocomms.dev.backmic.present", AUDIO_DEVICE_IN_BACK_MIC);
+
+    /// Load custom properties from audio_policy.conf
+    // mVoiceVolumeAppliedAfterMixInComm
+    if (getCustomPropertyAsBool(mVoiceVolumeAppliedAfterMixInCommPropName, mVoiceVolumeAppliedAfterMixInComm)) {
+        ALOGD("%s- mVoiceVolumeAppliedAfterMixInComm = %d", __FUNCTION__, mVoiceVolumeAppliedAfterMixInComm);
+    }
+    // mVoiceVolumeAppliedAfterMixInCall
+    if (getCustomPropertyAsBool(mVoiceVolumeAppliedAfterMixInCallPropName, mVoiceVolumeAppliedAfterMixInCall)) {
+        ALOGD("%s- mVoiceVolumeAppliedAfterMixInCall = %d", __FUNCTION__, mVoiceVolumeAppliedAfterMixInCall);
+    }
+    // mInCallMusicAttenuation_dB
+    if (getCustomPropertyAsFloat(mInCallMusicAttenuation_dBPropName, mInCallMusicAttenuation_dB)) {
+        ALOGD("%s- mInCallMusicAttenuation_dB = %.0f", __FUNCTION__, mInCallMusicAttenuation_dB);
+    }
 }
 
 AudioPolicyManagerALSA::~AudioPolicyManagerALSA()

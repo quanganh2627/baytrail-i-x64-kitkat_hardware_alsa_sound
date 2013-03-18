@@ -25,6 +25,7 @@
 
 #include <hardware_legacy/AudioHardwareInterface.h>
 #include <hardware_legacy/AudioSystemLegacy.h>
+#include "Utils.h"
 
 #ifdef ENABLE_AUDIO_DUMP
 #include "AudioDumpInterface.h"
@@ -65,11 +66,8 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
     return out->legacy_out->sampleRate();
 }
 
-static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
+static int out_set_sample_rate(struct audio_stream __UNUSED *stream, uint32_t __UNUSED rate)
 {
-    struct legacy_stream_out *out =
-        reinterpret_cast<struct legacy_stream_out *>(stream);
-
     ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement this */
     return 0;
@@ -97,10 +95,8 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
     return (audio_format_t) out->legacy_out->format();
 }
 
-static int out_set_format(struct audio_stream *stream, audio_format_t format)
+static int out_set_format(struct audio_stream __UNUSED *stream, audio_format_t __UNUSED format)
 {
-    struct legacy_stream_out *out =
-        reinterpret_cast<struct legacy_stream_out *>(stream);
     ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement me */
     return 0;
@@ -183,12 +179,12 @@ static int out_flush(const struct audio_stream_out *stream)
     return out->legacy_out->flush();
 }
 
-static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+static int out_add_audio_effect(const struct audio_stream __UNUSED *stream, effect_handle_t __UNUSED effect)
 {
     return 0;
 }
 
-static int out_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+static int out_remove_audio_effect(const struct audio_stream __UNUSED *stream, effect_handle_t __UNUSED effect)
 {
     return 0;
 }
@@ -201,11 +197,8 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
     return in->legacy_in->sampleRate();
 }
 
-static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
+static int in_set_sample_rate(struct audio_stream __UNUSED *stream, uint32_t __UNUSED rate)
 {
-    struct legacy_stream_in *in =
-        reinterpret_cast<struct legacy_stream_in *>(stream);
-
     ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement this */
     return 0;
@@ -233,10 +226,8 @@ static audio_format_t in_get_format(const struct audio_stream *stream)
     return (audio_format_t) in->legacy_in->format();
 }
 
-static int in_set_format(struct audio_stream *stream, audio_format_t format)
+static int in_set_format(struct audio_stream __UNUSED *stream, audio_format_t __UNUSED format)
 {
-    struct legacy_stream_in *in =
-        reinterpret_cast<struct legacy_stream_in *>(stream);
     ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement me */
     return 0;
@@ -320,7 +311,7 @@ static inline const struct legacy_audio_device * to_cladev(const struct audio_hw
     return reinterpret_cast<const struct legacy_audio_device *>(dev);
 }
 
-static uint32_t adev_get_supported_devices(const struct audio_hw_device *dev)
+static uint32_t adev_get_supported_devices(const struct audio_hw_device __UNUSED *dev)
 {
     /* XXX: The old AudioHardwareInterface interface is not smart enough to
      * tell us this, so we'll lie and basically tell AF that we support the
@@ -347,7 +338,6 @@ static uint32_t adev_get_supported_devices(const struct audio_hw_device *dev)
             AUDIO_DEVICE_IN_AUX_DIGITAL |
             AUDIO_DEVICE_IN_BACK_MIC |
             AUDIO_DEVICE_IN_ALL_SCO |
-            AUDIO_DEVICE_IN_FM_RECORD |
             AUDIO_DEVICE_IN_DEFAULT);
 }
 
@@ -431,9 +421,9 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
 }
 
 static int adev_open_output_stream(struct audio_hw_device *dev,
-                                   audio_io_handle_t handle,
+                                   audio_io_handle_t __UNUSED handle,
                                    audio_devices_t devices,
-                                   audio_output_flags_t flags,
+                                   audio_output_flags_t __UNUSED flags,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out)
 {
@@ -494,7 +484,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
 /** This method creates and opens the audio hardware input stream */
 static int adev_open_input_stream(struct audio_hw_device *dev,
-                                  audio_io_handle_t handle,
+                                  audio_io_handle_t __UNUSED handle,
                                   audio_devices_t devices,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in)
