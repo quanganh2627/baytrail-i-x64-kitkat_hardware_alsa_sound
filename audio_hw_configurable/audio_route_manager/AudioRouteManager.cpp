@@ -1158,9 +1158,11 @@ void CAudioRouteManager::addPortGroup(uint32_t uiPortGroupIndex)
 
     _portGroupList.push_back(pAudioPortGroup);
 
+    uint32_t uiPortsUsedByPortGroup = CAudioPlatformHardware::getPortsUsedByPortGroup(uiPortGroupIndex);
+
     for (uint32_t i = 0; i < CAudioPlatformHardware::getNbPorts(); i++) {
 
-        if (CAudioPlatformHardware::getPortsUsedByPortGroup(uiPortGroupIndex) & CAudioPlatformHardware::getPortId(i)) {
+        if (uiPortsUsedByPortGroup & CAudioPlatformHardware::getPortId(i)) {
 
             pAudioPortGroup->addPortToGroup(findPortById(CAudioPlatformHardware::getPortId(i)));
         }

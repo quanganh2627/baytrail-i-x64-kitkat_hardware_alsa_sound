@@ -90,7 +90,7 @@ public:
     //
     static uint32_t getPortsUsedByPortGroup(uint32_t uiPortGroupIndex) {
 
-        std::string srtPorts(_astAudioRoutes[uiPortGroupIndex].pcPortsUsed);
+        std::string srtPorts(_acPortGroups[uiPortGroupIndex]);
         uint32_t uiPorts = 0;
         Tokenizer tokenizer(srtPorts, ",");
         std::vector<std::string> astrItems = tokenizer.split();
@@ -100,7 +100,7 @@ public:
 
             uiPorts |= getPortIdByName(astrItems[i]);
         }
-        LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
+        LOGD("%s Ports name=%s", __FUNCTION__, srtPorts.c_str());
         return uiPorts;
     }
 
@@ -128,7 +128,7 @@ public:
 
             uiPorts |= getPortIdByName(astrItems[i].c_str());
         }
-        LOGD("%s Ports name=%s Ports=0x%X", __FUNCTION__, srtPorts.c_str(), uiPorts);
+        LOGD("%s Ports name=%s", __FUNCTION__, srtPorts.c_str());
         return uiPorts;
     }
     static uint32_t getRouteApplicableDevices(int iRouteIndex, bool bIsOut) {
@@ -161,7 +161,7 @@ public:
 
             uiSlaves |= getRouteIdByName(astrItems[i]);
         }
-        LOGD("%s acSlaveRoutes=%s uiSlaves=0x%X", __FUNCTION__, srtSlaveRoutes.c_str(), uiSlaves);
+        LOGD("%s acSlaveRoutes=%s", __FUNCTION__, srtSlaveRoutes.c_str());
         return uiSlaves;
     }
 
