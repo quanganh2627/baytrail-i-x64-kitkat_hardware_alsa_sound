@@ -13,6 +13,9 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+
+#define LOG_TAG "RouteManager/ParameterHandler"
+
 #include <utils/Log.h>
 #include <utils/String8.h>
 #include <utils/Errors.h>
