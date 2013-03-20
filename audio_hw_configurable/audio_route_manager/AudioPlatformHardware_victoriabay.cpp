@@ -250,13 +250,12 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
             (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_MIC) |
             (1 << AUDIO_SOURCE_CAMCORDER) | (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
-            // TBD IN COMMUNICATION
 
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {
-            (1 << AudioSystem::MODE_IN_CALL), // TBD: IN COMM as well?
-            (1 << AudioSystem::MODE_IN_CALL) // TBD: IN COMM as well?
+            (1 << AudioSystem::MODE_IN_CALL),
+            (1 << AudioSystem::MODE_IN_CALL)
         },
         {
             CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
