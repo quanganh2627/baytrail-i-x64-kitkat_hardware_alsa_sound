@@ -15,6 +15,17 @@
  ** limitations under the License.
  */
 
+#define LOG_TAG "AudioStreamInALSA"
+
+#include "AudioStreamInALSA.h"
+#include "AudioAutoRoutingLock.h"
+
+#include <hardware_legacy/power.h>
+#include <media/AudioRecord.h>
+#include <utils/Log.h>
+#include <utils/String8.h>
+#include <cutils/properties.h>
+#include <algorithm>
 #include <errno.h>
 #include <stdarg.h>
 #include <sys/stat.h>
@@ -22,20 +33,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
-
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
-#define LOG_TAG "AudioStreamInALSA"
-#include <utils/Log.h>
-#include <utils/String8.h>
-
-#include <cutils/properties.h>
-#include <media/AudioRecord.h>
-#include <hardware_legacy/power.h>
-
-#include "AudioStreamInALSA.h"
-#include "AudioAutoRoutingLock.h"
 
 #define base ALSAStreamOps
 

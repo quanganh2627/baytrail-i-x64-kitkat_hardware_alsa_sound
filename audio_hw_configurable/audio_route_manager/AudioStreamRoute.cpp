@@ -15,15 +15,15 @@
  */
 
 #define LOG_TAG "RouteManager/StreamRoute"
-#include <utils/Log.h>
 
-#include <ALSAStreamOps.h>
 #include "AudioPlatformHardware.h"
+#include "AudioStreamRoute.h"
 #include "AudioUtils.h"
+#include "ALSAStreamOps.h"
 #include <tinyalsa/asoundlib.h>
 #include <hardware_legacy/power.h>
-
-#include "AudioStreamRoute.h"
+#include <utils/Log.h>
+#include <algorithm>
 
 #define base    CAudioRoute
 

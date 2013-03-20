@@ -16,8 +16,9 @@
 
 #pragma once
 
-#include <string>
 #include <list>
+#include <stdint.h>
+#include <string>
 
 namespace android_audio_legacy
 {

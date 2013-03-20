@@ -14,16 +14,15 @@
  ** limitations under the License.
  */
 
+#define LOG_TAG "AudioUtils"
+
+#include "SampleSpec.h"
+#include "AudioUtils.h"
 #include <stdlib.h>
 #include <utils/Log.h>
 #include <system/audio.h>
-#include "SampleSpec.h"
-#include "AudioUtils.h"
-
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
-#define LOG_TAG "AudioUtils"
+#include <limits.h>
+#include <cerrno>
 
 using namespace android;
 using namespace std;
