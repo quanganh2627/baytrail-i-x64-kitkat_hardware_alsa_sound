@@ -247,7 +247,11 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         {
-            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) | (1 << AUDIO_SOURCE_VOICE_CALL), // TBD IN COMMUNICATION
+            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
+            (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_MIC) |
+            (1 << AUDIO_SOURCE_CAMCORDER) | (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
+            // TBD IN COMMUNICATION
+
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {

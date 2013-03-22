@@ -326,6 +326,8 @@ const char* const CAudioRouteManager::FM_IS_ANALOG_PROP_NAME = "Audiocomms.FM.Is
 const bool CAudioRouteManager::FM_IS_ANALOG_DEFAULT_VALUE = false;
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
+    _uiFmRxSpeakerMaxVolumeValue(0),
+    _uiFmRxHeadsetMaxVolumeValue(0),
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     _pModemAudioManagerInterface(NULL),
     _pPlatformState(new CAudioPlatformState(this)),
@@ -1853,7 +1855,7 @@ bool CAudioRouteManager::onHangup(int __UNUSED iFd)
 //
 // Worker thread context
 //
-void CAudioRouteManager::onTimeout()
+void CAudioRouteManager::onAlarm()
 {
     ALOGD("%s", __FUNCTION__);
 }
