@@ -173,7 +173,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         CAudioRoute::EStreamRoute,
         "",
         {
-            DEVICE_IN_BUILTIN_ALL | AudioSystem::DEVICE_IN_FM_RECORD,
+            DEVICE_IN_BUILTIN_ALL,
             DEVICE_OUT_MM_ALL
         },
         {
@@ -250,13 +250,12 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
             (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_MIC) |
             (1 << AUDIO_SOURCE_CAMCORDER) | (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
-            // TBD IN COMMUNICATION
 
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {
-            (1 << AudioSystem::MODE_IN_CALL), // TBD: IN COMM as well?
-            (1 << AudioSystem::MODE_IN_CALL) // TBD: IN COMM as well?
+            (1 << AudioSystem::MODE_IN_CALL),
+            (1 << AudioSystem::MODE_IN_CALL)
         },
         {
             CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
@@ -414,7 +413,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
-        ""
+        "HwCodecCSV,HwCodecComm"
     },
     //
     // FM route
@@ -425,7 +424,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "HWCODEC_AUX_PORT,FM_I2S_PORT",
         {
             NOT_APPLICABLE,
-            DEVICE_OUT_MM_ALL
+            NOT_APPLICABLE
         },
         {
             AUDIO_SOURCE_MIC,
@@ -437,7 +436,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             NOT_APPLICABLE,
-            CAudioPlatformState::EFmHwMode
+            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {
@@ -521,7 +520,7 @@ private:
 class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 {
 public:
-    CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+    CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
@@ -530,6 +529,11 @@ public:
         if (!_pPlatformState->isSharedI2SBusAvailable()) {
 
             return false;
+        }
+        // This case cannot be handled through the route structure
+        if ((iMode == AudioSystem::MODE_NORMAL) && (uidevices & DEVICE_BLUETOOTH_SCO_ALL(bIsOut))) {
+
+            return true;
         }
         return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
@@ -557,7 +561,7 @@ public:
 class CAudioExternalRouteHwCodecBt : public CAudioExternalRoute
 {
 public:
-    CAudioExternalRouteHwCodecBt(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+    CAudioExternalRouteHwCodecBt(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
 
@@ -573,7 +577,7 @@ public:
 
         // BT module must be on and as the BT is on the shared I2S bus
         // the share bus must be available
-        if (!_pPlatformState->isBtEnabled() || !_pPlatformState->isSharedI2SBusAvailable()) {
+        if (!_pPlatformState->isBtEnabled()) {
 
             return false;
         }
@@ -618,17 +622,6 @@ public:
     CAudioExternalRouteHwCodecFm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState)
     {
-    }
-
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask) const
-    {
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
-        if (!_pPlatformState->getFmRxHwMode()) {
-
-            return false;
-        }
-        return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
 };
 

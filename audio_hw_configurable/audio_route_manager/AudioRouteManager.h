@@ -82,14 +82,21 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EUpdateRouting
     };
 
+    /*
+     * Routing stage bits description.
+     * It is used to feed the criteria of the Parameter Framework.
+     * This criterion is inclusive and is used to encode
+     * 5 steps of the routing (Muting, Disabling, Configuring, Enabling, Unmuting)
+     * Muting -> EFlow
+     * Disabling -> EPath
+     * Configuring -> EConfigure
+     * Enabling -> EConfigure | EPath
+     * Unmuting -> EConfigure | EPath | EFlow
+     */
     enum RoutingStage {
-        EMute = 0,
-        EDisable,
-        EConfigure,
-        EEnable,
-        EUnmute,
-
-        ENbRoutingStage
+        EFlow = (1 << 0),       /**< It refers to umute/unmute steps.   */
+        EPath = (1 << 1),       /**< It refers to enable/disable steps  */
+        EConfigure = (1 << 2)   /**< It refers to configure step        */
     };
 
     typedef list<CAudioRoute*>::iterator RouteListIterator;
@@ -116,9 +123,9 @@ public:
 
     status_t setStreamParameters(android_audio_legacy::ALSAStreamOps* pStream, const String8 &keyValuePairsSET, int iMode);
 
-    status_t startStream(ALSAStreamOps* pStream);
+    status_t startStream(bool bIsStreamOut);
 
-    status_t stopStream(ALSAStreamOps* pStream);
+    status_t stopStream(bool bIsStreamOut);
 
     status_t setParameters(const String8& keyValuePairs);
 
@@ -134,9 +141,6 @@ public:
     // Remove a stream from route manager
     void removeStream(ALSAStreamOps* pStream);
 
-    // Set FM mode
-    status_t setFmRxMode(bool bIsFmOn);
-
     // Start route manager service
     status_t start();
 
@@ -147,8 +151,6 @@ public:
     void unlock();
 
     status_t setVoiceVolume(int gain);
-
-    status_t setFmRxVolume(float volume);
 
 private:
     CAudioRouteManager(const CAudioRouteManager &);
@@ -171,7 +173,7 @@ private:
     void prepareRoute(CAudioRoute* pRoute, bool bIsOut);
 
     // Route stage dispatcher
-    void executeRouting(int iRouteStage);
+    void executeRouting();
 
     // Mute the routes
     void executeMuteStage();
@@ -179,7 +181,6 @@ private:
 
     // Unmute the routes
     void executeUnmuteStage();
-    void unmuteRoutes(bool bIsOut);
 
     // Configure the routes
     void executeConfigureStage();
@@ -336,10 +337,10 @@ private:
         ESelectedFmMode,
         ESelectedTtyDirection,
         ESelectedRoutingStage,
-        EPreviousInputRoute,
-        EPreviousOutputRoute,
-        ESelectedInputRoute,
-        ESelectedOutputRoute,
+        EClosingCaptureRoutes,
+        EClosingPlaybackRoutes,
+        EOpenedCaptureRoutes,
+        EOpenedPlaybackRoutes,
         ESelectedInputDevice,
         ESelectedOutputDevice,
         ESelectedInputSource,
@@ -359,21 +360,21 @@ private:
 
     ISelectionCriterionInterface* _apSelectedCriteria[ENbCriteria];
 
-    inline ISelectionCriterionInterface* selectedPreviousRoute(bool bIsOut) {
+    inline ISelectionCriterionInterface* selectedClosingRoutes(bool bIsOut) {
 
-        Criteria eCriteria = (bIsOut? EPreviousOutputRoute : EPreviousInputRoute);
+        Criteria eCriteria = (bIsOut? EClosingPlaybackRoutes : EClosingCaptureRoutes);
         return _apSelectedCriteria[eCriteria];
     }
 
-    inline ISelectionCriterionInterface* selectedRoute(bool bIsOut) {
+    inline ISelectionCriterionInterface* selectedOpenedRoutes(bool bIsOut) {
 
-        Criteria eCriteria = (bIsOut? ESelectedOutputRoute : ESelectedInputRoute);
+        Criteria eCriteria = (bIsOut ? EOpenedPlaybackRoutes : EOpenedCaptureRoutes);
         return _apSelectedCriteria[eCriteria];
     }
 
     inline ISelectionCriterionInterface* selectedDevice(bool bIsOut) {
 
-        Criteria eCriteria = (bIsOut? ESelectedOutputDevice : ESelectedInputDevice);
+        Criteria eCriteria = (bIsOut ? ESelectedOutputDevice : ESelectedInputDevice);
         return _apSelectedCriteria[eCriteria];
     }
 
@@ -404,7 +405,11 @@ private:
     // Started service flag
     bool _bIsStarted;
 
-    // Routing is protected
+    /*
+     * Routing Protection Required.
+     * This allows to handle platform with strong locking strategy
+     * (streams may switch to one route to another dynamically)
+     */
     bool _bRoutingLocked;
 
     // Routing timeout

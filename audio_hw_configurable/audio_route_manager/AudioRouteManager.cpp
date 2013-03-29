@@ -98,10 +98,10 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"FmMode",                  CAudioRouteManager::EFmModeCriteriaType},
     {"TTYDirection",            CAudioRouteManager::ETtyDirectionCriteriaType},
     {"RoutageState",            CAudioRouteManager::ERoutingStageCriteriaType},
-    {"PreviousRouteCapture",    CAudioRouteManager::ERouteCriteriaType},
-    {"PreviousRoutePlayback",   CAudioRouteManager::ERouteCriteriaType},
-    {"CurrentRouteCapture",     CAudioRouteManager::ERouteCriteriaType},
-    {"CurrentRoutePlayback",    CAudioRouteManager::ERouteCriteriaType},
+    {"ClosingCaptureRoutes",    CAudioRouteManager::ERouteCriteriaType},
+    {"ClosingPlaybackRoutes",   CAudioRouteManager::ERouteCriteriaType},
+    {"OpenedCaptureRoutes",     CAudioRouteManager::ERouteCriteriaType},
+    {"OpenedPlaybackRoutes",    CAudioRouteManager::ERouteCriteriaType},
     {"SelectedInputDevice",     CAudioRouteManager::EInputDeviceCriteriaType},
     {"SelectedOutputDevice",    CAudioRouteManager::EOutputDeviceCriteriaType},
     {"AudioSource",             CAudioRouteManager::EInputSourceCriteriaType},
@@ -133,8 +133,7 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::I
     { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_WIRED_HEADSET),         "Headset" },
     { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_AUX_DIGITAL),           "AuxDigital" },
     { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_VOICE_CALL),            "VoiceCall" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BACK_MIC),              "Back" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_FM_RECORD),             "FmRecord" }
+    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BACK_MIC),              "Back" }
 };
 
 // Selected Output Device type
@@ -153,13 +152,20 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::O
     { AudioSystem::DEVICE_OUT_WIDI,                         "_Widi"},
 };
 
-// Routing mode
+/**
+ * Routing stage criteria.
+ *
+ * A Flow stage on ClosingRoutes leads to a Mute.
+ * A Flow stage on OpenedRoutes leads to an Unmute.
+ * A Path stage on ClosingRoutes leads to an Disable.
+ * A Path stage on OpenedRoutes leads to an Enable.
+ * A Configure stage on ClosingRoutes leads to reset the configuration.
+ * A Configure stage on OpenedRoute lead to set the configuration.
+ */
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS[] = {
-    { CAudioRouteManager::EMute ,       "Mute" },
-    { CAudioRouteManager::EDisable ,    "Disable" },
-    { CAudioRouteManager::EConfigure ,  "Configure" },
-    { CAudioRouteManager::EEnable ,     "Enable" },
-    { CAudioRouteManager::EUnmute ,     "Unmute" }
+    { CAudioRouteManager::EFlow ,       "Flow" },
+    { CAudioRouteManager::EPath ,       "Path" },
+    { CAudioRouteManager::EConfigure ,  "Configure" }
 };
 
 // Audio Source
@@ -246,7 +252,7 @@ const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::A
         CAudioRouteManager::ERoutingStageCriteriaType,
         CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS,
         sizeof(CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS)/sizeof(CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS[0]),
-        false
+        true
     },
     // Route
     {
@@ -483,27 +489,10 @@ status_t CAudioRouteManager::start()
     if (!_pParameterMgrPlatformConnector->start(strError)) {
 
         ALOGE("parameter-framework start error: %s", strError.c_str());
+        _pEventThread->stop();
         return NO_INIT;
     }
     ALOGI("parameter-framework successfully started!");
-
-    return NO_ERROR;
-}
-
-// From AudioHardwareALSA, set FM mode
-// must be called with AudioHardwareALSA::mLock held
-status_t CAudioRouteManager::setFmRxMode(bool bIsFmOn)
-{
-    AutoW lock(_lock);
-
-    // Update the platform state: fmmode
-    _pPlatformState->setFmRxMode(bIsFmOn);
-
-    ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to FM Mode change", __FUNCTION__);
-    //
-    // ASYNCHRONOUS RECONSIDERATION of the routing in case of FM Mode
-    //
-    reconsiderRouting(false);
 
     return NO_ERROR;
 }
@@ -580,14 +569,6 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -RTE MGR HW Mode = %s %s", __FUNCTION__,
           _apCriteriaTypeInterface[EModeCriteriaType]->getFormattedState(_pPlatformState->getHwMode()).c_str(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange) ? "[has changed]" : "");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange),
-             "%s:          -Android FM Mode = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EFmModeCriteriaType]->getFormattedState(_pPlatformState->getFmRxHwMode()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmHwModeChange) ? "[has changed]" : "");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange),
-             "%s:          -RTE MGR FM HW Mode = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EFmModeCriteriaType]->getFormattedState(_pPlatformState->getFmRxMode()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmModeChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange),
              "%s:          -BT Enabled = %d %s", __FUNCTION__, _pPlatformState->isBtEnabled(),
           _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange) ? "[has changed]" : "");
@@ -640,13 +621,7 @@ void CAudioRouteManager::doReconsiderRouting()
         ALOGD("%s:          -Route that need reconfiguration in Output = %s", __FUNCTION__,
               _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(_stRoutes[CUtils::EOutput].uiNeedReconfig).c_str());
 
-        int iRouteStage;
-        for (iRouteStage = 0; iRouteStage < ENbRoutingStage; iRouteStage++) {
-
-            ALOGD("%s: --------------- Routing Stage = %s ---------------", __FUNCTION__,
-                  _apCriteriaTypeInterface[ERoutingStageCriteriaType]->getFormattedState(iRouteStage).c_str());
-            executeRouting(iRouteStage);
-        }
+        executeRouting();
     }
 
     // Clear Platform State flag
@@ -663,37 +638,17 @@ bool CAudioRouteManager::isStarted() const
     return _pParameterMgrPlatformConnector && _pParameterMgrPlatformConnector->isStarted();
 }
 
-void CAudioRouteManager::executeRouting(int iRouteStage)
+void CAudioRouteManager::executeRouting()
 {
-    //
-    // Set the routing stage criteria - Do not apply the configuration now...
-    //
-    if (_pParameterMgrPlatformConnector->isStarted()) {
+    executeMuteStage();
 
-        // Warn PFW
-        _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(iRouteStage);
-    }
+    executeDisableStage();
 
-    switch(iRouteStage) {
+    executeConfigureStage();
 
-    case EMute:
-        executeMuteStage();
-        break;
-    case EDisable:
-        executeDisableStage();
-        break;
-    case EConfigure:
-        executeConfigureStage();
-        break;
-    case EEnable:
-        executeEnableStage();
-        break;
-    case EUnmute:
-        executeUnmuteStage();
-        break;
-    default:
-        LOG_ALWAYS_FATAL_IF(true);
-    }
+    executeEnableStage();
+
+    executeUnmuteStage();
 }
 
 //
@@ -772,8 +727,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
     /// Process pending platform changes
     if (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange | CAudioPlatformState::EInputDevicesChange |
                                                  CAudioPlatformState::EStreamEvent | CAudioPlatformState::EInputSourceChange |
-                                                 CAudioPlatformState::EAndroidModeChange | CAudioPlatformState::EHwModeChange |
-                                                 CAudioPlatformState::EFmModeChange | CAudioPlatformState::EFmHwModeChange)) {
+                                                 CAudioPlatformState::EAndroidModeChange | CAudioPlatformState::EHwModeChange)) {
 
         ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to %s stream parameter change",
               __FUNCTION__,
@@ -799,32 +753,13 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
 //
 // From ALSA Stream In / Out via ALSAStreamOps
 //
-status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
+status_t CAudioRouteManager::startStream(bool bIsStreamOut)
 {
-    if (_bRoutingLocked) {
-
-        AutoR lock(_lock);
-        if (pStream->isStarted()) {
-
-            // bailing out
-            return NO_ERROR;
-        }
-    } else {
-
-        if (pStream->isStarted()) {
-
-            // bailing out
-            return NO_ERROR;
-        }
-    }
-
     AutoW lock(_lock);
-
-    pStream->setStarted(true);
 
     ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to %s stream start event",
           __FUNCTION__,
-          pStream->isOut() ? "output" : "input");
+          bIsStreamOut ? "output" : "input");
     //
     // SYNCHRONOUS RECONSIDERATION of the routing in case of stream start
     //
@@ -835,35 +770,15 @@ status_t CAudioRouteManager::startStream(ALSAStreamOps *pStream)
 //
 // From ALSA Stream In / Out via ALSAStreamOps
 //
-status_t CAudioRouteManager::stopStream(ALSAStreamOps* pStream)
+status_t CAudioRouteManager::stopStream(bool bIsStreamOut)
 {
-    if (_bRoutingLocked) {
-
-        AutoR lock(_lock);
-        if (!pStream->isStarted()) {
-
-            // bailing out
-            return NO_ERROR;
-        }
-
-    } else {
-
-        if (!pStream->isStarted()) {
-
-            // bailing out
-            return NO_ERROR;
-        }
-    }
-
     AutoW lock(_lock);
-
-    pStream->setStarted(false);
 
     ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to %s stream stop event",
           __FUNCTION__,
-          pStream->isOut() ? "output" : "input");
+          bIsStreamOut ? "output" : "input");
     //
-    // SYNCHRONOUS RECONSIDERATION of the routing in case of stream start
+    // SYNCHRONOUS RECONSIDERATION of the routing in case of stream stop
     //
     reconsiderRouting();
     return NO_ERROR;
@@ -1215,9 +1130,11 @@ void CAudioRouteManager::addPortGroup(uint32_t uiPortGroupIndex)
 
     _portGroupList.push_back(pAudioPortGroup);
 
+    uint32_t uiPortsUsedByPortGroup = CAudioPlatformHardware::getPortsUsedByPortGroup(uiPortGroupIndex);
+
     for (uint32_t i = 0; i < CAudioPlatformHardware::getNbPorts(); i++) {
 
-        if (CAudioPlatformHardware::getPortsUsedByPortGroup(uiPortGroupIndex) & CAudioPlatformHardware::getPortId(i)) {
+        if (uiPortsUsedByPortGroup & CAudioPlatformHardware::getPortId(i)) {
 
             pAudioPortGroup->addPortToGroup(findPortById(CAudioPlatformHardware::getPortId(i)));
         }
@@ -1467,6 +1384,10 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, con
 
 void CAudioRouteManager::executeMuteStage()
 {
+    ALOGD("%s: --------------- Routing Stage = Mute ---------------", __FUNCTION__);
+
+    _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EFlow);
+
     // Mute Routes that
     //      -are disabled
     //      -need reconfiguration
@@ -1483,76 +1404,46 @@ void CAudioRouteManager::muteRoutes(bool bIsOut)
           bIsOut ? "output" : "input");
 
     //
-    // CurrentEnabledRoute: Eclipse the route that needs to be reconfigured
-    //                      (to force the PFW to mute these routes)
-    // The logic should be explained as:
-    //      RoutesToMute = (PreviousEnabledRoutes[bIsOut] & ~EnabledRoutes[bIsOut]) |
-    //                      NeedToReconfigureRoutes[bIsOut];
-    //
-    uint32_t uiEnabledRoutes = _stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiNeedReconfig;
+    // OpenedRoutes criteria: Routes that were opened before reconsidering the routing,
+    //                        and will remain enabled and do not need to be reconfigured
+    uint32_t uiOpenedRoutes = _stRoutes[bIsOut].uiPrevEnabled &
+                                _stRoutes[bIsOut].uiEnabled &
+                                ~_stRoutes[bIsOut].uiNeedReconfig;
 
-    ALOGV("%s \t -Previously enabled routes in %s = %s", __FUNCTION__,
-          bIsOut ? "Output" : "Input",
-          _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(_stRoutes[bIsOut].uiPrevEnabled).c_str());
+    // ClosingRoutes criteria: routes that were opened before reconsidering the routing,
+    //                         and either will be closed or need reconfiguration
+    //                         Mute action will be applied on ClosingRoutes.
+    uint32_t uiClosingRoutes = (_stRoutes[bIsOut].uiPrevEnabled &
+                                ~_stRoutes[bIsOut].uiEnabled) |
+                                _stRoutes[bIsOut].uiNeedReconfig;
 
-    ALOGV("%s \t -Enabled routes [eclipsing route that need reconfiguration] in %s = %s", __FUNCTION__,
-          bIsOut ? "Output" : "Input",
-          _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(uiEnabledRoutes).c_str());
-
-    ALOGD_IF((_stRoutes[bIsOut].uiPrevEnabled & ~_stRoutes[bIsOut].uiEnabled) | _stRoutes[bIsOut].uiNeedReconfig,
+    ALOGD_IF(uiClosingRoutes,
              "%s: Expected Routes to be muted in %s = %s", __FUNCTION__,
              bIsOut ? "Output" : "Input",
-             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState((_stRoutes[bIsOut].uiPrevEnabled & ~_stRoutes[bIsOut].uiEnabled) | _stRoutes[bIsOut].uiNeedReconfig).c_str());
+             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(uiClosingRoutes).c_str());
 
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        // Warn PFW
-         selectedPreviousRoute(bIsOut)->setCriterionState(_stRoutes[bIsOut].uiPrevEnabled);
-         selectedRoute(bIsOut)->setCriterionState(uiEnabledRoutes);
-    }
+    // Warn PFW
+    selectedClosingRoutes(bIsOut)->setCriterionState(uiClosingRoutes);
+    selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
 }
 
 void CAudioRouteManager::executeUnmuteStage()
 {
-    // Unmute Routes that
-    //      -were not enabled but will be enabled
-    //      -were previously enabled, will be enabled but need reconfiguration
-    // Routing order criterion = Unmute
-    unmuteRoutes(CUtils::EInput);
-    unmuteRoutes(CUtils::EOutput);
+    ALOGD("%s: --------------- Routing Stage = Unmute ---------------", __FUNCTION__);
+
+    // Warn PFW
+    _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EConfigure|EPath|EFlow);
 
     _pParameterMgrPlatformConnector->applyConfigurations();
-}
-void CAudioRouteManager::unmuteRoutes(bool bIsOut)
-{
-    ALOGV("%s for %s:", __FUNCTION__,
-          bIsOut ? "output" : "input");
-
-    // Unmute Routes that
-    //      -were not enabled but will be enabled
-    //      -were previously enabled, will be enabled but need reconfiguration
-    // Routing order criterion = Unmute
-    // From a logic point of view:
-    //          RoutesToUnmute = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]) |
-    //                               NeedToReconfigureRoutes[bIsOut];
-
-    ALOGD_IF((_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled) | _stRoutes[bIsOut].uiNeedReconfig,
-             "%s: Expected Routes to be unmuted in %s = %s", __FUNCTION__,
-             bIsOut ? "Output" : "Input",
-             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState((_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled) | _stRoutes[bIsOut].uiNeedReconfig).c_str());
-
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        // Warn PFW
-        selectedPreviousRoute(bIsOut)->setCriterionState(_stRoutes[bIsOut].uiPrevEnabled);
-    }
 }
 
 void CAudioRouteManager::executeConfigureStage()
 {
-    // PFW: Routing criterion = configure
-    // Change here the devices, the mode, ... all the criteria
-    // required for the routing
+    ALOGD("%s: --------------- Routing Stage = Configure ---------------", __FUNCTION__);
+
+    // Warn PFW
+    _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EConfigure);
+
     configureRoutes(CUtils::EOutput);
     configureRoutes(CUtils::EInput);
 
@@ -1564,9 +1455,8 @@ void CAudioRouteManager::executeConfigureStage()
         enableRoutes(CUtils::EInput);
     }
 
-    // Warn PFW
+    // Change here the devices, the mode, ... all the criteria required for the routing
     _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
-    _apSelectedCriteria[ESelectedFmMode]->setCriterionState(_pPlatformState->getFmRxHwMode());
     _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(_pPlatformState->getTtyDirection());
     _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
     _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
@@ -1590,35 +1480,25 @@ void CAudioRouteManager::configureRoutes(bool bIsOut)
             pRoute->configure(bIsOut);
         }
     }
-    // Configure Routes that
-    //      -were not enabled but will be enabled
-    //      -were previously enabled, will be enabled but need reconfiguration
-    // Routing order criterion = Configure
-    // From a logic point of view:
-    //      RoutesToConfigure = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]) |
-    //                                NeedToReconfigureRoutes[bIsOut];
+    //
+    // OpenedRoutes criteria: Routes that will be opened after reconsidering the routing,
+    // ClosingRoutes criteria: reset here, as no more closing action required
+    //
+    selectedDevice(bIsOut)->setCriterionState(_pPlatformState->getDevices(bIsOut));
+    if (!bIsOut) {
 
-    ALOGD_IF((_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled) | _stRoutes[bIsOut].uiNeedReconfig,
-             "%s: Routes to be configured in %s = %s", __FUNCTION__,
-             bIsOut ? "Output" : "Input",
-             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState((_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled) | _stRoutes[bIsOut].uiNeedReconfig).c_str());
-
-    // PFW: Routing criterion = configure
-    // Change here the devices, the mode, ... all the criteria
-    // required for the routing
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        // Warn PFW
-        selectedDevice(bIsOut)->setCriterionState(_pPlatformState->getDevices(bIsOut));
-        if (!bIsOut) {
-
-            _apSelectedCriteria[ESelectedInputSource]->setCriterionState(_pPlatformState->getInputSource());
-        }
+        _apSelectedCriteria[ESelectedInputSource]->setCriterionState(_pPlatformState->getInputSource());
     }
+    selectedClosingRoutes(bIsOut)->setCriterionState(0);
+    selectedOpenedRoutes(bIsOut)->setCriterionState(_stRoutes[bIsOut].uiEnabled);
 }
 
 void CAudioRouteManager::executeDisableStage()
 {
+    ALOGD("%s: --------------- Routing Stage = Disable ---------------", __FUNCTION__);
+
+    _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EPath);
+
     // Disable Routes that
     //      -are disabled
     //      -need reconfiguration
@@ -1627,10 +1507,6 @@ void CAudioRouteManager::executeDisableStage()
     disableRoutes(CUtils::EInput);
     disableRoutes(CUtils::EOutput);
 
-    //
-    // PFW: disable route stage:
-    // CurrentEnabledRoutes reflects the reality: do not disable route that need reconfiguration only
-    //
     _pParameterMgrPlatformConnector->applyConfigurations();
 }
 
@@ -1639,18 +1515,19 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
     ALOGV("%s for %s:", __FUNCTION__,
           bIsOut ? "output" : "input");
 
-    // Disable Routes that
-    //      -are disabled
-    //      -need reconfiguration
-    // Routing order criterion = Disable
-    // From a logic point of view:
-    //          RoutesToDisable = (PreviousEnabledRoutes[bIsOut] & ~EnabledRoutes[bIsOut]) |
     //
+    // OpenedRoutes criteria: Routes that were opened before reconsidering the routing,
+    //                        and will remain enabled so that the PFW mutes these routes
+    // ClosingRoutes criteria: routes that were opened before reconsidering the routing,
+    //                         and will be closed
+    //
+    uint32_t uiOpenedRoutes = _stRoutes[bIsOut].uiPrevEnabled & _stRoutes[bIsOut].uiEnabled;
+    uint32_t uiClosingRoutes = _stRoutes[bIsOut].uiPrevEnabled & ~_stRoutes[bIsOut].uiEnabled;
 
-    ALOGD_IF(_stRoutes[bIsOut].uiPrevEnabled & ~_stRoutes[bIsOut].uiEnabled,
+    ALOGD_IF(uiClosingRoutes,
              "%s: Routes to be disabled(unrouted) in %s = %s",  __FUNCTION__,
              bIsOut ? "Output" : "Input",
-             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(_stRoutes[bIsOut].uiPrevEnabled & ~_stRoutes[bIsOut].uiEnabled).c_str());
+             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(uiClosingRoutes).c_str());
 
     RouteListIterator it;
 
@@ -1662,9 +1539,8 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
         CAudioRoute* pRoute = *it;
 
         //
-        // Disable Routes that
-        //      -are disabled
-        //      -need reconfiguration
+        // Disable Routes that were opened before reconsidering the routing
+        // and will be closed after.
         //
         if (pRoute->currentlyUsed(bIsOut) && !pRoute->willBeUsed(bIsOut)) {
 
@@ -1672,22 +1548,18 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
         }
     }
 
-    //
-    // PFW: disable route stage:
-    // CurrentEnabledRoutes reflects the reality: do not disable route that need reconfiguration only
-    //
-    if (_pParameterMgrPlatformConnector->isStarted()) {
-
-        selectedRoute(bIsOut)->setCriterionState(_stRoutes[bIsOut].uiEnabled);
-    }
+    selectedClosingRoutes(bIsOut)->setCriterionState(uiClosingRoutes);
+    selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
 }
 
 void CAudioRouteManager::executeEnableStage()
 {
-    //
-    // Enable routes through PFW
-    //
-    _pParameterMgrPlatformConnector->applyConfigurations();
+    ALOGD("%s: --------------- Routing Stage = Enable ---------------", __FUNCTION__);
+
+    // Warn PFW
+    _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EPath|EConfigure);
+
+        _pParameterMgrPlatformConnector->applyConfigurations();
 
     if (_bRoutingLocked) {
 
@@ -1704,14 +1576,8 @@ void CAudioRouteManager::enableRoutes(bool bIsOut)
 
     RouteListIterator it;
 
-    //
-    // Performs the routing on the routes:
-    // Enable Routes that
-    //      -were not enabled but will be enabled
-    //      -were previously enabled, will be enabled
-    //
-    // From logic point of view:
-    //          RoutesToEnable = (EnabledRoutes[bIsOut] & ~PreviousEnabledRoutes[bIsOut]);
+    // Enable Routes that were not enabled and will be enabled after
+    // the routing reconsideration
     //
     ALOGD_IF(_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled,
              "%s: Routes to be enabled(routed) in %s = %s", __FUNCTION__,
@@ -2084,56 +1950,5 @@ status_t CAudioRouteManager::setVoiceVolume(int gain)
 {
     return setIntegerParameterValue(gpcVoiceVolume, gain);
 }
-
-status_t CAudioRouteManager::setFmRxVolume(float volume)
-{
-    uint32_t headsetVolume = 0;
-    uint32_t speakerVolume = 0;
-    vector<uint32_t> pfwVolumeArray;
-    //computed values (in float): {002172, 0.004660, 0.010000, 0.014877, 0.023646, 0.037584, 0.055912, 0.088869, 0.141254, 0.189453, 0.266840, 0.375838, 0.504081, 0.709987, 1.000000}
-    //FM_RX_STREAM_MAX_VOLUME levels of volumes - must be aligned with MAX_STREAM_VOLUME of STREAM_FM_RX in AudioService.java
-    float volumeLevels[FM_RX_STREAM_MAX_VOLUME]={0.001, 0.003, 0.005, 0.011, 0.015, 0.024, 0.04, 0.06, 0.09, 0.15, 0.2, 0.3, 0.4, 0.6, 0.8};
-    uint32_t integerVolume = 0;
-
-    AutoW lock(_lock);
-
-    // Update volume only if FM is ON and analog
-    if ((_pPlatformState->getFmRxHwMode() == AudioSystem::MODE_FM_ON) && (_bFmIsAnalog)) {
-
-        while ((integerVolume < FM_RX_STREAM_MAX_VOLUME) && (volume > volumeLevels[integerVolume])) {
-
-            integerVolume++;
-        }
-
-        // Framework forces speaker use
-        if (_pPlatformState->getDevices(CUtils::EOutput) == AudioSystem::DEVICE_OUT_SPEAKER) {
-            headsetVolume = (uint32_t) (0);
-            speakerVolume = (uint32_t) (integerVolume * _uiFmRxSpeakerMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
-        }
-        // Else use wired accessory for FM
-        else if ((_pPlatformState->getDevices(CUtils::EOutput) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ||
-                 (_pPlatformState->getDevices(CUtils::EOutput) & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE)) {
-
-            headsetVolume = (uint32_t) (integerVolume * _uiFmRxHeadsetMaxVolumeValue / FM_RX_STREAM_MAX_VOLUME);
-            speakerVolume = (uint32_t) 0;
-        }
-
-        ALOGV("%s: FM Rx volume applied on speaker %d and on headset %d", __FUNCTION__, speakerVolume, headsetVolume);
-        //apply calculated volumes into audio codec
-        //left and right channels of stereo headset - only one value for speaker (mono speaker)
-        pfwVolumeArray.push_back(headsetVolume);
-        pfwVolumeArray.push_back(headsetVolume);
-
-        if ((setIntegerArrayParameterValue(LINE_IN_TO_HEADSET_LINE_VOLUME, pfwVolumeArray) != NO_ERROR) ||
-           (setIntegerParameterValue(LINE_IN_TO_SPEAKER_LINE_VOLUME, (uint32_t)speakerVolume) != NO_ERROR) ||
-           (setIntegerParameterValue(LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME, (uint32_t)speakerVolume)!= NO_ERROR)) {
-
-            return INVALID_OPERATION;
-        }
-    }
-
-    return NO_ERROR;
-}
-
 
 }       // namespace android
