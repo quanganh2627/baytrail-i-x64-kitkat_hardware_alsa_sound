@@ -105,31 +105,38 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     audio_io_handle_t activeInput = getActiveInput();
     audio_io_handle_t input = 0;
 
-    // If one input (device in capture) is used then the policy shall refuse to any record
-    // application to acquire another input, unless a VoIP call or a voice call record preempts.
-    // Or unless the ref count is null, that means that there is an input created but not used,
-    // and we can safely return its input handle.
+    // Stop the current active input to enable requested input start in the following cases :
+    // - An application already uses an input and the requested input is from a VoIP call or a CSV
+    // call record
+    // - An application requests an input for a source which has already been previously requested.
+    // Since the policy doesn't have enough elements to legislate this use case, the input shall
+    // be given for the latest request caused by user's action.
+    // Log the remaining usecases for info purpose.
     if (!mInputs.isEmpty() && activeInput) {
         AudioInputDescriptor *inputDesc = mInputs.valueFor(activeInput);
 
         uint32_t deviceMediaRecMic = (AudioSystem::DEVICE_IN_BUILTIN_MIC | AudioSystem::DEVICE_IN_BACK_MIC |
                                       AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET);
 
-        // If an application uses already an input and the requested input is from a VoIP call
-        // or a CSV call record, stop the current active input to enable requested input start.
-        if((( REMOVE_DEVICE_DIR(inputDesc->mDevice) & deviceMediaRecMic) &&
+        if (((REMOVE_DEVICE_DIR(inputDesc->mDevice) & deviceMediaRecMic) &&
             (inputDesc->mInputSource != AUDIO_SOURCE_VOICE_COMMUNICATION)) &&
-           (( REMOVE_DEVICE_DIR(device) & AudioSystem::DEVICE_IN_VOICE_CALL) ||
+            ((REMOVE_DEVICE_DIR(device) & AudioSystem::DEVICE_IN_VOICE_CALL) ||
             (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION))) {
-              LOGI("Stop current active input %d because of higher priority input %d !", inputDesc->mInputSource, inputSource);
-              baseClass::stopInput(activeInput);
+            LOGI("Stop current active input %d because of higher priority input %d !",
+                inputDesc->mInputSource, inputSource);
+            stopInput(activeInput);
+        }
+        else if (inputSource == inputDesc->mInputSource) {
+            LOGI("getInput() mPhoneState : %d, device 0x%x, two requests for the same source,"
+                "return the audio input handle to the latest requester!", mPhoneState, device);
+            stopInput(activeInput);
         }
         else if ((AUDIO_SOURCE_CAMCORDER == inputDesc->mInputSource) &&
                  (AUDIO_SOURCE_MIC == inputSource)) {
             // Create a concurrent input and let upper layers close the active camcorder input
             LOGI("Grant request for input %d creation while current camcorder input", inputSource);
         }
-        else if (( REMOVE_DEVICE_DIR(inputDesc->mDevice) & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+        else if ((REMOVE_DEVICE_DIR(inputDesc->mDevice) & AudioSystem::DEVICE_IN_VOICE_CALL) &&
                  (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
             LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
         }
@@ -141,15 +148,9 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
                  (inputSource == AUDIO_SOURCE_VOICE_RECOGNITION)){
             LOGI("Voice recognition requested while current MIC input source");
         }
-        // Force use of built-in mic in case of force use of the speaker in VoIP and wsHS connected
-        else if ((inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
-                 ( REMOVE_DEVICE_DIR(inputDesc->mDevice) & AudioSystem::DEVICE_IN_WIRED_HEADSET) &&
-                 (getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_SPEAKER)) {
-            device = (audio_devices_t)(AudioSystem::DEVICE_IN_BUILTIN_MIC);
-            LOGI("Changing input device to built-in mic as force use to speaker requested with wsHS connected");
-        }
         else {
-            LOGW("getInput() mPhoneState : %d, device 0x%x, already one input used with other source, return invalid audio input handle!", mPhoneState, device);
+            LOGW("getInput() mPhoneState : %d, device 0x%x, unhandled input source concurrency,"
+                "return invalid audio input handle!", mPhoneState, device);
             return 0;
         }
     }
