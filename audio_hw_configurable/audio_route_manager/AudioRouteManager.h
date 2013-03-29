@@ -242,25 +242,10 @@ private:
 
     static const char* const gpcVoiceVolume;
 
-    static const uint32_t DEFAULT_FM_RX_VOL_MAX;
-    static const uint32_t FM_RX_STREAM_MAX_VOLUME;
-
-    enum FM_RX_DEVICE {
-        FM_RX_SPEAKER,
-        FM_RX_HEADSET,
-
-        FM_RX_NB_DEVICE
-    };
-
     static const char* const LINE_IN_TO_HEADSET_LINE_VOLUME;
     static const char* const LINE_IN_TO_SPEAKER_LINE_VOLUME;
     static const char* const LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME;
-    static const char* const DEFAULT_FM_RX_MAX_VOLUME[FM_RX_NB_DEVICE];
 
-    static const char* const FM_SUPPORTED_PROP_NAME;
-    static const bool FM_SUPPORTED_DEFAULT_VALUE;
-    static const char* const FM_IS_ANALOG_PROP_NAME;
-    static const bool FM_IS_ANALOG_DEFAULT_VALUE;
     static const char* const BLUETOOTH_HFP_SUPPORTED_PROP_NAME;
     static const bool BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE;
     static const char* const PFW_CONF_FILE_NAME_PROP_NAME;
@@ -270,23 +255,12 @@ private:
     static const char* const gapcLineInToHeadsetLineVolume;
     static const char* const gapcLineInToSpeakerLineVolume;
     static const char* const gapcLineInToEarSpeakerLineVolume;
-    static const char* const gapcDefaultFmRxMaxVolume[FM_RX_NB_DEVICE];
 
     static const char* const MODEM_LIB_PROP_NAME;
 
     static const uint32_t VOIP_RATE_FOR_NARROW_BAND_PROCESSING;
 
-    // Indicate if platform supports FM Radio
-    bool _bFmSupported;
-
-    // Indicate if FM module supports RX Analog
-    bool _bFmIsAnalog;
-
     bool _bBluetoothHFPSupported;
-
-    //max values of FM RX Volume
-    uint32_t _uiFmRxSpeakerMaxVolumeValue;
-    uint32_t _uiFmRxHeadsetMaxVolumeValue;
 
     // The connector
     CParameterMgrPlatformConnector* _pParameterMgrPlatformConnector;

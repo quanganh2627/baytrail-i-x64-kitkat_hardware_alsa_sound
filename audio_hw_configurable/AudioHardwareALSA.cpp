@@ -76,20 +76,6 @@ const int32_t AudioHardwareALSA::VOICE_GAIN_MIN      = 40;
 const uint32_t AudioHardwareALSA::VOICE_GAIN_OFFSET   = 40;
 const uint32_t AudioHardwareALSA::VOICE_GAIN_SLOPE    = 48;
 
-// HAL modules table
-const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardwareALSA::NB_HW_DEV] = {
-    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_NAME },
-};
-
-/// Android Properties
-
-const char* const AudioHardwareALSA::FM_SUPPORTED_PROP_NAME = "Audiocomms.FM.Supported";
-const bool AudioHardwareALSA::FM_SUPPORTED_PROP_DEFAULT_VALUE = false;
-
-const char* const AudioHardwareALSA::FM_IS_ANALOG_PROP_NAME = "Audiocomms.FM.IsAnalog";
-const bool AudioHardwareALSA::FM_IS_ANALOG_DEFAUT_VALUE = false;
-
-
 AudioHardwareInterface *AudioHardwareALSA::create() {
 
     ALOGD("Using Audio HAL Configurable");
@@ -104,41 +90,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
     GtiService::Start();
 #endif
 
-    // HW Modules initialisation
-    hw_module_t* module;
-    hw_device_t* device;
-
-    for (int i = 0; i < NB_HW_DEV; i++)
-    {
-        if (hw_get_module(hw_module_list[i].module_id, (hw_module_t const**)&module))
-        {
-            ALOGE("%s Module not found!!!", hw_module_list[i].module_id);
-            mHwDeviceArray.push_back(NULL);
-        }
-        else if (module->methods->open(module, hw_module_list[i].module_name, &device))
-        {
-            ALOGE("%s Module could not be opened!!!", hw_module_list[i].module_name);
-            mHwDeviceArray.push_back(NULL);
-        }
-        else {
-
-            mHwDeviceArray.push_back(device);
-        }
-    }
-
-    bool bFmSupported = TProperty<bool>(FM_SUPPORTED_PROP_NAME, FM_SUPPORTED_PROP_DEFAULT_VALUE);
-    bool bFmIsAnalog = TProperty<bool>(FM_IS_ANALOG_PROP_NAME, FM_IS_ANALOG_DEFAUT_VALUE);
-    if (bFmSupported && !bFmIsAnalog) {
-
-        if (getFmHwDevice()) {
-
-            getFmHwDevice()->init();
-        } else {
-
-            ALOGE("Cannot load FM HW Module");
-        }
-    }
-
     // Start the route manager service
     if (mRouteMgr->start() != NO_ERROR) {
 
@@ -146,26 +97,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     }
 }
 
-fm_device_t* AudioHardwareALSA::getFmHwDevice()
-{
-    LOG_ALWAYS_FATAL_IF(mHwDeviceArray.size() <= FM_HW_DEV);
-
-    return (fm_device_t *)mHwDeviceArray[FM_HW_DEV];
-}
-
 AudioHardwareALSA::~AudioHardwareALSA()
 {
     // Delete route manager, it will detroy all the registered routes
     delete mRouteMgr;
-
-    for (int i = 0; i < NB_HW_DEV; i++) {
-
-        if (mHwDeviceArray[i]) {
-
-            mHwDeviceArray[i]->close(mHwDeviceArray[i]);
-        }
-
-    }
 }
 
 status_t AudioHardwareALSA::initCheck()

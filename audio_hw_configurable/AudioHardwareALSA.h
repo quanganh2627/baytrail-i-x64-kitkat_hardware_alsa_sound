@@ -27,7 +27,6 @@
 #include <tinyalsa/asoundlib.h>
 
 #include <hardware/hardware.h>
-#include <fm_module.h>
 
 #include <utils/threads.h>
 #include "AudioUtils.h"
@@ -132,10 +131,6 @@ public:
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
 
-
-    // Cast Hw device from mHwDeviceArray to the corresponding hw device type
-    fm_device_t* getFmHwDevice();
-
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
     friend class ALSAStreamOps;
@@ -155,18 +150,10 @@ private:
 
     bool mMicMuteState;
 
-    enum HW_DEVICE {
-        FM_HW_DEV = 0,
-
-        NB_HW_DEV
-    };
-
     struct hw_module {
         const char* module_id;
         const char* module_name;
     };
-
-    static const hw_module hw_module_list[NB_HW_DEV];
 
     static const uint32_t DEFAULT_SAMPLE_RATE;
     static const uint32_t DEFAULT_CHANNEL_COUNT;
@@ -181,16 +168,9 @@ private:
     static const float DEFAULT_GAIN_VALUE;
     static const char* const AUDIENCE_IS_PRESENT_PROP_NAME;
     static const bool AUDIENCE_IS_PRESENT_DEFAULT_VALUE;
-    static const char* const FM_SUPPORTED_PROP_NAME;
-    static const bool FM_SUPPORTED_PROP_DEFAULT_VALUE;
-    static const char* const FM_IS_ANALOG_PROP_NAME;
-    static const bool FM_IS_ANALOG_DEFAUT_VALUE;
 
 private:
     CAudioRouteManager* mRouteMgr;
-
-    // HW device array
-    std::vector<hw_device_t*> mHwDeviceArray;
 };
 
 };        // namespace android

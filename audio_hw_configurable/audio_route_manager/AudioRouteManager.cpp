@@ -88,11 +88,6 @@ const char* const CAudioRouteManager::LINE_IN_TO_SPEAKER_LINE_VOLUME =
 const char* const CAudioRouteManager::LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME =
         "/Audio/CIRRUS/SOUND_CARD/MIXER/EAR_SPEAKER_LINE/INPUT_PATH_SOURCE/VOLUME";
 
-const char* const CAudioRouteManager::DEFAULT_FM_RX_MAX_VOLUME[CAudioRouteManager::FM_RX_NB_DEVICE] = {
-    "/Audio/CONFIGURATION/FM_CONF/SPEAKER/VOLUME",
-    "/Audio/CONFIGURATION/FM_CONF/HEADSET/VOLUME"
-};
-
 const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_INTERFACE[CAudioRouteManager::ENbCriteria] = {
     {"Mode",                    CAudioRouteManager::EModeCriteriaType},
     {"FmMode",                  CAudioRouteManager::EFmModeCriteriaType},
@@ -111,10 +106,6 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"HAC",                     CAudioRouteManager::EHacModeCriteriaType},
     {"ScreenState",             CAudioRouteManager::EScreenStateCriteriaType},
 };
-
-
-const uint32_t CAudioRouteManager::FM_RX_STREAM_MAX_VOLUME = 15;
-const uint32_t CAudioRouteManager::DEFAULT_FM_RX_VOL_MAX = 55;
 
 // Mode type
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::MODE_VALUE_PAIRS[] = {
@@ -325,15 +316,7 @@ const char* const CAudioRouteManager::MODEM_LIB_PROP_NAME = "audiocomms.modemLib
 const char* const CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_PROP_NAME = "Audiocomms.BT.HFP.Supported";
 const bool CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE = true;
 
-const char* const CAudioRouteManager::FM_SUPPORTED_PROP_NAME = "Audiocomms.FM.Supported";
-const bool CAudioRouteManager::FM_SUPPORTED_DEFAULT_VALUE = false;
-
-const char* const CAudioRouteManager::FM_IS_ANALOG_PROP_NAME = "Audiocomms.FM.IsAnalog";
-const bool CAudioRouteManager::FM_IS_ANALOG_DEFAULT_VALUE = false;
-
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
-    _uiFmRxSpeakerMaxVolumeValue(0),
-    _uiFmRxHeadsetMaxVolumeValue(0),
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     _pModemAudioManagerInterface(NULL),
     _pPlatformState(new CAudioPlatformState(this)),
@@ -400,18 +383,6 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     }
 
     createAudioHardwarePlatform();
-
-    _bFmSupported = TProperty<bool>(FM_SUPPORTED_PROP_NAME, FM_SUPPORTED_DEFAULT_VALUE);
-    _bFmIsAnalog = TProperty<bool>(FM_IS_ANALOG_PROP_NAME, FM_IS_ANALOG_DEFAULT_VALUE);
-    if (_bFmSupported) {
-
-        if (_bFmIsAnalog) {
-
-            ALOGE("Cannot load FM HW Module");
-            _uiFmRxSpeakerMaxVolumeValue = getIntegerParameterValue(DEFAULT_FM_RX_MAX_VOLUME[FM_RX_SPEAKER], DEFAULT_FM_RX_VOL_MAX);
-            _uiFmRxHeadsetMaxVolumeValue = getIntegerParameterValue(DEFAULT_FM_RX_MAX_VOLUME[FM_RX_HEADSET], DEFAULT_FM_RX_VOL_MAX);
-        }
-    }
 
     //Check if platform supports Bluetooth HFP
     _bBluetoothHFPSupported = TProperty<bool>(BLUETOOTH_HFP_SUPPORTED_PROP_NAME, BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE);
