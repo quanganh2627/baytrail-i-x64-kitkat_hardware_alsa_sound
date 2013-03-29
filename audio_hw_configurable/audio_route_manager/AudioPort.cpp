@@ -66,9 +66,9 @@ void CAudioPort::setBlocked(bool bBlocked)
         return ;
     }
 
-    ALOGV("%s: port %s is condemned", __FUNCTION__, getName().c_str());
+    ALOGV("%s: port %s is blocked", __FUNCTION__, getName().c_str());
 
-    bBlocked = _bBlocked;
+    _bBlocked = bBlocked;
 
     if (bBlocked) {
 
@@ -80,8 +80,9 @@ void CAudioPort::setBlocked(bool bBlocked)
         // Find the applicable route for this route request
         for (it = mRouteList.begin(); it != mRouteList.end(); ++it) {
 
-            CAudioRoute* aRoute = *it;
-            aRoute->setBlocked();
+            CAudioRoute* pRoute = *it;
+            ALOGV("%s:  blocking %s", __FUNCTION__, pRoute->getName().c_str());
+            pRoute->setBlocked();
         }
     }
 }

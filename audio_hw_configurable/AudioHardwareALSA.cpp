@@ -395,12 +395,36 @@ void AudioHardwareALSA::unlockRouting()
 
 status_t AudioHardwareALSA::startStream(ALSAStreamOps* pStream)
 {
-    return mRouteMgr->startStream(pStream);
+    bool bIsStreamOut;
+    {
+        CAudioAutoRoutingLock lock(this);
+        if (pStream->isStarted()) {
+
+            return OK;
+        }
+
+        // Start stream
+        pStream->setStarted(true);
+        bIsStreamOut = pStream->isOut();
+    }
+    return mRouteMgr->startStream(bIsStreamOut);
 }
 
 status_t AudioHardwareALSA::stopStream(ALSAStreamOps* pStream)
 {
-    return mRouteMgr->stopStream(pStream);
+    bool bIsStreamOut;
+    {
+        CAudioAutoRoutingLock lock(this);
+        if (!pStream->isStarted()) {
+
+            return OK;
+        }
+
+        // Stop stream
+        pStream->setStarted(false);
+        bIsStreamOut = pStream->isOut();
+    }
+    return mRouteMgr->stopStream(bIsStreamOut);
 }
 
 }       // namespace android
