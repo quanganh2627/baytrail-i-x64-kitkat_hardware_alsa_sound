@@ -1,4 +1,4 @@
-/*
+﻿/*
  ** Copyright 2013 Intel Corporation
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
@@ -105,6 +105,7 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"BandRinging",             CAudioRouteManager::EBandRingingCriteriaType},
     {"BandType",                CAudioRouteManager::EBandCriteriaType},
     {"BtHeadsetNrEc",           CAudioRouteManager::EBtHeadsetNrEcCriteriaType},
+    {"BtHeadsetBandType",       CAudioRouteManager::EBandCriteriaType},
     {"HAC",                     CAudioRouteManager::EHacModeCriteriaType},
     {"ScreenState",             CAudioRouteManager::EScreenStateCriteriaType},
 };
@@ -526,53 +527,68 @@ void CAudioRouteManager::doReconsiderRouting()
     bool bRoutesWillChange = prepareRouting();
 
     ALOGD("%s: %s",__FUNCTION__,
-             bRoutesWillChange? "      Platform State:" : "      Platform Changes:");
+          bRoutesWillChange? "      Platform State:" : "      Platform Changes:");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange),
              "%s:          -Modem Alive = %d %s", __FUNCTION__,
              _pPlatformState->isModemAlive(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange),
              "%s:          -Modem Call Active = %d %s", __FUNCTION__,
-          _pPlatformState->isModemAudioAvailable(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange) ? "[has changed]" : "");
+             _pPlatformState->isModemAudioAvailable(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ESharedI2SStateChange),
              "%s:          -Is Shared I2S glitch free=%d %s", __FUNCTION__, _pPlatformState->isSharedI2SBusAvailable(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ESharedI2SStateChange) ? "[has changed]" : "");
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ESharedI2SStateChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EAndroidModeChange),
              "%s:          -Android Telephony Mode = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EModeCriteriaType]->getFormattedState(_pPlatformState->getMode()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EAndroidModeChange) ? "[has changed]" : "");
+             _apCriteriaTypeInterface[EModeCriteriaType]->getFormattedState(_pPlatformState->getMode()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EAndroidModeChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange),
              "%s:          -RTE MGR HW Mode = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EModeCriteriaType]->getFormattedState(_pPlatformState->getHwMode()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange) ? "[has changed]" : "");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange),
+             _apCriteriaTypeInterface[EModeCriteriaType]->getFormattedState(_pPlatformState->getHwMode()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHwModeChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange),
              "%s:          -BT Enabled = %d %s", __FUNCTION__, _pPlatformState->isBtEnabled(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange) ? "[has changed]" : "");
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange) ?
+                 "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtHeadsetNrEcChange),
+             "%s:          -BT NREC = %d %s", __FUNCTION__,
+             _pPlatformState->isBtHeadsetNrEcEnabled(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtHeadsetNrEcChange) ?
+                 "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtHeadsetBandTypeChange),
+             "%s:          -BT Band = %s %s", __FUNCTION__,
+             _apCriteriaTypeInterface[EBandCriteriaType]->getFormattedState(
+                 _pPlatformState->getBtHeadsetBandType()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(
+                 CAudioPlatformState::EBtHeadsetBandTypeChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange),
              "%s:          -Platform output device = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EOutputDeviceCriteriaType]->getFormattedState(_pPlatformState->getDevices(true)).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) ? "[has changed]" : "");
+             _apCriteriaTypeInterface[EOutputDeviceCriteriaType]->getFormattedState(_pPlatformState->getDevices(true)).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange),
              "%s:          -Platform input device = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EInputDeviceCriteriaType]->getFormattedState(_pPlatformState->getDevices(false)).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange) ? "[has changed]" : "");
+             _apCriteriaTypeInterface[EInputDeviceCriteriaType]->getFormattedState(_pPlatformState->getDevices(false)).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange),
              "%s:          -Platform input source = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(_pPlatformState->getInputSource()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange) ? "[has changed]" : "");
+             _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(_pPlatformState->getInputSource()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputSourceChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange),
              "%s:          -Platform Band type = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EBandCriteriaType]->getFormattedState(_pPlatformState->getBandType()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange) ? "[has changed]" : "");
+             _apCriteriaTypeInterface[EBandCriteriaType]->getFormattedState(_pPlatformState->getBandType()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBandTypeChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent),
              "%s:          -Platform Has Direct Stream = %s %s", __FUNCTION__,
-          _pPlatformState->hasDirectStreams() ? "yes" : "no",
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent) ? "[has changed]" : "");
+             _pPlatformState->hasDirectStreams() ? "yes" : "no",
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EStreamEvent) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange),
              "%s:          -Platform TTY direction = %s %s", __FUNCTION__,
-          _apCriteriaTypeInterface[ETtyDirectionCriteriaType]->getFormattedState(_pPlatformState->getTtyDirection()).c_str(),
-          _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange) ? "[has changed]" : "");
+             _apCriteriaTypeInterface[ETtyDirectionCriteriaType]->getFormattedState(_pPlatformState->getTtyDirection()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange),
              "%s:          -Platform HAC Mode = %s %s", __FUNCTION__,
              _apCriteriaTypeInterface[EHacModeCriteriaType]->getFormattedState(_pPlatformState->isHacEnabled()).c_str(),
@@ -860,59 +876,8 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         param.remove(key);
     }
 
-    //
-    // Search BT STATE parameter
-    //
-    String8 strBtState;
-    key = String8(AUDIO_PARAMETER_KEY_BLUETOOTH_STATE);
-
-    // Get concerned devices
-    status = param.get(key, strBtState);
-    // Returns no_error if the key was found
-    if (status == NO_ERROR)
-    {
-        bool bIsBtEnabled = false;
-        if (strBtState == AUDIO_PARAMETER_VALUE_BLUETOOTH_STATE_ON) {
-
-            bIsBtEnabled = true;
-        }
-
-        _pPlatformState->setBtEnabled(bIsBtEnabled);
-        // Remove parameter
-        param.remove(key);
-    }
-
-    // Search BT NREC parameter
-    // Because BT_NREC feature only supported on Bluetooth HFP support device,
-    // this request should be ignored on non supported devices like tablet to avoid "non acoustic" audience profile by default.
-    if (_bBluetoothHFPSupported) {
-
-        String8 strBtNrEcSetting;
-        key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
-
-        // Get BT NREC setting value
-        status = param.get(key, strBtNrEcSetting);
-        // Returns no_error if the key was found
-        if (status == NO_ERROR) {
-
-            bool isBtNRecAvailable = false;
-
-            if (strBtNrEcSetting == AUDIO_PARAMETER_VALUE_OFF) {
-
-                LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
-                isBtNRecAvailable = true;
-                // We reconsider routing as BT_NREC_ON intent is sent first, then setStreamParameters and finally
-                // BT_NREC_OFF when the SCO link is enabled. But only BT_NREC_ON setting is applied in that
-                // context, resulting in loading the wrong Audience profile for BT SCO. This is where reconsiderRouting
-                // becomes necessary, to be aligned with BT_NREC_OFF to process the correct Audience profile.
-            }
-
-            _pPlatformState->setBtHeadsetNrEc(isBtNRecAvailable);
-
-            // Remove parameter
-            param.remove(key);
-        }
-    }
+    // Search BT settings
+    doSetBTParameters(param);
 
     // Search HAC setting
     String8 strHacSetting;
@@ -992,6 +957,81 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Not a problem if a key does not exist, its value will
     // simply not be read and used, thus return NO_ERROR
     return NO_ERROR;
+}
+
+void CAudioRouteManager::doSetBTParameters(AudioParameter& param)
+{
+    status_t status;
+    String8 key;
+    String8 value;
+
+    //
+    // Search BT STATE parameter
+    //
+    key = String8(AUDIO_PARAMETER_KEY_BLUETOOTH_STATE);
+
+    // Get concerned devices
+    status = param.get(key, value);
+    // Returns no_error if the key was found
+    if (status == NO_ERROR)
+    {
+
+        _pPlatformState->setBtEnabled(value == AUDIO_PARAMETER_VALUE_BLUETOOTH_STATE_ON);
+        // Remove parameter
+        param.remove(key);
+    }
+
+    //
+    // Search BT NREC parameter
+    //
+    key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
+
+    // Get BT NREC setting value
+    status = param.get(key, value);
+    // Returns no_error if the key was found
+    if (status == NO_ERROR) {
+
+        // Remove parameter
+        param.remove(key);
+
+        // BT NREC must be ignored if we don't want to support HFP devices
+        if (_bBluetoothHFPSupported) {
+
+            // OFF means the headset embeds its noise reduction and echo cancellation algorithms"
+            _pPlatformState->setBtHeadsetNrEc(value == AUDIO_PARAMETER_VALUE_OFF);
+        } else {
+
+            LOGD("HFP not supported: ignore %s=%s", key.string(), value.string());
+        }
+    }
+
+    //
+    // Search BT WBS parameter (B+ specific)
+    //
+    static const char * AUDIO_PARAMETER_KEY_BT_WBS = "bt_headset_wbs";
+
+    key = String8(AUDIO_PARAMETER_KEY_BT_WBS);
+
+    // Get BT WBS setting value
+    status = param.get(key, value);
+    // Returns no_error if the key was found
+    if (status == NO_ERROR) {
+
+        // Remove parameter
+        param.remove(key);
+
+        // BT WBS must be ignored if we don't want to support HFP devices
+        if (_bBluetoothHFPSupported) {
+
+            _pPlatformState->setBtHeadsetBandType(value == AUDIO_PARAMETER_VALUE_ON ?
+                                                      CAudioBand::EWide :
+                                                      CAudioBand::ENarrow
+                                                      );
+        } else {
+
+            LOGD("HFP not supported: ignore %s=%s", key.string(), value.string());
+        }
+    }
 }
 
 //
@@ -1466,12 +1506,26 @@ void CAudioRouteManager::executeConfigureStage()
 #endif
 
     // Change here the devices, the mode, ... all the criteria required for the routing
-    _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
-    _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(_pPlatformState->getTtyDirection());
-    _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(_pPlatformState->isBtHeadsetNrEcEnabled());
-    _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
-    _apSelectedCriteria[ESelectedHacMode]->setCriterionState(_pPlatformState->isHacEnabled());
-    _apSelectedCriteria[ESelectedScreenState]->setCriterionState(_pPlatformState->isScreenOn());
+    _apSelectedCriteria[ESelectedMode]->setCriterionState(
+                _pPlatformState->getHwMode());
+
+    _apSelectedCriteria[ESelectedTtyDirection]->setCriterionState(
+                _pPlatformState->getTtyDirection());
+
+    _apSelectedCriteria[ESelectedBtHeadsetNrEc]->setCriterionState(
+                _pPlatformState->isBtHeadsetNrEcEnabled());
+
+    _apSelectedCriteria[ESelectedBtHeadsetBand]->setCriterionState(
+                _pPlatformState->getBtHeadsetBandType());
+
+    _apSelectedCriteria[ESelectedBand]->setCriterionState(
+                _pPlatformState->getBandType());
+
+    _apSelectedCriteria[ESelectedHacMode]->setCriterionState(
+                _pPlatformState->isHacEnabled());
+
+    _apSelectedCriteria[ESelectedScreenState]->setCriterionState(
+                _pPlatformState->isScreenOn());
 
     _pParameterMgrPlatformConnector->applyConfigurations();
 }

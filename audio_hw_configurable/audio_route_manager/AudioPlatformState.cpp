@@ -35,6 +35,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _iTtyDirection(0),
     _bIsHacModeEnabled(false),
     _bBtHeadsetNrEcEnabled(false),
+    _eBtHeadsetBandType(CAudioBand::ENarrow),
     _bIsBtEnabled(false),
     _uiInputSource(0),
     _uiDirectStreamsRefCount(0),
@@ -180,6 +181,16 @@ void CAudioPlatformState::setBtHeadsetNrEc(bool bIsAcousticSupportedOnBT)
     }
     setPlatformStateEvent(EBtHeadsetNrEcChange);
     _bBtHeadsetNrEcEnabled = bIsAcousticSupportedOnBT;
+}
+
+void CAudioPlatformState::setBtHeadsetBandType(CAudioBand::Type eBtHeadsetBandType)
+{
+    if (_eBtHeadsetBandType == eBtHeadsetBandType) {
+
+        return;
+    }
+    setPlatformStateEvent(EBtHeadsetBandTypeChange);
+    _eBtHeadsetBandType = eBtHeadsetBandType;
 }
 
 // Set devices

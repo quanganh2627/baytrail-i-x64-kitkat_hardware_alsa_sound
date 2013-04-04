@@ -79,6 +79,7 @@ public:
         TtyDirectionChange,
         BtEnableChange,
         BtHeadsetNrEcChange,
+        BtHeadsetBandTypeChange,
         BandTypeChange,
         InputDevicesChange,
         OutputDevicesChange,
@@ -102,6 +103,7 @@ public:
         ADD_EVENT(TtyDirectionChange),
         ADD_EVENT(BtEnableChange),
         ADD_EVENT(BtHeadsetNrEcChange),
+        ADD_EVENT(BtHeadsetBandTypeChange),
         ADD_EVENT(BandTypeChange),
         ADD_EVENT(InputDevicesChange),
         ADD_EVENT(OutputDevicesChange),
@@ -157,11 +159,31 @@ public:
     // Get HAC Mode
     bool isHacEnabled() const { return _bIsHacModeEnabled; }
 
-    // Set BT_NREC
+    /**
+     * Set the BT headset NREC.
+     *
+     * @param[in] bIsAcousticSupportedOnBT: true means the BT device embeds its acoustic algorithms
+     */
     void setBtHeadsetNrEc(bool bIsAcousticSupportedOnBT);
 
     // Get BT NREC
     bool isBtHeadsetNrEcEnabled() const { return _bBtHeadsetNrEcEnabled; }
+
+    /**
+     * Set the BT headset negociated Band Type.
+     * Band Type results of the negociation between device and the BT HFP headset.
+     *
+     * @param[in] eBtHeadsetBandType: the band type to be set
+     */
+    void setBtHeadsetBandType(CAudioBand::Type eBtHeadsetBandType);
+
+    /**
+     * Get the BT headset negociated Band Type.
+     * Band Type results of the negociation between device and the BT HFP headset device.
+     *
+     * @return Negociated band type of the BT headset (default: ENarrow)
+     */
+    CAudioBand::Type getBtHeadsetBandType() const { return _eBtHeadsetBandType; }
 
     // Set BT Enabled flag
     void setBtEnabled(bool bIsBtEnabled);
@@ -258,6 +280,9 @@ private:
 
     // BTNREC set
     bool _bBtHeadsetNrEcEnabled;
+
+    // BT negociated Band Type
+    CAudioBand::Type _eBtHeadsetBandType;
 
     // BT Enabled flag
     bool _bIsBtEnabled;

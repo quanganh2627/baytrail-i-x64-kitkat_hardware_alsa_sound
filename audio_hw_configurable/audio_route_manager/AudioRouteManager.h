@@ -374,7 +374,22 @@ private:
     virtual void onPollError();
     virtual bool onProcess(uint16_t uiEvent);
 
+    /**
+     * Do parameters pop & set.
+     * Pop all parameters provided in the key/value and set those which are handled.
+     *
+     * @param[in] keyValuePairs: the key/value pairs of parameters
+     *
+     * @return status_t
+     */
     status_t doSetParameters(const String8& keyValuePairs);
+    /**
+     * Do BT specific parameters pop & set.
+     * Pop all BT specific parameters provided in the key/value and set those which are handled.
+     *
+     * @param[in:out] param: the key/value pairs of parameters
+     */
+    void doSetBTParameters(AudioParameter& param);
 
     void createsRoutes();
 
@@ -467,6 +482,7 @@ private:
         ESelectedBandRinging,
         ESelectedBand,
         ESelectedBtHeadsetNrEc,
+        ESelectedBtHeadsetBand,
         ESelectedHacMode,
         ESelectedScreenState,
 
