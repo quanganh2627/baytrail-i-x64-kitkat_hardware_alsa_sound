@@ -38,6 +38,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _eBtHeadsetBandType(CAudioBand::ENarrow),
     _bIsBtEnabled(false),
     _uiInputSource(0),
+    _bFmIsOn(false),
     _uiDirectStreamsRefCount(0),
     _iHwMode(AudioSystem::MODE_NORMAL),
     _eCsvBandType(CAudioBand::ENarrow),
@@ -219,6 +220,17 @@ void CAudioPlatformState::setInputSource(uint32_t inputSource)
     }
     _uiInputSource = inputSource;
     setPlatformStateEvent(EInputSourceChange);
+}
+
+// Set FM state
+void CAudioPlatformState::setFmState(bool bIsFmOn)
+{
+    if (_bFmIsOn == bIsFmOn) {
+
+        return;
+    }
+    _bFmIsOn = bIsFmOn;
+    setPlatformStateEvent(EFmStateChange);
 }
 
 CAudioBand::Type CAudioPlatformState::getBandType() const

@@ -459,10 +459,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "HWCODEC_AUX_PORT,FM_I2S_PORT",
         {
             NOT_APPLICABLE,
-            NOT_APPLICABLE
+            DEVICE_OUT_MM_ALL
         },
         {
-            AUDIO_SOURCE_MIC,
+            NOT_APPLICABLE,
             AUDIO_OUTPUT_FLAG_NONE
         },
         {
@@ -669,6 +669,16 @@ public:
     CAudioExternalRouteHwCodecFm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState)
     {
+    }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
+                              uint32_t __UNUSED uiMask = 0) const {
+
+        if (bIsOut && _pPlatformState->isFmStateOn()) {
+
+            return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+        }
+        return false;
     }
 };
 

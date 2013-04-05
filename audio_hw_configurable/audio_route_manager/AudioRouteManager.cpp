@@ -601,6 +601,10 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
              _pPlatformState->isContextAwarenessEnabled() ? "true" : "false",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmStateChange),
+             "%s:          -Platform FM State = %s %s", __FUNCTION__,
+             _pPlatformState->isFmStateOn()? "On" : "Off",
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmStateChange) ? "[has changed]" : "");
 
     if (bRoutesWillChange) {
 
@@ -828,118 +832,31 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     ALOGV("%s: key value pair %s", __FUNCTION__, keyValuePairs.string());
 
     AudioParameter param = AudioParameter(keyValuePairs);
-    status_t status;
 
-    //
-    // Search Stream Flags
-    //
-    int iFlags;
-    String8 key = String8(AudioParameter::keyStreamFlags);
-    status = param.getInt(key, iFlags);
-    // Returns no_error if the key was found
-    if (status == NO_ERROR) {
+    // Search stream flags settings
+    doSetStreamFlagsParameters(param);
 
-        // Remove parameter
-        param.remove(key);
+    // Search TTY settings
+    doSetTtyParameters(param);
 
-        _pPlatformState->setDirectStreamEvent(iFlags);
-    }
+    // Search HAC settings
+    doSetHacParameters(param);
 
-    //
-    // Search TTY mode
-    //
-    String8 strTtyDevice;
-    int iTtyDirection = 0;
-    key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
+    // Search screen settings
+    doSetScreenStateParameters(param);
 
-    // Get concerned devices
-    status = param.get(key, strTtyDevice);
-    // Returns no_error if the key was found
-    if (status == NO_ERROR) {
-
-        if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
-
-            iTtyDirection = TTY_DOWNLINK | TTY_UPLINK;
-        }
-        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
-
-            iTtyDirection = TTY_UPLINK;
-        }
-        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
-
-            iTtyDirection = TTY_DOWNLINK;
-        }
-
-        _pPlatformState->setTtyDirection(iTtyDirection);
-
-        // Remove parameter
-        param.remove(key);
-    }
+    // Search FM settings
+    doSetFmParameters(param);
 
     // Search BT settings
     doSetBTParameters(param);
 
-    // Search HAC setting
-    String8 strHacSetting;
-    bool bIsHACModeOn = false;
-
-    key = String8(AUDIO_PARAMETER_KEY_HAC_SETTING);
-
-    // Get HAC setting value
-    status = param.get(key, strHacSetting);
-    // Returns no_error if the key was found
-    if (status == NO_ERROR) {
-
-        if (strHacSetting == AUDIO_PARAMETER_VALUE_HAC_ON) {
-
-            bIsHACModeOn = true;
-        }
-
-        _pPlatformState->setHacMode(bIsHACModeOn);
-
-        // Remove parameter
-        param.remove(key);
-    }
-
-    // Search Screen State value
-    String8 strScreenState;
-    key = String8(AUDIO_PARAMETER_KEY_SCREEN_STATE);
-    status = param.get(key, strScreenState);
-    ALOGV("Screen State %d %s", status, strScreenState.string());
-
-    if (status == NO_ERROR) {
-
-        bool bIsScreenOn = false;
-        if (strScreenState == AUDIO_PARAMETER_VALUE_ON) {
-
-            ALOGV("%s: Screen ON", __FUNCTION__);
-            bIsScreenOn = true;
-        }
-
-        _pPlatformState->setScreenState(bIsScreenOn);
-    }
-
     // Search context awareness parameter
-    String8 strContextAwarenessStatus;
-    key = String8(AUDIO_PARAMETER_KEY_CONTEXT_AWARENESS_STATUS);
-    status = param.get(key, strContextAwarenessStatus);
+    doSetContextAwarenessParameters(param);
 
-    // get context awareness status
-    if (status == NO_ERROR) {
-        bool bContextAwarenessEnabled = false;
-        if(strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_ON) {
-            LOGV("Context awareness is turned on");
-            bContextAwarenessEnabled = true;
-        }
-        else if(strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_OFF) {
-            LOGV("Context awareness is turned off");
-            bContextAwarenessEnabled = false;
-        }
+    if (param.size()) {
 
-        _pPlatformState->setContextAwarenessStatus(bContextAwarenessEnabled);
-
-        // Remove parameter
-        param.remove(key);
+        ALOGW("%s: Unhandled argument.", __FUNCTION__);
     }
 
     // Reconsider the routing now
@@ -954,12 +871,24 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         reconsiderRouting(_bRoutingLocked);
     }
 
-    // Not a problem if a key does not exist, its value will
-    // simply not be read and used, thus return NO_ERROR
     return NO_ERROR;
 }
 
-void CAudioRouteManager::doSetBTParameters(AudioParameter& param)
+void CAudioRouteManager::doSetContextAwarenessParameters(AudioParameter &param)
+{
+    String8 strContextAwarenessStatus;
+    String8 key = String8(AUDIO_PARAMETER_KEY_CONTEXT_AWARENESS_STATUS);
+
+    // Search context awareness parameter
+    if (param.get(key, strContextAwarenessStatus) == NO_ERROR) {
+
+        _pPlatformState->setContextAwarenessStatus(
+                    strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_ON);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
 {
     status_t status;
     String8 key;
@@ -977,7 +906,6 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter& param)
     {
 
         _pPlatformState->setBtEnabled(value == AUDIO_PARAMETER_VALUE_BLUETOOTH_STATE_ON);
-        // Remove parameter
         param.remove(key);
     }
 
@@ -991,7 +919,6 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter& param)
     // Returns no_error if the key was found
     if (status == NO_ERROR) {
 
-        // Remove parameter
         param.remove(key);
 
         // BT NREC must be ignored if we don't want to support HFP devices
@@ -1017,7 +944,6 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter& param)
     // Returns no_error if the key was found
     if (status == NO_ERROR) {
 
-        // Remove parameter
         param.remove(key);
 
         // BT WBS must be ignored if we don't want to support HFP devices
@@ -1031,6 +957,91 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter& param)
 
             LOGD("HFP not supported: ignore %s=%s", key.string(), value.string());
         }
+    }
+}
+
+void CAudioRouteManager::doSetTtyParameters(AudioParameter &param)
+{
+    String8 strTtyDevice;
+    String8 key = String8(AUDIO_PARAMETER_KEY_TTY_MODE);
+
+    // Search TTY key
+    if (param.get(key, strTtyDevice) == NO_ERROR) {
+
+        int iTtyDirection = 0;
+        if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
+
+            iTtyDirection = TTY_DOWNLINK | TTY_UPLINK;
+        }
+        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
+
+            iTtyDirection = TTY_UPLINK;
+        }
+        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
+
+            iTtyDirection = TTY_DOWNLINK;
+        }
+
+        _pPlatformState->setTtyDirection(iTtyDirection);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetHacParameters(AudioParameter &param)
+{
+    String8 strHacSetting;
+    String8 key = String8(AUDIO_PARAMETER_KEY_HAC_SETTING);
+
+    // Search HAC setting key
+    if (param.get(key, strHacSetting) == NO_ERROR) {
+
+        _pPlatformState->setHacMode(strHacSetting == AUDIO_PARAMETER_VALUE_HAC_ON);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetStreamFlagsParameters(AudioParameter &param)
+{
+    int iFlags;
+    String8 key = String8(AudioParameter::keyStreamFlags);
+
+    // Search Stream Flags key
+    if (param.getInt(key, iFlags) == NO_ERROR) {
+
+        _pPlatformState->setDirectStreamEvent(iFlags);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetScreenStateParameters(AudioParameter &param)
+{
+    String8 strScreenState;
+    String8 key = String8(AUDIO_PARAMETER_KEY_SCREEN_STATE);
+
+    // Search Screen state key
+    if (param.get(key, strScreenState) == NO_ERROR) {
+
+        _pPlatformState->setScreenState(strScreenState == AUDIO_PARAMETER_VALUE_ON);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetFmParameters(AudioParameter &param)
+{
+    static const char* const FM_ROUTE_PARAM_KEY = "route-fm";
+    String8 strKey = String8(FM_ROUTE_PARAM_KEY);
+    String8 strFmRoute;
+
+    // Search FM key (B+ specific)
+    if (param.get(strKey, strFmRoute) == NO_ERROR) {
+
+        // Search FM parameter values (B+ specific)
+        static const char* const FM_ROUTE_REQUESTING_SPEAKER = "speaker";
+        static const char* const FM_ROUTE_REQUESTING_HEADSET = "headset";
+
+        _pPlatformState->setFmState(strFmRoute == FM_ROUTE_REQUESTING_SPEAKER ||
+                                    strFmRoute == FM_ROUTE_REQUESTING_HEADSET);
+        param.remove(strKey);
     }
 }
 
