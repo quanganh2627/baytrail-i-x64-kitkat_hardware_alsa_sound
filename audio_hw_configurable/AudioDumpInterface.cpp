@@ -189,7 +189,6 @@ status_t AudioDumpInterface::setParameters(const String8& keyValuePairs)
 {
     AudioParameter param = AudioParameter(keyValuePairs);
     String8 value;
-    int valueInt;
     LOGV("setParameters %s", keyValuePairs.string());
 
     if (param.get(String8("test_cmd_file_name"), value) == NO_ERROR) {

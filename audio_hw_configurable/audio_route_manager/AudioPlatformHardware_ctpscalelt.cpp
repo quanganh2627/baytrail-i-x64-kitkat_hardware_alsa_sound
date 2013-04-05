@@ -1,1 +1,0 @@
-AudioPlatformHardware_ctpscaleht.cpp
