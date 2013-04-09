@@ -47,13 +47,13 @@ static const char* MEDIA_CARD_NAME = "merrprhcs42l73";
 #define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 
-static const char* VOICE_MIXING_CARD_NAME = "IntelALSAIFX";
+static const char* VOICE_MIXING_CARD_NAME = MEDIA_CARD_NAME;
 #define VOICE_MIXING_DEVICE_ID          ((int)5)
 #define VOICE_RECORD_DEVICE_ID          ((int)5)
 
-static const char* VOICE_CARD_NAME = "IntelALSASSP";
+static const char* VOICE_CARD_NAME = MEDIA_CARD_NAME;
 #define VOICE_DOWNLINK_DEVICE_ID    ((4))
-#define VOICE_UPLINK_DEVICE_ID      ((3))
+#define VOICE_UPLINK_DEVICE_ID      ((4))
 
 using namespace std;
 
