@@ -141,6 +141,9 @@ public:
     // Remove a stream from route manager
     void removeStream(ALSAStreamOps* pStream);
 
+    // Set FM mode
+    status_t setFmRxMode(bool bIsFmOn);
+
     // Start route manager service
     status_t start();
 
@@ -151,6 +154,8 @@ public:
     void unlock();
 
     status_t setVoiceVolume(int gain);
+
+    status_t setFmRxVolume(float volume);
 
 private:
     CAudioRouteManager(const CAudioRouteManager &);

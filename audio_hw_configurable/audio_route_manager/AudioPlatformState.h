@@ -44,6 +44,7 @@ class CAudioPlatformState
 
 public:
     enum ComponentStateName_t {
+        FmHwMode,
         ModemState,
         ModemAudioStatus,
         HacMode,
@@ -58,6 +59,7 @@ public:
     };
 
     enum ComponentStateType_t {
+        ADD_EVENT(FmHwMode),
         ADD_EVENT(ModemState),
         ADD_EVENT(ModemAudioStatus),
         ADD_EVENT(HacMode),
@@ -73,6 +75,8 @@ public:
     enum EventName_t {
         AndroidModeChange,
         HwModeChange,
+        FmModeChange,
+        FmHwModeChange,
         ModemStateChange,
         ModemAudioStatusChange,
         HacModeChange,
@@ -95,6 +99,8 @@ public:
         EAllEvents                  = -1,
         ADD_EVENT(AndroidModeChange),
         ADD_EVENT(HwModeChange),
+        ADD_EVENT(FmModeChange),
+        ADD_EVENT(FmHwModeChange),
         ADD_EVENT(ModemStateChange),
         ADD_EVENT(ModemAudioStatusChange),
         ADD_EVENT(HacModeChange),
@@ -139,6 +145,15 @@ public:
 
     // Get telephony mode
     int getMode() const { return _iAndroidMode; }
+
+    // Set FM mode
+    void setFmRxMode(int fmMode);
+
+    // Get FM mode
+    int getFmRxMode() const { return _iFmRxMode; }
+
+    // Get FM HW mode
+    int getFmRxHwMode() const { return _iFmRxHwMode; }
 
     // Get the HW mode
     int getHwMode() const { return _iHwMode; }
@@ -223,6 +238,9 @@ private:
     // Check if the Hw mode has changed
     bool checkHwMode();
 
+    // Check if Fm Hw mode has changed
+    void checkAndSetFmRxHwMode();
+
     // Modem Call state
     bool _bModemAudioAvailable;
 
@@ -234,6 +252,10 @@ private:
 
     // Android Telephony mode cache
     int _iAndroidMode;
+
+    // FM mode
+    int _iFmRxMode;
+    int _iFmRxHwMode;
 
     // TTY Mode
     int _iTtyDirection;

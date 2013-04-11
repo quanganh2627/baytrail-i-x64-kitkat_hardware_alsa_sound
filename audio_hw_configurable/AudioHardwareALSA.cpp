@@ -193,9 +193,28 @@ status_t AudioHardwareALSA::setVoiceVolume(float volume)
     return mRouteMgr->setVoiceVolume(gain);
 }
 
+status_t AudioHardwareALSA::setFmRxVolume(float volume)
+{
+    ALOGD("%s", __FUNCTION__);
+
+    return mRouteMgr->setFmRxVolume(volume);
+}
+
 status_t AudioHardwareALSA::setMasterVolume(float __UNUSED volume)
 {
     ALOGW("%s: missing implementation", __FUNCTION__);
+    return NO_ERROR;
+}
+
+status_t AudioHardwareALSA::setFmRxMode(int fm_mode)
+{
+    ALOGD("%s: in", __FUNCTION__);
+
+    if (AudioHardwareBase::setFmRxMode(fm_mode) != ALREADY_EXISTS) {
+
+        return mRouteMgr->setFmRxMode(fm_mode);
+    }
+
     return NO_ERROR;
 }
 

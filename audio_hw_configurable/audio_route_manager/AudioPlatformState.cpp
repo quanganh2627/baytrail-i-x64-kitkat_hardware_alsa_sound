@@ -32,6 +32,8 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bModemAudioAvailable(false),
     _bModemAlive(false),
     _iAndroidMode(AudioSystem::MODE_NORMAL),
+    _iFmRxMode(0),
+    _iFmRxHwMode(0),
     _iTtyDirection(0),
     _bIsHacModeEnabled(false),
     _bBtHeadsetNrEcEnabled(false),
@@ -136,6 +138,49 @@ void CAudioPlatformState::setMode(int iMode)
     }
     _iAndroidMode = iMode;
     setPlatformStateEvent(EAndroidModeChange);
+}
+
+// Set FM mode
+void CAudioPlatformState::setFmRxMode(int iFmRxMode)
+{
+    if (_iFmRxMode == iFmRxMode) {
+
+        return ;
+    }
+    _iFmRxMode = iFmRxMode;
+    setPlatformStateEvent(EFmModeChange);
+
+    checkAndSetFmRxHwMode();
+}
+
+//
+// This function checks if the FM RX HW mode can be changed
+// (upon the Mode requested by the user and Android Mode),
+// changes it and returns true if it has changed.
+// Note that all request to switch off the radio must be considered
+// whatever the android mode whereas request to set the FM on will
+// only be granted in NORMAL android mode.
+//
+void CAudioPlatformState::checkAndSetFmRxHwMode()
+{
+    int bNewFmRxHwMode = AudioSystem::MODE_FM_OFF;
+
+    if ((getFmRxMode() == AudioSystem::MODE_FM_ON) &&
+            (getMode() == AudioSystem::MODE_NORMAL)) {
+
+        // Set FmRxHw mode only in NORMAL android mode
+        bNewFmRxHwMode = AudioSystem::MODE_FM_ON;
+    }
+
+    if (getFmRxHwMode() != bNewFmRxHwMode) {
+
+        ALOGV("%s: changed to %d", __FUNCTION__, bNewFmRxHwMode);
+        // The mode has changed, force the rerouting flag
+        // and request to reset PMDOWN time during the routing
+        // process to avoid glitches
+        _iFmRxHwMode = bNewFmRxHwMode;
+        setPlatformStateEvent(EFmHwModeChange);
+    }
 }
 
 // Set TTY mode
@@ -254,6 +299,8 @@ void CAudioPlatformState::updateHwMode()
 
         setPlatformStateEvent(EHwModeChange);
     }
+
+    checkAndSetFmRxHwMode();
 }
 
 //

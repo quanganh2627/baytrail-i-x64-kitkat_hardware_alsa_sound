@@ -71,10 +71,9 @@ status_t AudioStreamOutALSA::setVolume(float __UNUSED left, float __UNUSED right
 
 size_t AudioStreamOutALSA::generateSilence(size_t bytes)
 {
-    // No HW will drive the timeline:
-    //       we are here because of hardware error or missing route availability.
-    // Also, keep time sync by sleeping the equivalent amount of time.
-    usleep(mSampleSpec.convertFramesToUsec(mSampleSpec.convertBytesToFrames(bytes)));
+    ALOGD("%s: on alsa device(0x%x)", __FUNCTION__, getCurrentDevices());
+
+    usleep(((bytes * 1000 )/ frameSize() / sampleRate()) * 1000);
     mStandby = false;
     return bytes;
 }
@@ -88,8 +87,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     // Check if the audio route is available for this stream
     if (!isRouteAvailable()) {
 
-        ALOGD("%s(buffer=%p, bytes=%d) No route available. Generating silence to alsa device (0x%x).",
-            __FUNCTION__, buffer, bytes, getCurrentDevices());
         return generateSilence(bytes);
     }
 
@@ -116,8 +113,6 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
             // Returns asap to catch up the broken pipe error else, trash the audio data
             // and sleep the time the driver may use to consume it.
-            ALOGD("%s(buffer=%p, bytes=%d) Broken pipe. Generating silence to alsa device (0x%x).",
-                __FUNCTION__, buffer, bytes, getCurrentDevices());
             generateSilence(bytes);
         }
 

@@ -173,7 +173,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         CAudioRoute::EStreamRoute,
         "",
         {
-            DEVICE_IN_BUILTIN_ALL,
+            DEVICE_IN_BUILTIN_ALL | AudioSystem::DEVICE_IN_FM_RECORD,
             DEVICE_OUT_MM_ALL
         },
         {
@@ -424,7 +424,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "HWCODEC_AUX_PORT,FM_I2S_PORT",
         {
             NOT_APPLICABLE,
-            NOT_APPLICABLE
+            DEVICE_OUT_MM_ALL
         },
         {
             AUDIO_SOURCE_MIC,
@@ -436,7 +436,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             NOT_APPLICABLE,
-            NOT_APPLICABLE
+            CAudioPlatformState::EFmHwMode
         },
         NOT_APPLICABLE,
         {
@@ -622,6 +622,17 @@ public:
     CAudioExternalRouteHwCodecFm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState)
     {
+    }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask) const
+    {
+        // BT module must be off and as the BT is on the shared I2S bus
+        // the modem must be alive as well to use this route
+        if (!_pPlatformState->getFmRxHwMode()) {
+
+            return false;
+        }
+        return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
 };
 

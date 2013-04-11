@@ -75,10 +75,6 @@ size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
 {
     // Send zeroed buffer
     memset(buffer, 0, bytes);
-    // No HW will drive the timeline:
-    //       we are here because of hardware error or missing route availability.
-    // Also, keep time sync by sleeping the equivalent amount of time.
-    usleep(mSampleSpec.convertFramesToUsec(mSampleSpec.convertBytesToFrames(bytes)));
     mStandby = false;
     return bytes;
 }
@@ -154,10 +150,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     CAudioAutoRoutingLock lock(mParent);
 
     // Check if the audio route is available for this stream
-    if (!isRouteAvailable()) {
-
-        ALOGD("%s(buffer=%p, bytes=%ld) No route available. Generating silence.",
-            __FUNCTION__, buffer, bytes);
+    if (!isRouteAvailable())
+    {
         return generateSilence(buffer, bytes);
     }
 
@@ -170,8 +164,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     if (received_frames < 0) {
 
-        ALOGE("%s(buffer=%p, bytes=%ld) returns %ld. Generating silence.",
-             __FUNCTION__, buffer, bytes, received_frames);
+        ALOGE("%s(buffer=%p, bytes=%ld) will return %ld", __FUNCTION__, buffer, bytes, received_frames);
         //
         // Generate Silence here
         //
@@ -183,9 +176,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 
     if(mParent->mMicMuteState ) {
 
-        ALOGD("%s(buffer=%p, bytes=%ld). Mic muted. Generating silence.",
-            __FUNCTION__, buffer, bytes);
-        generateSilence(buffer, readBytes);
+        memset(buffer, 0, readBytes);
     }
     return readBytes;
 }

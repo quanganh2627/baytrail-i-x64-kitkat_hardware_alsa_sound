@@ -447,6 +447,15 @@ public:
     CAudioExternalRouteFMIA(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+
+        if (_pPlatformState->getFmRxMode() != AudioSystem::MODE_FM_ON) {
+
+            return false;
+        }
+        return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+    }
 };
 
 //

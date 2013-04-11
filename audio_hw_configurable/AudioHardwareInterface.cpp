@@ -82,6 +82,8 @@ AudioStreamIn::~AudioStreamIn() {}
 AudioHardwareBase::AudioHardwareBase()
 {
     mMode = 0;
+    mFmRxMode = AudioSystem::MODE_FM_OFF;
+    mPrevFmRxMode = AudioSystem::MODE_FM_OFF;
 }
 
 status_t AudioHardwareBase::setMode(int mode)
@@ -94,6 +96,20 @@ status_t AudioHardwareBase::setMode(int mode)
     if (mMode == mode)
         return ALREADY_EXISTS;
     mMode = mode;
+    return NO_ERROR;
+}
+
+status_t AudioHardwareBase::setFmRxMode(int mode)
+{
+#if LOG_ROUTING_CALLS
+    ALOGD("setFmRxMode(%s)", (mode == AudioSystem::MODE_FM_ON) ? "FM ON" : "FM OFF");
+#endif
+    if ((mode < 0) || (mode >= AudioSystem::MODE_FM_NUM))
+        return BAD_VALUE;
+    if (mFmRxMode == mode)
+        return ALREADY_EXISTS;
+    mPrevFmRxMode = mFmRxMode;
+    mFmRxMode = mode;
     return NO_ERROR;
 }
 
