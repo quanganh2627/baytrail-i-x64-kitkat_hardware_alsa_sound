@@ -113,8 +113,7 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
         AudioInputDescriptor *inputDesc = mInputs.valueFor(activeInput);
 
         uint32_t deviceMediaRecMic = (AudioSystem::DEVICE_IN_BUILTIN_MIC | AudioSystem::DEVICE_IN_BACK_MIC |
-                                      AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET |
-                                      AudioSystem::DEVICE_IN_FM_RECORD);
+                                      AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET);
 
         // If an application uses already an input and the requested input is from a VoIP call
         // or a CSV call record, stop the current active input to enable requested input start.

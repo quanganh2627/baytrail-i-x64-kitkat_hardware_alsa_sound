@@ -72,17 +72,12 @@ public:
     /** set the audio volume of a voice call. Range is between 0.0 and 1.0 */
     virtual android::status_t    setVoiceVolume(float volume);
 
-    /** set the audio volume of fm rx playback. Range is between 0.0 and 1.0 */
-    virtual android::status_t    setFmRxVolume(float volume);
-
     /**
      * set the audio volume for all audio activities other than voice call.
      * Range between 0.0 and 1.0. If any value other than NO_ERROR is returned,
      * the software mixer will emulate this capability.
      */
     virtual android::status_t    setMasterVolume(float volume);
-
-    virtual android::status_t    setFmRxMode(int mode);
 
     // mic mute
     virtual android::status_t    setMicMute(bool state);
@@ -147,9 +142,6 @@ protected:
     friend class CAudioRouteManager;
     friend class CAudioAutoRoutingLock;
     friend class CAudioConverter;
-
-    int getFmRxMode() { return mFmRxMode; }
-    int getPrevFmRxMode() { return mPrevFmRxMode; }
 
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);
