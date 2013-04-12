@@ -324,8 +324,11 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
         return 1.0f;
     }
 
-    // Process in call DTMF/SYSTEM volume
-    if (isInCall() && (stream == AudioSystem::DTMF || stream == AudioSystem::SYSTEM)) {
+    // Process in call ALARM/DTMF/SYSTEM volume
+    if (isInCall() &&
+        (stream == AudioSystem::ALARM ||
+         stream == AudioSystem::DTMF ||
+         stream == AudioSystem::SYSTEM)) {
 
         LOG_ALWAYS_FATAL_IF((mPhoneState != AudioSystem::MODE_IN_COMMUNICATION) &&
                             (mPhoneState != AudioSystem::MODE_IN_CALL));
@@ -335,8 +338,8 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
 
         if (mVoiceVolumeAppliedAfterMix) {
 
-            //set the DTMF/SYSTEM volume to 1.0 to avoid double attenuation when the voice
-            //volume will be applied after mix DTMF/SYSTEM and voice.
+            //set the ALARM/DTMF/SYSTEM volume to 1.0 to avoid double attenuation when the voice
+            //volume will be applied after mix ALARM/DTMF/SYSTEM and voice.
             return 1.0f;
         }
     }
