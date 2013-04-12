@@ -18,18 +18,45 @@
 #include <cutils/log.h>
 #include "SampleSpec.h"
 
+using namespace std;
+
 namespace android_audio_legacy {
 
 const uint32_t CSampleSpec::USEC_PER_SEC = 1000000;
 
 #define SAMPLE_SPEC_ITEM_IS_VALID(eSampleSpecItem) LOG_ALWAYS_FATAL_IF(eSampleSpecItem < 0 || eSampleSpecItem >= ENbSampleSpecItems)
 
+CSampleSpec::CSampleSpec() :
+    _uiChannelMask(0)
+{
+    bzero(_auiSampleSpec, sizeof(_auiSampleSpec[0]) * ENbSampleSpecItems);
+}
+
 // Generic Accessor
 void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue)
 {
     SAMPLE_SPEC_ITEM_IS_VALID(eSampleSpecItem);
+
+    if (eSampleSpecItem == EChannelCountSampleSpecItem) {
+
+        LOG_ALWAYS_FATAL_IF(uiValue >= MAX_CHANNELS);
+
+        _aChannelsPolicy.clear();
+        // Reset all the channels policy to copy by default
+        for (uint32_t i = 0; i < uiValue; i++) {
+
+            _aChannelsPolicy.push_back(ECopy);
+        }
+    }
     _auiSampleSpec[eSampleSpecItem] = uiValue;
 }
+
+void CSampleSpec::setChannelsPolicy(const vector<ChannelsPolicy>& channelsPolicy)
+{
+    LOG_ALWAYS_FATAL_IF(channelsPolicy.size() >= MAX_CHANNELS);
+    _aChannelsPolicy = channelsPolicy;
+}
+
 
 uint32_t CSampleSpec::getSampleSpecItem(SampleSpecItem eSampleSpecItem) const
 {
@@ -61,6 +88,19 @@ size_t CSampleSpec::convertFramesToUsec(uint32_t uiFrames) const
 size_t CSampleSpec::convertUsecToframes(uint32_t uiIntervalUsec) const
 {
     return (uint64_t)uiIntervalUsec * getSampleRate() / USEC_PER_SEC;
+}
+
+bool CSampleSpec::isSampleSpecItemEqual(SampleSpecItem eSampleSpecItem,
+                                        const CSampleSpec& ssSrc,
+                                        const CSampleSpec& ssDst)
+{
+    if (ssSrc.getSampleSpecItem(eSampleSpecItem) != ssDst.getSampleSpecItem(eSampleSpecItem)) {
+
+        return false;
+    }
+
+    return ((eSampleSpecItem != EChannelCountSampleSpecItem) ||
+            ssSrc.getChannelsPolicy() == ssDst.getChannelsPolicy());
 }
 
 }; // namespace android

@@ -45,6 +45,11 @@
 #include "ALSAStreamOps.h"
 #include "Utils.h"
 
+
+#include <hardware/audio_effect.h>
+#include <audio_utils/echo_reference.h>
+#include <audio_effects/effect_aec.h>
+
 #include "AudioRouteManager.h"
 #include "AudioAutoRoutingLock.h"
 #include "AudioConversion.h"
@@ -71,25 +76,6 @@ const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 48000;
 const uint32_t AudioHardwareALSA::DEFAULT_CHANNEL_COUNT = 2;
 const uint32_t AudioHardwareALSA::DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT;
 
-const int32_t AudioHardwareALSA::VOICE_GAIN_MAX      = 88;
-const int32_t AudioHardwareALSA::VOICE_GAIN_MIN      = 40;
-const uint32_t AudioHardwareALSA::VOICE_GAIN_OFFSET   = 40;
-const uint32_t AudioHardwareALSA::VOICE_GAIN_SLOPE    = 48;
-
-// HAL modules table
-const AudioHardwareALSA::hw_module AudioHardwareALSA::hw_module_list [AudioHardwareALSA::NB_HW_DEV] = {
-    { FM_HARDWARE_MODULE_ID, FM_HARDWARE_NAME },
-};
-
-/// Android Properties
-
-const char* const AudioHardwareALSA::FM_SUPPORTED_PROP_NAME = "Audiocomms.FM.Supported";
-const bool AudioHardwareALSA::FM_SUPPORTED_PROP_DEFAULT_VALUE = false;
-
-const char* const AudioHardwareALSA::FM_IS_ANALOG_PROP_NAME = "Audiocomms.FM.IsAnalog";
-const bool AudioHardwareALSA::FM_IS_ANALOG_DEFAUT_VALUE = false;
-
-
 AudioHardwareInterface *AudioHardwareALSA::create() {
 
     ALOGD("Using Audio HAL Configurable");
@@ -104,41 +90,6 @@ AudioHardwareALSA::AudioHardwareALSA() :
     GtiService::Start();
 #endif
 
-    // HW Modules initialisation
-    hw_module_t* module;
-    hw_device_t* device;
-
-    for (int i = 0; i < NB_HW_DEV; i++)
-    {
-        if (hw_get_module(hw_module_list[i].module_id, (hw_module_t const**)&module))
-        {
-            ALOGE("%s Module not found!!!", hw_module_list[i].module_id);
-            mHwDeviceArray.push_back(NULL);
-        }
-        else if (module->methods->open(module, hw_module_list[i].module_name, &device))
-        {
-            ALOGE("%s Module could not be opened!!!", hw_module_list[i].module_name);
-            mHwDeviceArray.push_back(NULL);
-        }
-        else {
-
-            mHwDeviceArray.push_back(device);
-        }
-    }
-
-    bool bFmSupported = TProperty<bool>(FM_SUPPORTED_PROP_NAME, FM_SUPPORTED_PROP_DEFAULT_VALUE);
-    bool bFmIsAnalog = TProperty<bool>(FM_IS_ANALOG_PROP_NAME, FM_IS_ANALOG_DEFAUT_VALUE);
-    if (bFmSupported && !bFmIsAnalog) {
-
-        if (getFmHwDevice()) {
-
-            getFmHwDevice()->init();
-        } else {
-
-            ALOGE("Cannot load FM HW Module");
-        }
-    }
-
     // Start the route manager service
     if (mRouteMgr->start() != NO_ERROR) {
 
@@ -146,26 +97,10 @@ AudioHardwareALSA::AudioHardwareALSA() :
     }
 }
 
-fm_device_t* AudioHardwareALSA::getFmHwDevice()
-{
-    LOG_ALWAYS_FATAL_IF(mHwDeviceArray.size() <= FM_HW_DEV);
-
-    return (fm_device_t *)mHwDeviceArray[FM_HW_DEV];
-}
-
 AudioHardwareALSA::~AudioHardwareALSA()
 {
     // Delete route manager, it will detroy all the registered routes
     delete mRouteMgr;
-
-    for (int i = 0; i < NB_HW_DEV; i++) {
-
-        if (mHwDeviceArray[i]) {
-
-            mHwDeviceArray[i]->close(mHwDeviceArray[i]);
-        }
-
-    }
 }
 
 status_t AudioHardwareALSA::initCheck()
@@ -180,17 +115,7 @@ status_t AudioHardwareALSA::initCheck()
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
-    // The voice volume is used by the VOICE_CALL audio stream.
-    CAudioAutoRoutingLock lock(this);
-
-    int gain;
-    int range = VOICE_GAIN_SLOPE;
-
-    gain = volume * range + VOICE_GAIN_OFFSET;
-    gain = min(gain, VOICE_GAIN_MAX);
-    gain = max(gain, VOICE_GAIN_MIN);
-
-    return mRouteMgr->setVoiceVolume(gain);
+    return mRouteMgr->setVoiceVolume(volume);
 }
 
 status_t AudioHardwareALSA::setMasterVolume(float __UNUSED volume)
@@ -407,5 +332,39 @@ status_t AudioHardwareALSA::stopStream(ALSAStreamOps* pStream)
     }
     return mRouteMgr->stopStream(bIsStreamOut);
 }
+
+
+status_t AudioHardwareALSA::addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->addAudioEffect(pStream, effect);
+}
+
+status_t AudioHardwareALSA::removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->removeAudioEffect(pStream, effect);
+}
+
+status_t AudioHardwareALSA::addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->addAudioEffectRequest(pStream, effect);
+}
+
+status_t AudioHardwareALSA::removeAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->removeAudioEffectRequest(pStream, effect);
+}
+
+void AudioHardwareALSA::resetEchoReference(struct echo_reference_itfe* reference)
+{
+    mRouteMgr->resetEchoReference(reference);
+}
+
+struct echo_reference_itfe* AudioHardwareALSA::getEchoReference(int format,
+                                                                uint32_t channel_count,
+                                                                uint32_t sampling_rate)
+{
+    return mRouteMgr->getEchoReference(format, channel_count, sampling_rate);
+}
+
 
 }       // namespace android

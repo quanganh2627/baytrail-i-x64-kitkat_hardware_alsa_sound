@@ -93,9 +93,6 @@ status_t CAudioConversion::configure(const CSampleSpec& ssSrc, const CSampleSpec
         return ret;
     }
 
-    LOGD("%s: SOURCE rate=%d format=%d channels=%d", __FUNCTION__, ssSrc.getSampleRate(), ssSrc.getFormat(), ssSrc.getChannelCount());
-    LOGD("%s: DST rate=%d format=%d channels=%d", __FUNCTION__, ssDst.getSampleRate(), ssDst.getFormat(), ssDst.getChannelCount());
-
     CSampleSpec tmpSsSrc = ssSrc;
 
     // Start by adding the remapper, it will add consequently the reformatter and resampler
@@ -299,9 +296,10 @@ status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpec
 
     CSampleSpec tmpSsDst = *pSsSrc;
     tmpSsDst.setSampleSpecItem(eSampleSpecItem, pSsDst->getSampleSpecItem(eSampleSpecItem));
+    if (eSampleSpecItem == EChannelCountSampleSpecItem) {
 
-    LOGD("%s: SOURCE rate=%d format=%d channels=%d", __FUNCTION__, pSsSrc->getSampleRate(), pSsSrc->getFormat(), pSsSrc->getChannelCount());
-    LOGD("%s: DST rate=%d format=%d channels=%d", __FUNCTION__, tmpSsDst.getSampleRate(), tmpSsDst.getFormat(), tmpSsDst.getChannelCount());
+        tmpSsDst.setChannelsPolicy(pSsDst->getChannelsPolicy());
+    }
 
     status_t ret = _apAudioConverter[eSampleSpecItem]->doConfigure(*pSsSrc, tmpSsDst);
     if (ret != NO_ERROR) {
@@ -374,7 +372,9 @@ status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecIt
         }
     }
 
-    if (pSsSrc->getSampleSpecItem(eSampleSpecItem) < pSsDst->getSampleSpecItem(eSampleSpecItem)) {
+    // Handle the case of destination sample spec item is higher than input sample spec
+    // or destination and source channels policy are different
+    if (!CSampleSpec::isSampleSpecItemEqual(eSampleSpecItem, *pSsSrc, *pSsDst)) {
 
         return doConfigureAndAddConverter(eSampleSpecItem, pSsSrc, pSsDst);
     }

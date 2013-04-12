@@ -117,8 +117,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         CAudioRoute::EStreamRoute,
         "",
         {
-            DEVICE_IN_BUILTIN_ALL,
-            DEVICE_OUT_MM_ALL
+            DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
+            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         {
           (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_CAMCORDER) |
@@ -144,42 +144,12 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_media_capture,
             pcm_config_media_playback
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::EIgnore },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
-    //
-    // Voice Route
-    //
-//    {
-//        "VOICE",
-//        CAudioRoute::EStreamRoute,
-//          "",
-//        {
-//            DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
-//            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
-//        },
-//        {
-//            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) | (1 << AUDIO_SOURCE_VOICE_CALL),
-//            AUDIO_OUTPUT_FLAG_PRIMARY,
-//        },
-//        {
-//            (1 << AudioSystem::MODE_IN_CALL),
-//            (1 << AudioSystem::MODE_IN_CALL)
-//        },
-//        {
-//            NOT_APPLICABLE,
-//            NOT_APPLICABLE
-//        },
-//        VOICE_CARD_NAME,
-//        {
-//            VOICE_UPLINK_DEVICE_ID,
-//            VOICE_DOWNLINK_DEVICE_ID,
-//        },
-//        {
-//            pcm_config_voice_downlink,
-//            pcm_config_voice_uplink,
-//        },
-//        ""
-//    },
     ////////////////////////////////////////////////////////////////////////
     //
     // External routes
@@ -217,7 +187,11 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
-        "ModemIA,Media"
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        "ModemIA,Media,ContextAwareness"
     },
     //
     // HWCODEC 1 route
@@ -250,6 +224,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         "ModemIA,Media"
     },
@@ -285,6 +263,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
     },
     //
@@ -318,6 +300,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         "ModemIA,Media"
     },
@@ -353,8 +339,55 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
-    }
+    },
+    ////////////////////////////////////////////////////////////////////////
+    //
+    // Virtual routes
+    //
+    ////////////////////////////////////////////////////////////////////////
+    //
+    // Context Awareness
+    //
+    {
+        "ContextAwareness",
+        CAudioRoute::EExternalRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            pcm_config_not_applicable,
+            pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
 };
 
 const uint32_t CAudioPlatformHardware::_uiNbPortGroups = sizeof(CAudioPlatformHardware::_acPortGroups) /
@@ -375,6 +408,10 @@ public:
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+        if (!bIsOut && _pPlatformState->isContextAwarenessEnabled()) {
+            //this route is always applicable in capture/context awareness mode
+            return true;
+        }
 
         if (!bIsOut && (iMode == AudioSystem::MODE_IN_CALL)) {
 
@@ -458,6 +495,19 @@ public:
     }
 };
 
+class CAudioVirtualRouteContextAwareness : public CAudioExternalRoute
+{
+public:
+    CAudioVirtualRouteContextAwareness(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioExternalRoute(uiRouteIndex, pPlatformState) {
+    }
+
+    virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut,
+                              uint32_t __UNUSED uiFlags = 0) const {
+        return !bIsOut && _pPlatformState->isContextAwarenessEnabled();
+    }
+};
+
 //
 // Once all deriavated class exception has been removed
 // replace this function by a generic route creator according to the route type
@@ -495,6 +545,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "VOICE") {
 
         return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "ContextAwareness") {
+
+        return new CAudioVirtualRouteContextAwareness(uiRouteIndex, pPlatformState);
 
     }
     ALOGE("%s: wrong route index=%d", __FUNCTION__, uiRouteIndex);

@@ -18,6 +18,9 @@
 #include "Property.h"
 
 #include <tinyalsa/asoundlib.h>
+#include <audio_effects/effect_aec.h>
+#include <audio_effects/effect_agc.h>
+#include <audio_effects/effect_ns.h>
 
 #define DEEP_PLAYBACK_PERIOD_TIME_MS    ((int)96)
 #define PLAYBACK_PERIOD_TIME_MS         ((int)24)
@@ -239,6 +242,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_media_capture,
             pcm_config_media_playback
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
     {
@@ -270,6 +277,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_deep_media_playback
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
     {
@@ -300,6 +311,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     },
@@ -335,6 +350,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_mixing_capture,
             pcm_config_voice_mixing_playback,
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::EAverage, CSampleSpec::EIgnore }
+        },
         ""
     },
     {
@@ -366,6 +385,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_hwcodec_uplink,
             pcm_config_voice_hwcodec_downlink,
         },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
         ""
     },
     {
@@ -396,6 +419,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_voice_bt_uplink,
             pcm_config_voice_bt_downlink,
+        },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
         },
         ""
     },
@@ -433,6 +460,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         "CompressedMedia,Media,DeepMedia"
     },
     {
@@ -463,6 +494,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     },
@@ -495,6 +530,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
     },
     {
@@ -526,6 +565,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_not_applicable,
             pcm_config_not_applicable
         },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
         ""
     },
     {
@@ -556,6 +599,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             pcm_config_not_applicable,
             pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
         },
         ""
     }
@@ -602,6 +649,10 @@ class CAudioStreamRouteHwCodecComm : public CAudioStreamRoute
 public:
     CAudioStreamRouteHwCodecComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+
+        _pEffectSupported.push_back(FX_IID_AGC);
+        _pEffectSupported.push_back(FX_IID_AEC);
+        _pEffectSupported.push_back(FX_IID_NS);
     }
 
     virtual bool needReconfiguration(bool bIsOut) const
@@ -636,6 +687,10 @@ class CAudioStreamRouteBtComm : public CAudioStreamRoute
 public:
     CAudioStreamRouteBtComm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+
+        _pEffectSupported.push_back(FX_IID_AGC);
+        _pEffectSupported.push_back(FX_IID_AEC);
+        _pEffectSupported.push_back(FX_IID_NS);
     }
 
     virtual bool needReconfiguration(bool bIsOut) const

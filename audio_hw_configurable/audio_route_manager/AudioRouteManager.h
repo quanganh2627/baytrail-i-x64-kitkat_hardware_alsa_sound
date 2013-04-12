@@ -33,9 +33,11 @@ class CEventThread;
 
 
 class CParameterMgrPlatformConnector;
+class CParameterHandle;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 struct IModemAudioManagerInterface;
+struct echo_reference_itfe;
 
 namespace android_audio_legacy
 {
@@ -47,6 +49,7 @@ class AudioHardwareALSA;
 class AudioStreamInALSA;
 class AudioStreamOutALSA;
 class ALSAStreamOps;
+class AudioStreamInALSA;
 class CAudioRoute;
 class CAudioPortGroup;
 class CAudioPort;
@@ -71,6 +74,7 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EBtHeadsetNrEcCriteriaType,
         EHacModeCriteriaType,
         EScreenStateCriteriaType,
+        EContextAwarenessCriteriaType,
 
         ENbCriteriaTypes
     };
@@ -150,7 +154,94 @@ public:
 
     void unlock();
 
-    status_t setVoiceVolume(int gain);
+    /**
+     * Sets the voice volume.
+     * Called from AudioSystem/Policy to apply the volume on the voice call stream which is
+     * platform dependent.
+     *
+     * @param[in] gain the volume to set in float format in the expected range [0 .. 1.0]
+     *                 Note that any attempt to set a value outside this range will return -ERANGE.
+     *
+     * @return OK if success, error code otherwise.
+     */
+    status_t setVoiceVolume(float gain);
+
+    /**
+     * Called by the stream in to request to add an effect.
+     * It appends the effect to the stream list of requested effects
+     * and add the effect only if the stream is already attached to the route.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+
+    /**
+     * Called by an input stream in to request to remove an effect.
+     * It removes the effect from the stream list of requested effects
+     * and add the effect only if the stream is still attached to the route.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t removeAudioEffectRequest(AudioStreamInALSA *pStream, effect_handle_t effect);
+
+    /**
+     * Called by an input stream in to add an effect.
+     * When calling this function, the stream must be already attached to an audio route.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+
+    /**
+     * Called by an input stream in to remove an effect.
+     * When calling this function, the stream must be still attached to an audio route..
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] effect structure of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t removeAudioEffect(AudioStreamInALSA *pStream, effect_handle_t effect);
+
+    /**
+     * Reset the Echo Reference.
+     * The purpose of this function is
+     * - to stop the processing (i.e. writing of playback frames as echo reference for
+     * for AEC effect) in AudioSteamOutALSA
+     * - reset locally stored echo reference
+     * @param[in] reference: pointer to echo reference to reset
+     */
+    void resetEchoReference(struct echo_reference_itfe* reference);
+
+    /**
+     * Get an Echo Reference for AEC.
+     * The purpose of this function is
+     *     - create echo_reference_itfe using input stream and output stream parameters
+     *     - add echo_reference_itfs to AudioSteamOutALSA which will use it for
+     *         providing playback frames as echo reference for AEC effect
+     *     - store locally the created reference
+     *     - return created echo_reference_itfe to caller (i.e. AudioSteamInALSA)
+     * Note: created echo_reference_itfe is used as backlink between playback which
+     *         provides reference of output data and record which applies AEC effect
+     * @param[in] format: input stream format
+     * @param[in] channel_count: input stream channels count
+     * @param[in] sampling_rate: input stream sampling rate
+     *
+     * @return NULL is creation of echo_reference_itfe failed overwise,
+     *         pointer to created echo_reference_itfe
+     */
+    struct echo_reference_itfe* getEchoReference(int format,
+                                                 uint32_t channel_count,
+                                                 uint32_t sampling_rate);
 
 private:
     CAudioRouteManager(const CAudioRouteManager &);
@@ -203,6 +294,36 @@ private:
     // unsigned integer parameter value setter
     status_t setIntegerArrayParameterValue(const string& strParameterPath, vector<uint32_t>& uiArray) const;
 
+    /**
+     * Get a handle on the platform dependent parameter.
+     * It first reads the string value of the dynamic parameter which represents the path of the
+     * platform dependent parameter.
+     * Then it gets a handle on this platform dependent parameter.
+     *
+     * @param[in] strDynamicParameterPath path of the dynamic parameter (platform agnostic).
+     *
+     * @return CParameterHandle handle on the parameter, NULL pointer if error.
+     */
+    CParameterHandle* getDynamicParameterHandle(const string& strDynamicParamPath);
+
+    /**
+     * Get a handle on the platform dependent voice volume parameter.
+     *
+     * @return CParameterHandle handle on the voice volume parameter, NULL pointer if error.
+     */
+    CParameterHandle* getVoiceVolumeHandle();
+
+    /**
+     * Get a string value from a parameter path.
+     * It returns the value stored in the parameter framework under the given path.
+     *
+     * @param[in] strParameterPath path of the parameter.
+     * @param[out] strValue string value stored under this path.
+     *
+     * @return status_t OK if success, error code otherwise and strValue is kept unchanged.
+     */
+    status_t getStringParameterValue(const string& strParameterPath, string& strValue) const;
+
     // For a given streamroute, find an applicable in/out stream
     ALSAStreamOps* findApplicableStreamForRoute(bool bIsOut, const CAudioRoute* pRoute);
 
@@ -217,6 +338,11 @@ private:
 
     // Start the AT Manager
     void startModemAudioManager();
+
+    bool isAecEffect(const effect_uuid_t *uuid);
+    status_t getAudioEffectUuidFromHandle(effect_handle_t effect, effect_uuid_t* uuid);
+    status_t doAddAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t doRemoveAudioEffect(AudioStreamInALSA *pStream, effect_handle_t effect);
 
     /// Inherited from IModemAudioManagerObserver
     virtual void onModemAudioStatusChanged();
@@ -242,56 +368,33 @@ private:
 
     static const char* const gpcVoiceVolume;
 
-    static const uint32_t DEFAULT_FM_RX_VOL_MAX;
-    static const uint32_t FM_RX_STREAM_MAX_VOLUME;
-
-    enum FM_RX_DEVICE {
-        FM_RX_SPEAKER,
-        FM_RX_HEADSET,
-
-        FM_RX_NB_DEVICE
-    };
-
     static const char* const LINE_IN_TO_HEADSET_LINE_VOLUME;
     static const char* const LINE_IN_TO_SPEAKER_LINE_VOLUME;
     static const char* const LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME;
-    static const char* const DEFAULT_FM_RX_MAX_VOLUME[FM_RX_NB_DEVICE];
 
-    static const char* const FM_SUPPORTED_PROP_NAME;
-    static const bool FM_SUPPORTED_DEFAULT_VALUE;
-    static const char* const FM_IS_ANALOG_PROP_NAME;
-    static const bool FM_IS_ANALOG_DEFAULT_VALUE;
     static const char* const BLUETOOTH_HFP_SUPPORTED_PROP_NAME;
     static const bool BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE;
     static const char* const PFW_CONF_FILE_NAME_PROP_NAME;
-    static const char* const PFW_CONF_FILE_DEFAULT_NAME;
+    static const char* const gPfwConfFileDefaultName;
     static const char* const ROUTING_LOCKED_PROP_NAME;
 
     static const char* const gapcLineInToHeadsetLineVolume;
     static const char* const gapcLineInToSpeakerLineVolume;
     static const char* const gapcLineInToEarSpeakerLineVolume;
-    static const char* const gapcDefaultFmRxMaxVolume[FM_RX_NB_DEVICE];
 
     static const char* const MODEM_LIB_PROP_NAME;
 
     static const uint32_t VOIP_RATE_FOR_NARROW_BAND_PROCESSING;
 
-    // Indicate if platform supports FM Radio
-    bool _bFmSupported;
-
-    // Indicate if FM module supports RX Analog
-    bool _bFmIsAnalog;
-
     bool _bBluetoothHFPSupported;
-
-    //max values of FM RX Volume
-    uint32_t _uiFmRxSpeakerMaxVolumeValue;
-    uint32_t _uiFmRxHeadsetMaxVolumeValue;
 
     // The connector
     CParameterMgrPlatformConnector* _pParameterMgrPlatformConnector;
     // Logger
     CParameterMgrPlatformConnectorLogger* _pParameterMgrPlatformConnectorLogger;
+
+    // Voice volume Parameter handle
+    CParameterHandle* _pVoiceVolumeParamHandle;
 
     // Mode type
     static const SSelectionCriterionTypeValuePair MODE_VALUE_PAIRS[];
@@ -436,6 +539,8 @@ protected:
 
     // For backup and restore audio parameters
     CAudioParameterHandler* _pAudioParameterHandler;
+
+    struct echo_reference_itfe* _pEchoReference;
 };
 };        // namespace android
 

@@ -50,7 +50,8 @@ const uint32_t AudioStreamOutALSA::PLAYBACK_PERIOD_TIME_US = 48000;
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
     base(parent, PLAYBACK_PERIOD_TIME_US, "AudioOutLock"),
     mFrameCount(0),
-    mFlags(AUDIO_OUTPUT_FLAG_NONE)
+    mFlags(AUDIO_OUTPUT_FLAG_NONE),
+    mEchoReference(NULL)
 {
 }
 
@@ -100,6 +101,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     char *dstBuf = NULL;
     status_t status;
 
+    pushEchoReference(buffer, srcFrames);
+
     status = applyAudioConversion(buffer, (void**)&dstBuf, srcFrames, &dstFrames);
 
     if (status != NO_ERROR) {
@@ -123,9 +126,12 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
         return ret;
     }
-    ALOGV("%s: returns %lu", __FUNCTION__,
-          CAudioUtils::convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec));
-    return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec));
+    ALOGV("%s: returns %lu", __FUNCTION__, CAudioUtils::convertFramesToBytes(
+              CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec));
+
+    return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret,
+                                                                                 mHwSampleSpec,
+                                                                                 mSampleSpec));
 }
 
 ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
@@ -263,6 +269,86 @@ status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
     }
 
     return ALSAStreamOps::setParameters(keyValuePairs);
+}
+
+void AudioStreamOutALSA::addEchoReference(struct echo_reference_itfe* reference)
+{
+    ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
+    LOG_ALWAYS_FATAL_IF(reference == NULL);
+
+    // Called from a WLocked context
+    mEchoReference = reference;
+}
+
+void AudioStreamOutALSA::removeEchoReference(struct echo_reference_itfe* reference)
+{
+    if (reference == NULL) {
+
+        return ;
+    }
+    LOG_ALWAYS_FATAL_IF(mEchoReference == NULL);
+    ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
+    // Called from a WLocked context
+    if (mEchoReference == reference) {
+
+        mEchoReference->write(mEchoReference, NULL);
+        mEchoReference = NULL;
+    }
+}
+
+int AudioStreamOutALSA::getPlaybackDelay(ssize_t frames, struct echo_reference_buffer* buffer)
+{
+    size_t kernel_frames;
+    int status;
+    status = pcm_get_htimestamp(mHandle, &kernel_frames, &buffer->time_stamp);
+    if (status < 0) {
+
+        buffer->time_stamp.tv_sec  = 0;
+        buffer->time_stamp.tv_nsec = 0;
+        buffer->delay_ns           = 0;
+        ALOGE("get_playback_delay(): pcm_get_htimestamp error,"
+              "setting playbackTimestamp to 0");
+        return status;
+    }
+    kernel_frames = pcm_get_buffer_size(mHandle) - kernel_frames;
+
+    /* adjust render time stamp with delay added by current driver buffer.
+     * Add the duration of current frame as we want the render time of the last
+     * sample being written.
+     */
+    buffer->delay_ns = mSampleSpec.convertFramesToUsec(kernel_frames + frames);
+
+    ALOGV("%s: kernel_frames=%d buffer->time_stamp.tv_sec=%lu,"
+          "buffer->time_stamp.tv_nsec =%lu buffer->delay_ns=%d",
+          __FUNCTION__,
+          kernel_frames,
+          buffer->time_stamp.tv_sec,
+          buffer->time_stamp.tv_nsec,
+          buffer->delay_ns);
+
+    return 0;
+}
+
+void AudioStreamOutALSA::pushEchoReference(const void *buffer, ssize_t frames)
+{
+    if (mEchoReference != NULL)
+    {
+        struct echo_reference_buffer b;
+        b.raw = (void *)buffer;
+        b.frame_count = frames;
+        getPlaybackDelay(b.frame_count, &b);
+        mEchoReference->write(mEchoReference, &b);
+    }
+}
+
+//
+// Called from Route Manager Context -> WLocked
+//
+status_t AudioStreamOutALSA::detachRoute()
+{
+    removeEchoReference(mEchoReference);
+
+    return base::detachRoute();
 }
 
 }       // namespace android

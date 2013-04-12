@@ -53,11 +53,13 @@ const char* const CAudioRouteManager::ROUTING_LOCKED_PROP_NAME = "AudioComms.HAL
 // Defines the name of the Android property describing the name of the PFW configuration file
 const char* const CAudioRouteManager::PFW_CONF_FILE_NAME_PROP_NAME = "ro.AudioComms.PFW.ConfPath";
 
-const char* const CAudioRouteManager::PFW_CONF_FILE_DEFAULT_NAME = "/etc/parameter-framework/ParameterFrameworkConfiguration.xml";
+const char* const CAudioRouteManager::gPfwConfFileDefaultName =
+                                "/etc/parameter-framework/ParameterFrameworkConfiguration.xml";
 
 const uint32_t CAudioRouteManager::_uiTimeoutSec = 2;
 
-const char* const CAudioRouteManager::gpcVoiceVolume = "/Audio/IMC/SOUND_CARD/PORTS/I2S1/TX/VOLUME/LEVEL";
+const char* const CAudioRouteManager::gpcVoiceVolume =
+                                        "/Audio/CONFIGURATION/VOICE_VOLUME_CTRL_PARAMETER";
 
 const uint32_t CAudioRouteManager::VOIP_RATE_FOR_NARROW_BAND_PROCESSING = 8000;
 
@@ -88,11 +90,6 @@ const char* const CAudioRouteManager::LINE_IN_TO_SPEAKER_LINE_VOLUME =
 const char* const CAudioRouteManager::LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME =
         "/Audio/CIRRUS/SOUND_CARD/MIXER/EAR_SPEAKER_LINE/INPUT_PATH_SOURCE/VOLUME";
 
-const char* const CAudioRouteManager::DEFAULT_FM_RX_MAX_VOLUME[CAudioRouteManager::FM_RX_NB_DEVICE] = {
-    "/Audio/CONFIGURATION/FM_CONF/SPEAKER/VOLUME",
-    "/Audio/CONFIGURATION/FM_CONF/HEADSET/VOLUME"
-};
-
 const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_INTERFACE[CAudioRouteManager::ENbCriteria] = {
     {"Mode",                    CAudioRouteManager::EModeCriteriaType},
     {"FmMode",                  CAudioRouteManager::EFmModeCriteriaType},
@@ -111,10 +108,6 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"HAC",                     CAudioRouteManager::EHacModeCriteriaType},
     {"ScreenState",             CAudioRouteManager::EScreenStateCriteriaType},
 };
-
-
-const uint32_t CAudioRouteManager::FM_RX_STREAM_MAX_VOLUME = 15;
-const uint32_t CAudioRouteManager::DEFAULT_FM_RX_VOL_MAX = 55;
 
 // Mode type
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::MODE_VALUE_PAIRS[] = {
@@ -325,23 +318,17 @@ const char* const CAudioRouteManager::MODEM_LIB_PROP_NAME = "audiocomms.modemLib
 const char* const CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_PROP_NAME = "Audiocomms.BT.HFP.Supported";
 const bool CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE = true;
 
-const char* const CAudioRouteManager::FM_SUPPORTED_PROP_NAME = "Audiocomms.FM.Supported";
-const bool CAudioRouteManager::FM_SUPPORTED_DEFAULT_VALUE = false;
-
-const char* const CAudioRouteManager::FM_IS_ANALOG_PROP_NAME = "Audiocomms.FM.IsAnalog";
-const bool CAudioRouteManager::FM_IS_ANALOG_DEFAULT_VALUE = false;
-
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
-    _uiFmRxSpeakerMaxVolumeValue(0),
-    _uiFmRxHeadsetMaxVolumeValue(0),
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
+    _pVoiceVolumeParamHandle(NULL),
     _pModemAudioManagerInterface(NULL),
     _pPlatformState(new CAudioPlatformState(this)),
     _pEventThread(new CEventThread(this)),
     _bIsStarted(false),
     _bRoutingLocked(TProperty<bool>(ROUTING_LOCKED_PROP_NAME, true)),
     _pParent(pParent),
-    _pAudioParameterHandler(new CAudioParameterHandler())
+    _pAudioParameterHandler(new CAudioParameterHandler()),
+    _pEchoReference(NULL)
 {
     _stRoutes[CUtils::EInput].uiNeedReconfig = 0;
     _stRoutes[CUtils::EOutput].uiNeedReconfig = 0;
@@ -376,7 +363,7 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     // Fetch the name of the PFW configuration file: this name is stored in an Android property
     // and can be different for each hardware
     string strParameterConfigurationFilePath = TProperty<string>(PFW_CONF_FILE_NAME_PROP_NAME,
-                                                                 PFW_CONF_FILE_DEFAULT_NAME);
+                                                                 gPfwConfFileDefaultName);
     ALOGI("parameter-framework: using configuration file: %s", strParameterConfigurationFilePath.c_str());
 
     // Actually create the Connector
@@ -401,21 +388,9 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
 
     createAudioHardwarePlatform();
 
-    _bFmSupported = TProperty<bool>(FM_SUPPORTED_PROP_NAME, FM_SUPPORTED_DEFAULT_VALUE);
-    _bFmIsAnalog = TProperty<bool>(FM_IS_ANALOG_PROP_NAME, FM_IS_ANALOG_DEFAULT_VALUE);
-    if (_bFmSupported) {
-
-        if (_bFmIsAnalog) {
-
-            ALOGE("Cannot load FM HW Module");
-            _uiFmRxSpeakerMaxVolumeValue = getIntegerParameterValue(DEFAULT_FM_RX_MAX_VOLUME[FM_RX_SPEAKER], DEFAULT_FM_RX_VOL_MAX);
-            _uiFmRxHeadsetMaxVolumeValue = getIntegerParameterValue(DEFAULT_FM_RX_MAX_VOLUME[FM_RX_HEADSET], DEFAULT_FM_RX_VOL_MAX);
-        }
-    }
-
     //Check if platform supports Bluetooth HFP
     _bBluetoothHFPSupported = TProperty<bool>(BLUETOOTH_HFP_SUPPORTED_PROP_NAME, BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE);
-    if(_bBluetoothHFPSupported){
+    if (_bBluetoothHFPSupported){
 
         ALOGI("%s(): platform supports Bluetooth HFP", __FUNCTION__);
     } else {
@@ -458,6 +433,8 @@ CAudioRouteManager::~CAudioRouteManager()
         delete *it;
     }
 
+    // Remove Voice Call Volume Parameter Handle
+    delete _pVoiceVolumeParamHandle;
     // Unset logger
     _pParameterMgrPlatformConnector->setLogger(NULL);
     // Remove logger
@@ -604,6 +581,10 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -Platform Screen State = %s %s", __FUNCTION__,
              _apCriteriaTypeInterface[EScreenStateCriteriaType]->getFormattedState(_pPlatformState->isScreenOn()).c_str(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange),
+             "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
+             _apCriteriaTypeInterface[EContextAwarenessCriteriaType]->getFormattedState(_pPlatformState->isContextAwarenessEnabled()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
 
     if (bRoutesWillChange) {
 
@@ -860,15 +841,15 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Returns no_error if the key was found
     if (status == NO_ERROR) {
 
-        if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
+        if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_FULL) {
 
             iTtyDirection = TTY_DOWNLINK | TTY_UPLINK;
         }
-        else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
+        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_HCO) {
 
             iTtyDirection = TTY_UPLINK;
         }
-        else if(strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
+        else if (strTtyDevice == AUDIO_PARAMETER_VALUE_TTY_VCO) {
 
             iTtyDirection = TTY_DOWNLINK;
         }
@@ -888,7 +869,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Get concerned devices
     status = param.get(key, strBtState);
     // Returns no_error if the key was found
-    if(status == NO_ERROR)
+    if (status == NO_ERROR)
     {
         bool bIsBtEnabled = false;
         if (strBtState == AUDIO_PARAMETER_VALUE_BLUETOOTH_STATE_ON) {
@@ -904,7 +885,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Search BT NREC parameter
     // Because BT_NREC feature only supported on Bluetooth HFP support device,
     // this request should be ignored on non supported devices like tablet to avoid "non acoustic" audience profile by default.
-    if(_bBluetoothHFPSupported) {
+    if (_bBluetoothHFPSupported) {
 
         String8 strBtNrEcSetting;
         key = String8(AUDIO_PARAMETER_KEY_BT_NREC);
@@ -916,7 +897,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
 
             bool isBtNRecAvailable = false;
 
-            if(strBtNrEcSetting == AUDIO_PARAMETER_VALUE_OFF) {
+            if (strBtNrEcSetting == AUDIO_PARAMETER_VALUE_OFF) {
 
                 LOGV("BT NREC off, headset is with noise reduction and echo cancellation algorithms");
                 isBtNRecAvailable = true;
@@ -944,7 +925,7 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Returns no_error if the key was found
     if (status == NO_ERROR) {
 
-        if(strHacSetting == AUDIO_PARAMETER_VALUE_HAC_ON) {
+        if (strHacSetting == AUDIO_PARAMETER_VALUE_HAC_ON) {
 
             bIsHACModeOn = true;
         }
@@ -971,6 +952,29 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
         }
 
         _pPlatformState->setScreenState(bIsScreenOn);
+    }
+
+    // Search context awareness parameter
+    String8 strContextAwarenessStatus;
+    key = String8(AUDIO_PARAMETER_KEY_CONTEXT_AWARENESS_STATUS);
+    status = param.get(key, strContextAwarenessStatus);
+
+    // get context awareness status
+    if (status == NO_ERROR) {
+        bool bContextAwarenessEnabled = false;
+        if(strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_ON) {
+            LOGV("Context awareness is turned on");
+            bContextAwarenessEnabled = true;
+        }
+        else if(strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_OFF) {
+            LOGV("Context awareness is turned off");
+            bContextAwarenessEnabled = false;
+        }
+
+        _pPlatformState->setContextAwarenessStatus(bContextAwarenessEnabled);
+
+        // Remove parameter
+        param.remove(key);
     }
 
     // Reconsider the routing now
@@ -1627,7 +1631,7 @@ CAudioPort* CAudioRouteManager::findPortById(uint32_t uiPortId)
     for (it = _portList.begin(); it != _portList.end(); ++it) {
 
         CAudioPort* pPort = *it;
-        if(uiPortId == pPort->getPortId()) {
+        if (uiPortId == pPort->getPortId()) {
 
             pFoundPort = pPort;
             break;
@@ -1864,6 +1868,48 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
     return uiValue;
 }
 
+status_t CAudioRouteManager::getStringParameterValue(const string& strParameterPath,
+                                                     string& strValue) const
+{
+    ALOGV("%s in", __FUNCTION__);
+
+    if (!_pParameterMgrPlatformConnector->isStarted()) {
+
+        return DEAD_OBJECT;
+    }
+
+    string strError;
+    // Get handle
+    CParameterHandle* pParameterHandle =
+            _pParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
+
+    if (!pParameterHandle) {
+
+        strError = strParameterPath.c_str();
+        strError += " not found!";
+
+        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+
+        return DEAD_OBJECT;
+    }
+
+    // Retrieve value
+    status_t ret = OK;
+    if (!pParameterHandle->getAsString(strValue, strError)) {
+
+        ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(),
+                                                                  strParameterPath.c_str());
+        ret = BAD_VALUE;
+    }
+
+    // Remove handle
+    delete pParameterHandle;
+
+    ALOGV_IF(!ret, "%s: %s is %s", __FUNCTION__, strParameterPath.c_str(), strValue.c_str());
+
+    return ret;
+}
+
 status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameterPath, uint32_t uiValue)
 {
     ALOGV("%s in", __FUNCTION__);
@@ -1946,9 +1992,308 @@ status_t CAudioRouteManager::setIntegerArrayParameterValue(const string& strPara
     return NO_ERROR;
 }
 
-status_t CAudioRouteManager::setVoiceVolume(int gain)
+CParameterHandle* CAudioRouteManager::getDynamicParameterHandle(const string& strDynamicParamPath)
 {
-    return setIntegerParameterValue(gpcVoiceVolume, gain);
+    string strParameter;
+
+    // First retrieve the platform dependant parameter path
+    status_t ret = getStringParameterValue(strDynamicParamPath, strParameter);
+    if (ret != NO_ERROR) {
+
+        ALOGE("Could not retrieve volume path handler err=%d", ret);
+        return NULL;
+    }
+    ALOGD("%s  Platform specific parameter path=%s", __FUNCTION__, strParameter.c_str());
+
+    string strError;
+    CParameterHandle* pHandle = _pParameterMgrPlatformConnector->createParameterHandle(strParameter,
+                                                                                       strError);
+    if (!pHandle) {
+
+        strError = strParameter.c_str();
+        strError += " not found!";
+        ALOGE("%s: Unable to get parameter handle for %s: %s",
+                                        __FUNCTION__,
+                                        strParameter.c_str(),
+                                        strError.c_str());
+    }
+    return pHandle;
+}
+
+CParameterHandle* CAudioRouteManager::getVoiceVolumeHandle()
+{
+    if (_pVoiceVolumeParamHandle == NULL) {
+
+        _pVoiceVolumeParamHandle = getDynamicParameterHandle(gpcVoiceVolume);
+    }
+    return _pVoiceVolumeParamHandle;
+}
+
+status_t CAudioRouteManager::setVoiceVolume(float gain)
+{
+    // Protect here concurrent access to Parameter Framework
+    AutoR lock(_lock);
+    string strError;
+
+    if (gain < 0.0 || gain > 1.0) {
+
+        ALOGW("%s(%f) out of range [0.0 .. 1.0]", __FUNCTION__, gain);
+        return -ERANGE;
+    }
+
+    ALOGD("%s gain=%f", __FUNCTION__, gain);
+    CParameterHandle* pVoiceVolumeHandle = getVoiceVolumeHandle();
+
+    if (!pVoiceVolumeHandle) {
+
+        ALOGE("Could not retrieve volume path handle");
+        return INVALID_OPERATION;
+    }
+
+    if (!pVoiceVolumeHandle->setAsDouble(gain, strError)) {
+
+        ALOGE("%s: Unable to set value %f, from parameter path: %s, error=%s",
+              __FUNCTION__, gain, pVoiceVolumeHandle->getPath().c_str(), strError.c_str());
+        return INVALID_OPERATION;
+    }
+
+    return OK;
+}
+
+status_t CAudioRouteManager::addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    // As each stream does not have its own lock,
+    // take the routing lock here to protect the members of the stream.
+    AutoW lock(_lock);
+
+    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL);
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    status_t err = pStream->addAudioEffectRequest(effect);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+
+    // First check of the stream is already started
+    // (ie already attached to an Audio Stream Route)
+    if (!pStream->isRouteAvailable()) {
+
+        // Stream is not started, do not add the effect, it will be done
+        // when the stream will be attached to the stream route
+        // Bailing out
+        ALOGD("%s (effect=%p), stream not started, bailing out", __FUNCTION__, effect);
+        return NO_ERROR;
+    }
+    return doAddAudioEffect(pStream, effect);
+}
+
+status_t CAudioRouteManager::addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    // As each stream does not have its own lock,
+    // take the routing lock here to protect the members of the stream.
+    AutoW lock(_lock);
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    return doAddAudioEffect(pStream, effect);
+}
+
+status_t CAudioRouteManager::doAddAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL || !pStream->isRouteAvailable());
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    effect_uuid_t uuid;
+    status_t err = getAudioEffectUuidFromHandle(effect, &uuid);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+    CAudioStreamRoute* pStreamRoute = pStream->getCurrentRoute();
+    if (pStreamRoute != NULL && pStreamRoute->isEffectSupported(&uuid)) {
+
+        // Handled by the route itself...
+        // @todo: set the right parameter to inform effect is requested
+        ALOGD("%s: %s route attached to the stream embedds requested effect", __FUNCTION__,
+                                                                pStreamRoute->getName().c_str());
+        return NO_ERROR;
+    }
+
+    //
+    // Route does not provide any effect, use SW effects
+    //
+    if (isAecEffect(&uuid)) {
+
+        struct echo_reference_itfe* stReference = NULL;
+        stReference = getEchoReference(pStream->format(),
+                                       pStream->channelCount(),
+                                       pStream->sampleRate());
+        return pStream->addAudioEffect_l(effect, stReference);
+    }
+    return pStream->addAudioEffect_l(effect);
+}
+
+status_t CAudioRouteManager::removeAudioEffectRequest(AudioStreamInALSA* pStream,
+                                                        effect_handle_t effect)
+{
+    AutoW lock(_lock);
+
+    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL);
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    status_t err = pStream->removeAudioEffectRequest(effect);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+
+    // Stream is not started, do not remove the effect, it has been already done
+    // when the stream was detached from the stream route
+    if (!pStream->isRouteAvailable()) {
+
+        ALOGD("%s (effect=%p) stream not attached to any stream route, effect already removed",
+                                                                    __FUNCTION__, effect);
+        return NO_ERROR;
+    }
+    return doRemoveAudioEffect(pStream, effect);
+}
+
+status_t CAudioRouteManager::removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    AutoW lock(_lock);
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    return doRemoveAudioEffect(pStream, effect);
+}
+
+status_t CAudioRouteManager::doRemoveAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL || !pStream->isRouteAvailable());
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+
+    effect_uuid_t uuid;
+    status_t err = getAudioEffectUuidFromHandle(effect, &uuid);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+    // The route attached to the stream embedds effect
+    CAudioStreamRoute* pStreamRoute = pStream->getCurrentRoute();
+    if (pStreamRoute != NULL && pStreamRoute->isEffectSupported(&uuid)) {
+
+        // Handled by the route itself...
+        // @todo: set the right parameter to inform effect is requested
+        ALOGD("%s: %s route attached to the stream embedds requested effect",
+                                                    __FUNCTION__, pStreamRoute->getName().c_str());
+        return NO_ERROR;
+    }
+    // Remove SW effects through the stream
+    return pStream->removeAudioEffect_l(effect);
+}
+
+bool CAudioRouteManager::isAecEffect(const effect_uuid_t* uuid)
+{
+    if (memcmp(uuid, FX_IID_AEC, sizeof(*uuid)) == 0) {
+
+        ALOGD("%s effect is AEC", __FUNCTION__);
+        return true;
+    }
+    return false;
+}
+
+void CAudioRouteManager::resetEchoReference(struct echo_reference_itfe* reference)
+{
+    AutoW lock(_lock);
+    ALOGD(" %s(reference=%p)", __FUNCTION__, reference);
+    if (reference == NULL || _pEchoReference != reference) {
+
+        /* Nothing to do */
+        return ;
+    }
+
+    // First try to find the stream out which that used to provide this echo reference
+    ALSAStreamOpsListIterator it;
+
+    for (it = _streamsList[CUtils::EOutput].begin(); it != _streamsList[CUtils::EOutput].end(); ++it) {
+
+        AudioStreamOutALSA* pOut = static_cast<AudioStreamOutALSA*>(*it);
+        struct echo_reference_itfe* pReference = pOut->getEchoReference();
+        if (pReference != NULL && pReference == reference) {
+
+            pOut->removeEchoReference(reference);
+            release_echo_reference(_pEchoReference);
+            _pEchoReference = NULL;
+            // Only one output is expected to provide the reference
+            return ;
+        }
+    }
+    ALOGE("%s: nothing to do, reference not found!", __FUNCTION__);
+    release_echo_reference(_pEchoReference);
+    _pEchoReference = NULL;
+}
+
+struct echo_reference_itfe* CAudioRouteManager::getEchoReference(int format,
+                                                                 uint32_t channel_count,
+                                                                 uint32_t sampling_rate)
+{
+    AutoW lock(_lock);
+
+    ALOGD("%s ()", __FUNCTION__);
+    resetEchoReference(_pEchoReference);
+
+    if (_streamsList[CUtils::EOutput].empty()) {
+
+        ALOGE("%s: list of output streams is empty,"
+              " so problem to provide data reference for AEC effect!", __FUNCTION__);
+        return NULL;
+    }
+
+    ALSAStreamOpsListIterator it;
+
+    // By default, use the first output stream routed in the output streams list
+    for (it = _streamsList[CUtils::EOutput].begin(); it != _streamsList[CUtils::EOutput].end(); ++it) {
+
+        ALSAStreamOps* pOps = *it;
+        if (pOps->isRouteAvailable()) {
+
+            ALOGD("%s: format=%d channels=%d samplerate=%d", __FUNCTION__,
+                                pOps->format(), pOps->channelCount(), pOps->sampleRate());
+            int iWriteFormat = pOps->format();
+            uint32_t uiWriteChannelCount = pOps->channelCount();
+            uint32_t uiWriteSampleRate = sampling_rate;
+
+            if (create_echo_reference((audio_format_t)format,
+                                      channel_count,
+                                      sampling_rate,
+                                      (audio_format_t)iWriteFormat,
+                                      uiWriteChannelCount,
+                                      uiWriteSampleRate,
+                                      &_pEchoReference) < 0) {
+
+                ALOGE("%s: Could not create echo reference", __FUNCTION__);
+                return NULL;
+            }
+            AudioStreamOutALSA* pOut = static_cast<AudioStreamOutALSA*>(pOps);
+            pOut->addEchoReference(_pEchoReference);
+        }
+
+    }
+    ALOGD(" %s() will return that mEchoReference=%p", __FUNCTION__, _pEchoReference);
+    return _pEchoReference;
+}
+
+status_t CAudioRouteManager::getAudioEffectUuidFromHandle(effect_handle_t effect, effect_uuid_t* uuid)
+{
+    LOG_ALWAYS_FATAL_IF(effect == NULL || uuid == NULL);
+    effect_descriptor_t desc;
+    if ((*effect)->get_descriptor(effect, &desc) != 0) {
+
+        ALOGE("%s: could not get effect descriptor", __FUNCTION__);
+        return BAD_VALUE;
+    }
+    *uuid = desc.type;
+    return NO_ERROR;
 }
 
 }       // namespace android

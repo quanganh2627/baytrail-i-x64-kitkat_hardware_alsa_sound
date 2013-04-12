@@ -27,16 +27,21 @@
 #include <tinyalsa/asoundlib.h>
 
 #include <hardware/hardware.h>
-#include <fm_module.h>
 
 #include <utils/threads.h>
 #include "AudioUtils.h"
 #include "SampleSpec.h"
 #include "Utils.h"
 
+#include <hardware/audio_effect.h>
+#include <audio_utils/echo_reference.h>
+#include <audio_effects/effect_aec.h>
+
 class CParameterMgrPlatformConnector;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
+
+struct echo_reference_itfe;
 
 namespace android_audio_legacy
 {
@@ -54,7 +59,9 @@ class AudioStreamOutALSA;
 class AudioStreamInALSA;
 class ALSAStreamOps;
 
-const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
+const uint32_t DEVICE_OUT_BLUETOOTH_SCO_ALL = AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | \
+        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | \
+        AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT;
 
 
 class AudioHardwareALSA : public AudioHardwareBase
@@ -88,7 +95,8 @@ public:
     //virtual String8     getParameters(const String8& keys);
 
     // set Stream Parameters
-    virtual android::status_t    setStreamParameters(ALSAStreamOps* pStream, const String8 &keyValuePairs);
+    virtual android::status_t    setStreamParameters(ALSAStreamOps* pStream,
+                                                     const String8 &keyValuePairs);
 
 
     // Returns audio input buffer size according to parameters passed or 0 if one of the
@@ -133,8 +141,48 @@ protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
 
 
-    // Cast Hw device from mHwDeviceArray to the corresponding hw device type
-    fm_device_t* getFmHwDevice();
+    // Effect helpers functions
+    status_t addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t removeAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+
+    /*
+     * Reset the echo reference.
+     * the purpose of this function is
+     * - to stop the processing (i.e. writing of playback frames as echo reference for
+     * for AEC effect) in AudioSteamOutALSA
+     * - reset locally stored echo reference
+     *
+     * @param[in|out] reference: pointer to echo reference to reset
+     *
+     * @return none
+     */
+    void resetEchoReference(struct echo_reference_itfe* reference);
+
+    /*
+     * Echo reference provider.
+     * the purpose of this function is
+     * - create echo_reference_itfe using input stream and output stream parameters
+     * - add echo_reference_itfs to AudioSteamOutALSA which will use it for providing
+     *         playback frames as echo reference for AEC effect
+     * - store locally the created reference
+     * - return created echo_reference_itfe to caller (i.e. AudioSteamInALSA)
+     * Note: created echo_reference_itfe is used as backlink between playback which
+     *         provides reference of output data and record which applies AEC effect
+     *
+     * @param[in] format: input stream format
+     * @param[in] channel_count: input stream channels count
+     * @param[in] sampling_rate: input stream sampling rate
+     *
+     * @return NULL is creation of echo_reference_itfe failed overwise,
+     *         pointer to created echo_reference_itfe
+     */
+    struct echo_reference_itfe* getEchoReference(int format,
+                                                 uint32_t channel_count,
+                                                 uint32_t sampling_rate);
+
+    struct echo_reference_itfe* mEchoReference;
 
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
@@ -155,42 +203,22 @@ private:
 
     bool mMicMuteState;
 
-    enum HW_DEVICE {
-        FM_HW_DEV = 0,
-
-        NB_HW_DEV
-    };
-
     struct hw_module {
         const char* module_id;
         const char* module_name;
     };
 
-    static const hw_module hw_module_list[NB_HW_DEV];
-
     static const uint32_t DEFAULT_SAMPLE_RATE;
     static const uint32_t DEFAULT_CHANNEL_COUNT;
     static const uint32_t DEFAULT_FORMAT;
-
-    static const int32_t VOICE_GAIN_MAX;
-    static const int32_t VOICE_GAIN_MIN;
-    static const uint32_t VOICE_GAIN_OFFSET;
-    static const uint32_t VOICE_GAIN_SLOPE;
 
     static const char* const DEFAULT_GAIN_PROP_NAME;
     static const float DEFAULT_GAIN_VALUE;
     static const char* const AUDIENCE_IS_PRESENT_PROP_NAME;
     static const bool AUDIENCE_IS_PRESENT_DEFAULT_VALUE;
-    static const char* const FM_SUPPORTED_PROP_NAME;
-    static const bool FM_SUPPORTED_PROP_DEFAULT_VALUE;
-    static const char* const FM_IS_ANALOG_PROP_NAME;
-    static const bool FM_IS_ANALOG_DEFAUT_VALUE;
 
 private:
     CAudioRouteManager* mRouteMgr;
-
-    // HW device array
-    std::vector<hw_device_t*> mHwDeviceArray;
 };
 
 };        // namespace android

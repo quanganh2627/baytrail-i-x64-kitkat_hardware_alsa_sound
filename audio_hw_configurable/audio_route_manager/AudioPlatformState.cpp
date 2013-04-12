@@ -43,6 +43,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _eVoipBandType(CAudioBand::ENarrow),
     _bIsSharedI2SGlitchSafe(false),
     _bScreenOn(true),
+    _bIsContextAwarenessEnabled(false),
     _uiPlatformEventChanged(false),
     _iVolumeKeysRefCount(0),
     _pAudioRouteManager(pAudioRouteManager)
@@ -244,6 +245,18 @@ void CAudioPlatformState::setScreenState(bool bScreenOn)
     }
     _bScreenOn = bScreenOn;
     setPlatformStateEvent(EScreenStateChange);
+}
+
+// set context awareness status
+void CAudioPlatformState::setContextAwarenessStatus(bool bEnabled)
+{
+    if (_bIsContextAwarenessEnabled == bEnabled) {
+        // the status does not change -> returning
+        return;
+    }
+
+    _bIsContextAwarenessEnabled = bEnabled;
+    setPlatformStateEvent(EContextAwarenessStateChange);
 }
 
 void CAudioPlatformState::updateHwMode()

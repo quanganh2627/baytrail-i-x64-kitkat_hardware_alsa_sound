@@ -89,7 +89,7 @@ status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
 
         if (i == _eSampleSpecItem) {
 
-            if (ssSrc.getSampleSpecItem((SampleSpecItem)i) == ssDst.getSampleSpecItem((SampleSpecItem)i)) {
+            if (CSampleSpec::isSampleSpecItemEqual((SampleSpecItem)i, ssSrc, ssDst)) {
 
                 // The Sample spec items on which the converter is working
                 // are the same...
@@ -97,7 +97,7 @@ status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
             }
             continue;
         }
-        if (ssSrc.getSampleSpecItem((SampleSpecItem)i) != ssDst.getSampleSpecItem((SampleSpecItem)i)) {
+        if (!CSampleSpec::isSampleSpecItemEqual((SampleSpecItem)i, ssSrc, ssDst)) {
 
             // The Sample spec items on which the converter is NOT working
             // MUST BE the same...

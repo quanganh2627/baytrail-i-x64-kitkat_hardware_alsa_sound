@@ -17,6 +17,8 @@
 #pragma once
 
 #include <string.h>
+#include <vector>
+
 #include <tinyalsa/asoundlib.h>
 #include <system/audio.h>
 
@@ -39,18 +41,66 @@ enum SampleSpecItem {
 class CSampleSpec {
 
 public:
-    bool operator==(const CSampleSpec& right) const { return !memcmp(_auiSampleSpec, right._auiSampleSpec, sizeof(_auiSampleSpec)); }
-    bool operator!=(const CSampleSpec& right) const { return memcmp(_auiSampleSpec, right._auiSampleSpec, sizeof(_auiSampleSpec)); }
+    bool operator==(const CSampleSpec& right) const {
+
+        return !memcmp(_auiSampleSpec, right._auiSampleSpec, sizeof(_auiSampleSpec)) &&
+                (_aChannelsPolicy == right._aChannelsPolicy);
+    }
+
+    bool operator!=(const CSampleSpec& right) const {
+
+        return !operator==(right);
+    }
+
+    /**
+     * Channel policy definition.
+     * The channel policy will be usefull in case of remap operation.
+     * From this definition, the remapper must be able to infer conversion table.
+     *
+     * For example: on some stereo devices, a channel might be empty/invalid.
+     * So, the other channel will be tagged as "average"
+     *
+     *      SOURCE              DESTINATION
+     *  channel 1 (ECopy) ---> channel 1 (EAverage) = (source channel 1 + source channel 2) / 2
+     *  channel 2 (ECopy) ---> channel 2 (EIgnore)  = empty
+     *
+     */
+    enum ChannelsPolicy {
+        ECopy = 0,      /**< This channel is valid. */
+        EAverage,       /**< This channel contains all valid audio data. */
+        EIgnore,        /**< This channel does not contains any valid audio data. */
+
+        ENbChannelsPolicy
+    };
+
+    CSampleSpec();
 
     // Specific Accessors
-    void setChannelCount(uint32_t uiChannelCount) { setSampleSpecItem(EChannelCountSampleSpecItem, uiChannelCount); }
+    void setChannelCount(uint32_t uiChannelCount) {
+
+        setSampleSpecItem(EChannelCountSampleSpecItem, uiChannelCount);
+    }
     uint32_t getChannelCount() const { return getSampleSpecItem(EChannelCountSampleSpecItem); }
-    void setSampleRate(uint32_t uiSampleRate) { setSampleSpecItem(ERateSampleSpecItem, uiSampleRate); }
+    void setSampleRate(uint32_t uiSampleRate) {
+
+        setSampleSpecItem(ERateSampleSpecItem, uiSampleRate);
+    }
     uint32_t getSampleRate() const { return getSampleSpecItem(ERateSampleSpecItem); }
     void setFormat(uint32_t uiFormat) { setSampleSpecItem(EFormatSampleSpecItem, uiFormat); }
-    audio_format_t getFormat() const { return static_cast<audio_format_t>(getSampleSpecItem(EFormatSampleSpecItem)); }
+    audio_format_t getFormat() const {
+
+        return static_cast<audio_format_t>(getSampleSpecItem(EFormatSampleSpecItem));
+    }
     void setChannelMask(uint32_t uiChannelMask) { _uiChannelMask = uiChannelMask; }
     uint32_t getChannelMask() const { return _uiChannelMask; }
+
+    void setChannelsPolicy(const std::vector<ChannelsPolicy>& channelsPolicy);
+    const std::vector<ChannelsPolicy>& getChannelsPolicy() const { return _aChannelsPolicy; }
+    ChannelsPolicy getChannelsPolicy(uint32_t uiChannelIndex) const {
+
+        LOG_ALWAYS_FATAL_IF(uiChannelIndex >= _aChannelsPolicy.size());
+        return _aChannelsPolicy[uiChannelIndex];
+    }
 
     // Generic Accessor
     void setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue);
@@ -71,6 +121,21 @@ public:
 
     bool isStereo() const { return _auiSampleSpec[EChannelCountSampleSpecItem] == 2; }
 
+    /**
+     * Checks upon equality of a sample spec item.
+     *  For channels, it checks:
+     *          -not only that channels count is equal
+     *          -but also the channels policy of source and destination is the same.
+     * @param[in] eSampleSpecItem item to checks.
+     * @param[in] ssSrc source sample specifications.
+     * @param[in] ssDst destination sample specifications.
+     *
+     * @return true upon equality, false otherwise.
+     */
+    static bool isSampleSpecItemEqual(SampleSpecItem eSampleSpecItem,
+                                      const CSampleSpec& ssSrc,
+                                      const CSampleSpec& ssDst);
+
 private:
     // Attributes
 
@@ -86,6 +151,10 @@ private:
     uint32_t _uiChannelMask;
 
     static const uint32_t USEC_PER_SEC;
+
+    std::vector<ChannelsPolicy> _aChannelsPolicy;
+
+    static const uint32_t MAX_CHANNELS = 32;
 };
 
 }; // namespace android
