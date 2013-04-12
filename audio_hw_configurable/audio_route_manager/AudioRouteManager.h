@@ -74,7 +74,6 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EBtHeadsetNrEcCriteriaType,
         EHacModeCriteriaType,
         EScreenStateCriteriaType,
-        EContextAwarenessCriteriaType,
 
         ENbCriteriaTypes
     };

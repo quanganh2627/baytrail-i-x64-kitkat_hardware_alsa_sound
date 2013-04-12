@@ -583,7 +583,7 @@ void CAudioRouteManager::doReconsiderRouting()
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange),
              "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
-             _apCriteriaTypeInterface[EContextAwarenessCriteriaType]->getFormattedState(_pPlatformState->isContextAwarenessEnabled()).c_str(),
+             _pPlatformState->isContextAwarenessEnabled() ? "true" : "false",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
 
     if (bRoutesWillChange) {
