@@ -430,6 +430,16 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                         device = (mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER) | currentDevice;
                 }
             break;
+        case STRATEGY_SONIFICATION_LOCAL:
+            // Check if the phone state has already passed from MODE_RINGTONE to
+            //  MODE_IN_COMMUNICATION or IN_CALL. In this case the output device is Earpiece and not IHF.
+            if ((device == AudioSystem::DEVICE_OUT_SPEAKER)
+                    && (isInCall())
+                    && (getForceUse(AudioSystem::FOR_COMMUNICATION) != AudioSystem::FORCE_SPEAKER)) {
+               ALOGV("%s- Force the device to earpiece and not IHF", __FUNCTION__);
+               device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE;
+            }
+            break;
 
        default:
          // do nothing
