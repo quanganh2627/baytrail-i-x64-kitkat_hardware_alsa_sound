@@ -278,7 +278,25 @@ private:
 
     // Disable the routes
     void executeDisableStage();
-    void disableRoutes(bool bIsOut);
+
+    /**
+     * Computes the PFW route criteria to disable the routes.
+     * It appends to the closing route criterion the route that were opened before the routing
+     * reconsideration and that will not be used anymore after. It also removes from opened routes
+     * criterion these routes.
+     *
+     * @param[in] bIsOut direction of the routes to disable.
+     */
+    void prepareDisableRoutes(bool bIsOut);
+
+    /**
+     * Performs the disabling of the route.
+     * It only concerns the action that needs to be done on routes themselves, ie detaching
+     * streams, closing alsa devices.
+     *
+     * @param[in] bIsOut direction of the routes to disable.
+     */
+    void doDisableRoutes(bool bIsOut);
 
     // Enable the routes
     void executeEnableStage();

@@ -1509,9 +1509,6 @@ void CAudioRouteManager::executeDisableStage()
 
     _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EPath);
 
-    // Disable Routes that
-    //      -are disabled
-    //      -need reconfiguration
     // Routing order criterion = Disable
     // starting from input streams
 
@@ -1539,7 +1536,7 @@ void CAudioRouteManager::executeDisableStage()
 #endif
 }
 
-void CAudioRouteManager::disableRoutes(bool bIsOut)
+void CAudioRouteManager::prepareDisableRoutes(bool bIsOut)
 {
     ALOGV("%s for %s:", __FUNCTION__,
           bIsOut ? "output" : "input");
@@ -1558,6 +1555,12 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
              bIsOut ? "Output" : "Input",
              _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(uiClosingRoutes).c_str());
 
+    selectedClosingRoutes(bIsOut)->setCriterionState(uiClosingRoutes);
+    selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
+}
+
+void CAudioRouteManager::doDisableRoutes(bool bIsOut)
+{
     RouteListIterator it;
 
     //
@@ -1576,9 +1579,6 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
             pRoute->unroute(bIsOut);
         }
     }
-
-    selectedClosingRoutes(bIsOut)->setCriterionState(uiClosingRoutes);
-    selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
 }
 
 void CAudioRouteManager::executeEnableStage()
