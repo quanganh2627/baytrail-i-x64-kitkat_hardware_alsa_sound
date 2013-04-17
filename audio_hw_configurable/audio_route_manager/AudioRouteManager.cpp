@@ -1451,13 +1451,19 @@ void CAudioRouteManager::executeConfigureStage()
     configureRoutes(CUtils::EOutput);
     configureRoutes(CUtils::EInput);
 
+#ifdef OPEN_ROUTES_BEFORE_CONFIG
+    // LPE centric arch requires to enable the route (from stream point of view, ie
+    // opening the audio device) before configuring the LPE
+    enableRoutes(CUtils::EOutput);
+    enableRoutes(CUtils::EInput);
+#else
     if (!_bRoutingLocked) {
-
         // LPE centric arch requires to enable the route (from stream point of view, ie
         // opening the audio device) before configuring the LPE
         enableRoutes(CUtils::EOutput);
         enableRoutes(CUtils::EInput);
     }
+#endif
 
     // Change here the devices, the mode, ... all the criteria required for the routing
     _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
@@ -1508,10 +1514,29 @@ void CAudioRouteManager::executeDisableStage()
     //      -need reconfiguration
     // Routing order criterion = Disable
     // starting from input streams
-    disableRoutes(CUtils::EInput);
-    disableRoutes(CUtils::EOutput);
+
+    prepareDisableRoutes(CUtils::EInput);
+    prepareDisableRoutes(CUtils::EOutput);
+
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
+    if (_bRoutingLocked) {
+
+        doDisableRoutes(CUtils::EInput);
+        doDisableRoutes(CUtils::EOutput);
+    }
+#endif
 
     _pParameterMgrPlatformConnector->applyConfigurations();
+
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
+    if (!_bRoutingLocked) {
+#endif
+
+        doDisableRoutes(CUtils::EInput);
+        doDisableRoutes(CUtils::EOutput);
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
+    }
+#endif
 }
 
 void CAudioRouteManager::disableRoutes(bool bIsOut)
@@ -1565,12 +1590,14 @@ void CAudioRouteManager::executeEnableStage()
 
         _pParameterMgrPlatformConnector->applyConfigurations();
 
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
     if (_bRoutingLocked) {
 
         // Connect all streams that need to be connected (starting from output streams)
         enableRoutes(CUtils::EOutput);
         enableRoutes(CUtils::EInput);
     }
+#endif
 }
 
 void CAudioRouteManager::enableRoutes(bool bIsOut)
