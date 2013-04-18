@@ -72,12 +72,14 @@ public:
 
     virtual void log(bool bIsWarning, const string& strLog)
     {
+        const static char format[] = "parameter-framework: %s";
+
         if (bIsWarning) {
 
-            ALOGW("%s", strLog.c_str());
+            ALOGW(format, strLog.c_str());
         } else {
 
-            ALOGD("%s", strLog.c_str());
+            ALOGD(format, strLog.c_str());
         }
     }
 };
