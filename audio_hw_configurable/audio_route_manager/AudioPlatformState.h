@@ -215,8 +215,6 @@ public:
     // update the HW mode
     void updateHwMode();
 
-    void enableVolumeKeys(bool bEnable);
-
     void setDirectStreamEvent(uint32_t uiFlags);
 
 private:
@@ -271,8 +269,6 @@ private:
     uint32_t _uiPlatformEventChanged;
 
     uint32_t _uiPlatformComponentsState;
-
-    int _iVolumeKeysRefCount;
 
     CAudioRouteManager* _pAudioRouteManager;
 };
