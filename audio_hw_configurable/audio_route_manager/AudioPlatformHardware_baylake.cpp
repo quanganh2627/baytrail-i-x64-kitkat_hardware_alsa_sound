@@ -107,8 +107,6 @@ const char* const CAudioPlatformHardware::_acPortGroups[] = {
     "HWCODEC_ASP_PORT,HWCODEC_VSP_PORT"
 };
 
-const char* CAudioPlatformHardware::CODEC_DELAY_PROP_NAME = "Audio.Media.CodecDelayMs";
-
 //
 // Route description structure
 //
@@ -268,41 +266,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable
         },
         "CompressedMedia,Media,DeepMedia"
-    },
-    {
-        "VirtualASP",
-        CAudioRoute::EExternalRoute,
-        "",
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        NOT_APPLICABLE,
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
-        {
-            pcm_config_not_applicable,
-            pcm_config_not_applicable
-        },
-        {
-            channel_policy_not_applicable,
-            channel_policy_not_applicable
-        },
-        ""
     }
 };
 
@@ -319,30 +282,6 @@ const uint32_t CAudioPlatformHardware::_uiNbRoutes = sizeof(CAudioPlatformHardwa
 //
 // Specific Applicability Rules
 //
-class CAudioStreamRouteMedia : public CAudioStreamRoute
-{
-public:
-    CAudioStreamRouteMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioStreamRoute(uiRouteIndex, pPlatformState),
-        _uiCodecDelayMs(TProperty<int32_t>(CAudioPlatformHardware::CODEC_DELAY_PROP_NAME, 0))
-    {
-    }
-    // Get amount of silence delay upon stream opening
-    virtual uint32_t getOutputSilencePrologMs() const
-    {
-
-        if (((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_SPEAKER) == AudioSystem::DEVICE_OUT_SPEAKER) ||
-                ((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) == AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
-
-            return _uiCodecDelayMs;
-        }
-        return CAudioStreamRoute::getOutputSilencePrologMs();
-    }
-private:
-    uint32_t _uiCodecDelayMs;
-};
-
-
 class CAudioExternalRouteHwCodecMedia : public CAudioExternalRoute
 {
 public:
@@ -368,37 +307,6 @@ public:
     }
 };
 
-class CAudioExternalRouteVirtualASP : public CAudioExternalRoute
-{
-public:
-    CAudioExternalRouteVirtualASP(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioExternalRoute(uiRouteIndex, pPlatformState)
-    {
-    }
-
-    virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut, uint32_t __UNUSED uiMask) const
-    {
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
-        if (bIsOut && _pPlatformState->isScreenOn()) {
-
-            return true;
-        }
-        return false;
-    }
-
-    virtual bool needReconfiguration(bool bIsOut) const
-    {
-        // The route needs reconfiguration except if:
-        //      - output devices did not change
-        if (CAudioRoute::needReconfiguration(bIsOut) &&
-                    _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange)) {
-
-            return true;
-        }
-        return false;
-    }
-};
 
 //
 // Once all deriavated class exception has been removed
@@ -412,11 +320,11 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     if (strName == "Media") {
 
-        return new CAudioStreamRouteMedia(uiRouteIndex, pPlatformState);
+        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "DeepMedia") {
 
-        return new CAudioStreamRouteMedia(uiRouteIndex, pPlatformState);
+        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "CompressedMedia") {
 
@@ -425,10 +333,6 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "HwCodecMedia") {
 
         return new CAudioExternalRouteHwCodecMedia(uiRouteIndex, pPlatformState);
-
-    } else if (strName == "VirtualASP") {
-
-        return new CAudioExternalRouteVirtualASP(uiRouteIndex, pPlatformState);
     }
     ALOGE("%s: wrong route index=%d", __FUNCTION__, uiRouteIndex);
     return NULL;
