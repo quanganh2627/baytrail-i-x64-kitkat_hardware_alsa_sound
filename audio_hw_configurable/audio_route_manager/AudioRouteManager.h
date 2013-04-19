@@ -33,6 +33,7 @@ class CEventThread;
 
 
 class CParameterMgrPlatformConnector;
+class CParameterHandle;
 class ISelectionCriterionTypeInterface;
 class ISelectionCriterionInterface;
 struct IModemAudioManagerInterface;
@@ -153,7 +154,17 @@ public:
 
     void unlock();
 
-    status_t setVoiceVolume(int gain);
+    /**
+     * Sets the voice volume.
+     * Called from AudioSystem/Policy to apply the volume on the voice call stream which is
+     * platform dependent.
+     *
+     * @param[in] gain the volume to set in float format in the expected range [0 .. 1.0]
+     *                 Note that any attempt to set a value outside this range will return -ERANGE.
+     *
+     * @return OK if success, error code otherwise.
+     */
+    status_t setVoiceVolume(float gain);
 
     /**
      * Called by the stream in to request to add an effect.
@@ -224,6 +235,7 @@ public:
      * @param[in] format: input stream format
      * @param[in] channel_count: input stream channels count
      * @param[in] sampling_rate: input stream sampling rate
+     *
      * @return NULL is creation of echo_reference_itfe failed overwise,
      *         pointer to created echo_reference_itfe
      */
@@ -282,6 +294,36 @@ private:
     // unsigned integer parameter value setter
     status_t setIntegerArrayParameterValue(const string& strParameterPath, vector<uint32_t>& uiArray) const;
 
+    /**
+     * Get a handle on the platform dependent parameter.
+     * It first reads the string value of the dynamic parameter which represents the path of the
+     * platform dependent parameter.
+     * Then it gets a handle on this platform dependent parameter.
+     *
+     * @param[in] strDynamicParameterPath path of the dynamic parameter (platform agnostic).
+     *
+     * @return CParameterHandle handle on the parameter, NULL pointer if error.
+     */
+    CParameterHandle* getDynamicParameterHandle(const string& strDynamicParamPath);
+
+    /**
+     * Get a handle on the platform dependent voice volume parameter.
+     *
+     * @return CParameterHandle handle on the voice volume parameter, NULL pointer if error.
+     */
+    CParameterHandle* getVoiceVolumeHandle();
+
+    /**
+     * Get a string value from a parameter path.
+     * It returns the value stored in the parameter framework under the given path.
+     *
+     * @param[in] strParameterPath path of the parameter.
+     * @param[out] strValue string value stored under this path.
+     *
+     * @return status_t OK if success, error code otherwise and strValue is kept unchanged.
+     */
+    status_t getStringParameterValue(const string& strParameterPath, string& strValue) const;
+
     // For a given streamroute, find an applicable in/out stream
     ALSAStreamOps* findApplicableStreamForRoute(bool bIsOut, const CAudioRoute* pRoute);
 
@@ -333,7 +375,7 @@ private:
     static const char* const BLUETOOTH_HFP_SUPPORTED_PROP_NAME;
     static const bool BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE;
     static const char* const PFW_CONF_FILE_NAME_PROP_NAME;
-    static const char* const PFW_CONF_FILE_DEFAULT_NAME;
+    static const char* const gPfwConfFileDefaultName;
     static const char* const ROUTING_LOCKED_PROP_NAME;
 
     static const char* const gapcLineInToHeadsetLineVolume;
@@ -350,6 +392,9 @@ private:
     CParameterMgrPlatformConnector* _pParameterMgrPlatformConnector;
     // Logger
     CParameterMgrPlatformConnectorLogger* _pParameterMgrPlatformConnectorLogger;
+
+    // Voice volume Parameter handle
+    CParameterHandle* _pVoiceVolumeParamHandle;
 
     // Mode type
     static const SSelectionCriterionTypeValuePair MODE_VALUE_PAIRS[];
