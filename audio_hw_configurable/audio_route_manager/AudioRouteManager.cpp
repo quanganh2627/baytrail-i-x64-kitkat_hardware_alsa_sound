@@ -110,7 +110,6 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"BtHeadsetNrEc",           CAudioRouteManager::EBtHeadsetNrEcCriteriaType},
     {"HAC",                     CAudioRouteManager::EHacModeCriteriaType},
     {"ScreenState",             CAudioRouteManager::EScreenStateCriteriaType},
-    {"ModemAudioAvailable",     CAudioRouteManager::EModemAudioAvailableCriteriaType},
 };
 
 
@@ -226,12 +225,6 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::S
     { 1 , "On" }
 };
 
-// Modem Audio Availability
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::MODEM_AUDIO_AVAILABILITY_VALUE_PAIRS[] = {
-    { 0 , "False" },
-    { 1 , "True" }
-};
-
 const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::ARRAY_CRITERIA_TYPES[] = {
     // Mode
     {
@@ -322,14 +315,6 @@ const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::A
         CAudioRouteManager::EScreenStateCriteriaType,
         CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS,
         sizeof(CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS)/sizeof(CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS[0]),
-        false
-    },
-    // Modem Audio Availability
-    {
-        CAudioRouteManager::EModemAudioAvailableCriteriaType,
-        CAudioRouteManager::MODEM_AUDIO_AVAILABILITY_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::MODEM_AUDIO_AVAILABILITY_VALUE_PAIRS) /
-               sizeof(CAudioRouteManager::MODEM_AUDIO_AVAILABILITY_VALUE_PAIRS[0]),
         false
     }
 };
@@ -1477,8 +1462,6 @@ void CAudioRouteManager::executeConfigureStage()
     _apSelectedCriteria[ESelectedBand]->setCriterionState(_pPlatformState->getBandType());
     _apSelectedCriteria[ESelectedHacMode]->setCriterionState(_pPlatformState->isHacEnabled());
     _apSelectedCriteria[ESelectedScreenState]->setCriterionState(_pPlatformState->isScreenOn());
-    _apSelectedCriteria[EAudioModemAvailable]->
-        setCriterionState(_pPlatformState->isModemAudioAvailable());
 
     _pParameterMgrPlatformConnector->applyConfigurations();
 }

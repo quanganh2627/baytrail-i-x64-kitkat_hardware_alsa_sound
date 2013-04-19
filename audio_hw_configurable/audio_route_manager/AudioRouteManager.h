@@ -71,7 +71,6 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EBtHeadsetNrEcCriteriaType,
         EHacModeCriteriaType,
         EScreenStateCriteriaType,
-        EModemAudioAvailableCriteriaType,
 
         ENbCriteriaTypes
     };
@@ -319,8 +318,6 @@ private:
     static const SSelectionCriterionTypeValuePair INPUT_DEVICE_VALUE_PAIRS[];
     // Selected Output Device type
     static const SSelectionCriterionTypeValuePair OUTPUT_DEVICE_VALUE_PAIRS[];
-    // Modem Audio Availability
-    static const SSelectionCriterionTypeValuePair MODEM_AUDIO_AVAILABILITY_VALUE_PAIRS[];
 
     struct SSelectionCriterionTypeInterface
     {
@@ -352,7 +349,6 @@ private:
         ESelectedBtHeadsetNrEc,
         ESelectedHacMode,
         ESelectedScreenState,
-        EAudioModemAvailable,
 
         ENbCriteria
     };
