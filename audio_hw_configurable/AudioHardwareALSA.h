@@ -212,6 +212,11 @@ private:
     static const uint32_t DEFAULT_CHANNEL_COUNT;
     static const uint32_t DEFAULT_FORMAT;
 
+    static const int32_t VOICE_GAIN_MAX;
+    static const int32_t VOICE_GAIN_MIN;
+    static const uint32_t VOICE_GAIN_OFFSET;
+    static const uint32_t VOICE_GAIN_SLOPE;
+
     static const char* const DEFAULT_GAIN_PROP_NAME;
     static const float DEFAULT_GAIN_VALUE;
     static const char* const AUDIENCE_IS_PRESENT_PROP_NAME;

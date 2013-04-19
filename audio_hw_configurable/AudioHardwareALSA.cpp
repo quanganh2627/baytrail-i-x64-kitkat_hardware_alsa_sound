@@ -76,6 +76,11 @@ const uint32_t AudioHardwareALSA::DEFAULT_SAMPLE_RATE = 48000;
 const uint32_t AudioHardwareALSA::DEFAULT_CHANNEL_COUNT = 2;
 const uint32_t AudioHardwareALSA::DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT;
 
+const int32_t AudioHardwareALSA::VOICE_GAIN_MAX      = 88;
+const int32_t AudioHardwareALSA::VOICE_GAIN_MIN      = 40;
+const uint32_t AudioHardwareALSA::VOICE_GAIN_OFFSET   = 40;
+const uint32_t AudioHardwareALSA::VOICE_GAIN_SLOPE    = 48;
+
 AudioHardwareInterface *AudioHardwareALSA::create() {
 
     ALOGD("Using Audio HAL Configurable");
@@ -115,7 +120,17 @@ status_t AudioHardwareALSA::initCheck()
 
 status_t AudioHardwareALSA::setVoiceVolume(float volume)
 {
-    return mRouteMgr->setVoiceVolume(volume);
+    // The voice volume is used by the VOICE_CALL audio stream.
+    CAudioAutoRoutingLock lock(this);
+
+    int gain;
+    int range = VOICE_GAIN_SLOPE;
+
+    gain = volume * range + VOICE_GAIN_OFFSET;
+    gain = min(gain, VOICE_GAIN_MAX);
+    gain = max(gain, VOICE_GAIN_MIN);
+
+    return mRouteMgr->setVoiceVolume(gain);
 }
 
 status_t AudioHardwareALSA::setMasterVolume(float __UNUSED volume)

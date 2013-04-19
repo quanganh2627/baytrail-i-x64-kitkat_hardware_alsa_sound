@@ -53,13 +53,11 @@ const char* const CAudioRouteManager::ROUTING_LOCKED_PROP_NAME = "AudioComms.HAL
 // Defines the name of the Android property describing the name of the PFW configuration file
 const char* const CAudioRouteManager::PFW_CONF_FILE_NAME_PROP_NAME = "ro.AudioComms.PFW.ConfPath";
 
-const char* const CAudioRouteManager::gPfwConfFileDefaultName =
-                                "/etc/parameter-framework/ParameterFrameworkConfiguration.xml";
+const char* const CAudioRouteManager::PFW_CONF_FILE_DEFAULT_NAME = "/etc/parameter-framework/ParameterFrameworkConfiguration.xml";
 
 const uint32_t CAudioRouteManager::_uiTimeoutSec = 2;
 
-const char* const CAudioRouteManager::gpcVoiceVolume =
-                                        "/Audio/CONFIGURATION/VOICE_VOLUME_CTRL_PARAMETER";
+const char* const CAudioRouteManager::gpcVoiceVolume = "/Audio/IMC/SOUND_CARD/PORTS/I2S1/TX/VOLUME/LEVEL";
 
 const uint32_t CAudioRouteManager::VOIP_RATE_FOR_NARROW_BAND_PROCESSING = 8000;
 
@@ -320,7 +318,6 @@ const bool CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE = true;
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
-    _pVoiceVolumeParamHandle(NULL),
     _pModemAudioManagerInterface(NULL),
     _pPlatformState(new CAudioPlatformState(this)),
     _pEventThread(new CEventThread(this)),
@@ -363,7 +360,7 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     // Fetch the name of the PFW configuration file: this name is stored in an Android property
     // and can be different for each hardware
     string strParameterConfigurationFilePath = TProperty<string>(PFW_CONF_FILE_NAME_PROP_NAME,
-                                                                 gPfwConfFileDefaultName);
+                                                                 PFW_CONF_FILE_DEFAULT_NAME);
     ALOGI("parameter-framework: using configuration file: %s", strParameterConfigurationFilePath.c_str());
 
     // Actually create the Connector
@@ -433,8 +430,6 @@ CAudioRouteManager::~CAudioRouteManager()
         delete *it;
     }
 
-    // Remove Voice Call Volume Parameter Handle
-    delete _pVoiceVolumeParamHandle;
     // Unset logger
     _pParameterMgrPlatformConnector->setLogger(NULL);
     // Remove logger
@@ -1868,48 +1863,6 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
     return uiValue;
 }
 
-status_t CAudioRouteManager::getStringParameterValue(const string& strParameterPath,
-                                                     string& strValue) const
-{
-    ALOGV("%s in", __FUNCTION__);
-
-    if (!_pParameterMgrPlatformConnector->isStarted()) {
-
-        return DEAD_OBJECT;
-    }
-
-    string strError;
-    // Get handle
-    CParameterHandle* pParameterHandle =
-            _pParameterMgrPlatformConnector->createParameterHandle(strParameterPath, strError);
-
-    if (!pParameterHandle) {
-
-        strError = strParameterPath.c_str();
-        strError += " not found!";
-
-        ALOGE("Unable to get parameter handle: %s", strError.c_str());
-
-        return DEAD_OBJECT;
-    }
-
-    // Retrieve value
-    status_t ret = OK;
-    if (!pParameterHandle->getAsString(strValue, strError)) {
-
-        ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(),
-                                                                  strParameterPath.c_str());
-        ret = BAD_VALUE;
-    }
-
-    // Remove handle
-    delete pParameterHandle;
-
-    ALOGV_IF(!ret, "%s: %s is %s", __FUNCTION__, strParameterPath.c_str(), strValue.c_str());
-
-    return ret;
-}
-
 status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameterPath, uint32_t uiValue)
 {
     ALOGV("%s in", __FUNCTION__);
@@ -1992,72 +1945,9 @@ status_t CAudioRouteManager::setIntegerArrayParameterValue(const string& strPara
     return NO_ERROR;
 }
 
-CParameterHandle* CAudioRouteManager::getDynamicParameterHandle(const string& strDynamicParamPath)
+status_t CAudioRouteManager::setVoiceVolume(int gain)
 {
-    string strParameter;
-
-    // First retrieve the platform dependant parameter path
-    status_t ret = getStringParameterValue(strDynamicParamPath, strParameter);
-    if (ret != NO_ERROR) {
-
-        ALOGE("Could not retrieve volume path handler err=%d", ret);
-        return NULL;
-    }
-    ALOGD("%s  Platform specific parameter path=%s", __FUNCTION__, strParameter.c_str());
-
-    string strError;
-    CParameterHandle* pHandle = _pParameterMgrPlatformConnector->createParameterHandle(strParameter,
-                                                                                       strError);
-    if (!pHandle) {
-
-        strError = strParameter.c_str();
-        strError += " not found!";
-        ALOGE("%s: Unable to get parameter handle for %s: %s",
-                                        __FUNCTION__,
-                                        strParameter.c_str(),
-                                        strError.c_str());
-    }
-    return pHandle;
-}
-
-CParameterHandle* CAudioRouteManager::getVoiceVolumeHandle()
-{
-    if (_pVoiceVolumeParamHandle == NULL) {
-
-        _pVoiceVolumeParamHandle = getDynamicParameterHandle(gpcVoiceVolume);
-    }
-    return _pVoiceVolumeParamHandle;
-}
-
-status_t CAudioRouteManager::setVoiceVolume(float gain)
-{
-    // Protect here concurrent access to Parameter Framework
-    AutoR lock(_lock);
-    string strError;
-
-    if (gain < 0.0 || gain > 1.0) {
-
-        ALOGW("%s(%f) out of range [0.0 .. 1.0]", __FUNCTION__, gain);
-        return -ERANGE;
-    }
-
-    ALOGD("%s gain=%f", __FUNCTION__, gain);
-    CParameterHandle* pVoiceVolumeHandle = getVoiceVolumeHandle();
-
-    if (!pVoiceVolumeHandle) {
-
-        ALOGE("Could not retrieve volume path handle");
-        return INVALID_OPERATION;
-    }
-
-    if (!pVoiceVolumeHandle->setAsDouble(gain, strError)) {
-
-        ALOGE("%s: Unable to set value %f, from parameter path: %s, error=%s",
-              __FUNCTION__, gain, pVoiceVolumeHandle->getPath().c_str(), strError.c_str());
-        return INVALID_OPERATION;
-    }
-
-    return OK;
+    return setIntegerParameterValue(gpcVoiceVolume, gain);
 }
 
 status_t CAudioRouteManager::addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
