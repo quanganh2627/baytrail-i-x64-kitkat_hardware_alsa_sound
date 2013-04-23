@@ -517,6 +517,11 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
+
+    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    {
+        return false;
+    }
 };
 
 class CAudioExternalRouteHwCodec1IA : public CAudioExternalRoute
@@ -551,6 +556,11 @@ public:
             }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+    }
+
+    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    {
+        return false;
     }
 };
 
@@ -604,6 +614,11 @@ public:
             return willBeUsed(CUtils::EOutput);
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+    }
+
+    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    {
+        return false;
     }
 };
 
