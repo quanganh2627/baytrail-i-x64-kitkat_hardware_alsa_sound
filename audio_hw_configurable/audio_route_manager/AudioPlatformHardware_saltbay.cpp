@@ -525,6 +525,12 @@ public:
 
             return false;
         }
+
+        if (!bIsOut && (iMode == AudioSystem::MODE_IN_CALL)) {
+
+            // In call, the output is applicable if the output stream is used
+            return willBeUsed(CUtils::EOutput);
+        }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
 };
