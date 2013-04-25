@@ -455,10 +455,27 @@ public:
             return true;
         }
 
-        if (!bIsOut && (iMode == AudioSystem::MODE_IN_CALL)) {
+        if (iMode == AudioSystem::MODE_IN_CALL) {
 
-            // In call, the output is applicable if the output stream is used
-            return willBeUsed(CUtils::EOutput);
+            int iTtyDirection = _pPlatformState->getTtyDirection();
+
+            if (iTtyDirection == TTY_UPLINK) {
+
+                // In call, TTY HCO mode, Earpiece is used as Output Device
+                // Force OpenedPlaybackRoutes to HwCodec0IA|ModemIA
+                return bIsOut;
+
+            } else if (iTtyDirection == TTY_DOWNLINK) {
+
+                // In call, TTY VCO mode, DMIC is used as Input Device
+                // Force OpenedCaptureRoutes to HwCodec0IA|ModemIA
+                return !bIsOut;
+
+            } else if (!bIsOut) {
+
+                // In call, the output is applicable if the output stream is used
+                return willBeUsed(CUtils::EOutput);
+            }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
@@ -473,10 +490,27 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
 
-        if (!bIsOut && (iMode == AudioSystem::MODE_IN_CALL)) {
+        if (iMode == AudioSystem::MODE_IN_CALL) {
 
-            // In call, the output is applicable if the output stream is used
-            return willBeUsed(CUtils::EOutput);
+            int iTtyDirection = _pPlatformState->getTtyDirection();
+
+            if (iTtyDirection == TTY_UPLINK) {
+
+                // In call, TTY HCO mode, Earpiece is used as Output Device
+                // Force OpenedPlaybackRoutes to HwCodec0IA|ModemIA
+                return !bIsOut;
+
+           } else if (iTtyDirection == TTY_DOWNLINK) {
+
+                // In call, TTY VCO mode, DMIC is used as Input Device
+                // Force OpenedCaptureRoutes to HwCodec0IA|ModemIA
+                return bIsOut;
+
+            } else if (!bIsOut) {
+
+                // In call, the output is applicable if the output stream is used
+                return willBeUsed(CUtils::EOutput);
+            }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
