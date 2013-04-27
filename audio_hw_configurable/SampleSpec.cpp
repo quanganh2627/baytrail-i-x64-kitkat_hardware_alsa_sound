@@ -57,6 +57,11 @@ void CSampleSpec::setChannelsPolicy(const vector<ChannelsPolicy>& channelsPolicy
     _aChannelsPolicy = channelsPolicy;
 }
 
+CSampleSpec::ChannelsPolicy CSampleSpec::getChannelsPolicy(uint32_t uiChannelIndex) const
+{
+    LOG_ALWAYS_FATAL_IF(uiChannelIndex >= _aChannelsPolicy.size());
+    return _aChannelsPolicy[uiChannelIndex];
+}
 
 uint32_t CSampleSpec::getSampleSpecItem(SampleSpecItem eSampleSpecItem) const
 {

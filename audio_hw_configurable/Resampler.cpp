@@ -17,9 +17,10 @@
 
 #define LOG_TAG "Resampler"
 
+#include "Resampler.h"
 #include <cutils/log.h>
 #include <iasrc_resampler.h>
-#include "Resampler.h"
+#include <limits.h>
 
 #define base CAudioConverter
 

@@ -96,11 +96,7 @@ public:
 
     void setChannelsPolicy(const std::vector<ChannelsPolicy>& channelsPolicy);
     const std::vector<ChannelsPolicy>& getChannelsPolicy() const { return _aChannelsPolicy; }
-    ChannelsPolicy getChannelsPolicy(uint32_t uiChannelIndex) const {
-
-        LOG_ALWAYS_FATAL_IF(uiChannelIndex >= _aChannelsPolicy.size());
-        return _aChannelsPolicy[uiChannelIndex];
-    }
+    ChannelsPolicy getChannelsPolicy(uint32_t uiChannelIndex) const;
 
     // Generic Accessor
     void setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue);

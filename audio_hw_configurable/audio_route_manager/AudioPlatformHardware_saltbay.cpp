@@ -18,26 +18,28 @@
 
 #include <tinyalsa/asoundlib.h>
 
+#define VOICE_PERIOD_TIME_MS            ((int)20)
+#define SEC_PER_MSEC                    ((int)1000)
 
-/// May add a new route, include header here...
-#define SAMPLE_RATE_8000                (8000)
+/**< May add a new route, include header here */
+#define SAMPLE_RATE_16000               (16000) /**< 16K sample rate is used for VoIP */
 #define SAMPLE_RATE_48000               (48000)
-#define VOICE_CAPTURE_PERIOD_SIZE       (320) // 20ms @ 16k, mono
-#define PLAYBACK_44100_PERIOD_SIZE      (1024) //(PLAYBACK_44100_PERIOD_TIME_US * 44100 / USEC_PER_SEC)
-#define PLAYBACK_48000_PERIOD_SIZE      (6000) //(24000*2 * 48000 / USEC_PER_SEC)
-#define CAPTURE_48000_PERIOD_SIZE       (1152) //(CAPTURE_48000_PERIOD_SIZE * 48000 / USEC_PER_SEC)
-#define NB_RING_BUFFER_NORMAL           (4)
-#define NB_RING_BUFFER_INCALL           (4)
+/**< This is 32ms @ 16k */
+#define VOICE_16000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_16000 / SEC_PER_MSEC)
+#define PLAYBACK_48000_PERIOD_SIZE      (6000) /**< (24000*2 * 48000 / USEC_PER_SEC) */
+#define CAPTURE_48000_PERIOD_SIZE       (1152) /**< (CAPTURE_48000_PERIOD_SIZE * 48000 / USEC_PER_SEC) */
 
+#define NB_RING_BUFFER_NORMAL           (2) /**< Use of 2 period sized buffers for media */
+#define NB_RING_BUFFER_INCALL           (4)
 
 #define MEDIA_CARD_NAME                 ("lm49453audio")
 #define MEDIA_PLAYBACK_DEVICE_ID        (0)
 #define MEDIA_CAPTURE_DEVICE_ID         (0)
 
-
+/**< Audio card for VoIP calls */
 #define VOICE_CARD_NAME                 ("lm49453audio")
-#define VOICE_DOWNLINK_DEVICE_ID        (0)
-#define VOICE_UPLINK_DEVICE_ID          (0)
+#define VOICE_DOWNLINK_DEVICE_ID        (2)
+#define VOICE_UPLINK_DEVICE_ID          (2)
 
 namespace android_audio_legacy
 {
@@ -60,37 +62,37 @@ static const pcm_config pcm_config_media_playback = {
 static const pcm_config pcm_config_media_capture = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
-    period_size     : PLAYBACK_48000_PERIOD_SIZE,
+    period_size     : CAPTURE_48000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_NORMAL,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold  : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
     silence_threshold : 0,
-    avail_min       : PLAYBACK_48000_PERIOD_SIZE,
+    avail_min       : CAPTURE_48000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
-    rate            : SAMPLE_RATE_48000,
-    period_size     : VOICE_CAPTURE_PERIOD_SIZE,
+    rate            : SAMPLE_RATE_16000,
+    period_size     : VOICE_16000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_INCALL,
     format          : PCM_FORMAT_S16_LE,
-    start_threshold : PLAYBACK_48000_PERIOD_SIZE,
-    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    start_threshold : VOICE_16000_PERIOD_SIZE,
+    stop_threshold  : VOICE_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
     silence_threshold : 0,
-    avail_min       : PLAYBACK_48000_PERIOD_SIZE,
+    avail_min       : VOICE_16000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_uplink = {
     channels        : 2,
-    rate            : SAMPLE_RATE_48000,
-    period_size     : VOICE_CAPTURE_PERIOD_SIZE,
+    rate            : SAMPLE_RATE_16000,
+    period_size     : VOICE_16000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_INCALL,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold  : VOICE_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
     silence_threshold : 0,
-    avail_min       : PLAYBACK_48000_PERIOD_SIZE,
+    avail_min       : VOICE_16000_PERIOD_SIZE,
 };
 
 const char* const CAudioPlatformHardware::_acPorts[] = {
@@ -122,14 +124,14 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
           (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_CAMCORDER) |
-          (1 << AUDIO_SOURCE_VOICE_RECOGNITION) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION),
+          (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
-            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_IN_CALL),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
-            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+            (1 << AudioSystem::MODE_IN_CALL)
         },
         {
             NOT_APPLICABLE,
@@ -150,6 +152,46 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
+    //
+    // Voice Route
+    //
+    {
+        "Voice",
+        CAudioRoute::EStreamRoute,
+          "",
+        {
+            DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
+            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
+        },
+        {
+            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
+            (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION),
+            AUDIO_OUTPUT_FLAG_PRIMARY,
+        },
+        {
+            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        VOICE_CARD_NAME,
+        {
+            VOICE_UPLINK_DEVICE_ID,
+            VOICE_DOWNLINK_DEVICE_ID,
+        },
+        {
+            pcm_config_voice_uplink,
+            pcm_config_voice_downlink,
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
+
     ////////////////////////////////////////////////////////////////////////
     //
     // External routes
@@ -191,7 +233,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Media,ContextAwareness"
+        "ModemIA,Voice,Media,ContextAwareness"
     },
     //
     // HWCODEC 1 route
@@ -229,7 +271,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Media"
+        "ModemIA,Voice,Media"
     },
     //
     // ModemIA route
@@ -542,7 +584,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
         return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
 
-    } else if (strName == "VOICE") {
+    } else if (strName == "Voice") {
 
         return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
 

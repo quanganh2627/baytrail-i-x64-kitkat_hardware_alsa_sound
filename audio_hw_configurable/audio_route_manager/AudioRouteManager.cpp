@@ -583,7 +583,7 @@ void CAudioRouteManager::doReconsiderRouting()
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange),
              "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
-             _apCriteriaTypeInterface[EContextAwarenessCriteriaType]->getFormattedState(_pPlatformState->isContextAwarenessEnabled()).c_str(),
+             _pPlatformState->isContextAwarenessEnabled() ? "true" : "false",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
 
     if (bRoutesWillChange) {
@@ -1451,13 +1451,19 @@ void CAudioRouteManager::executeConfigureStage()
     configureRoutes(CUtils::EOutput);
     configureRoutes(CUtils::EInput);
 
+#ifdef OPEN_ROUTES_BEFORE_CONFIG
+    // LPE centric arch requires to enable the route (from stream point of view, ie
+    // opening the audio device) before configuring the LPE
+    enableRoutes(CUtils::EOutput);
+    enableRoutes(CUtils::EInput);
+#else
     if (!_bRoutingLocked) {
-
         // LPE centric arch requires to enable the route (from stream point of view, ie
         // opening the audio device) before configuring the LPE
         enableRoutes(CUtils::EOutput);
         enableRoutes(CUtils::EInput);
     }
+#endif
 
     // Change here the devices, the mode, ... all the criteria required for the routing
     _apSelectedCriteria[ESelectedMode]->setCriterionState(_pPlatformState->getHwMode());
@@ -1503,18 +1509,34 @@ void CAudioRouteManager::executeDisableStage()
 
     _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EPath);
 
-    // Disable Routes that
-    //      -are disabled
-    //      -need reconfiguration
     // Routing order criterion = Disable
     // starting from input streams
-    disableRoutes(CUtils::EInput);
-    disableRoutes(CUtils::EOutput);
+
+    prepareDisableRoutes(CUtils::EInput);
+    prepareDisableRoutes(CUtils::EOutput);
+
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
+    if (_bRoutingLocked) {
+
+        doDisableRoutes(CUtils::EInput);
+        doDisableRoutes(CUtils::EOutput);
+    }
+#endif
 
     _pParameterMgrPlatformConnector->applyConfigurations();
+
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
+    if (!_bRoutingLocked) {
+#endif
+
+        doDisableRoutes(CUtils::EInput);
+        doDisableRoutes(CUtils::EOutput);
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
+    }
+#endif
 }
 
-void CAudioRouteManager::disableRoutes(bool bIsOut)
+void CAudioRouteManager::prepareDisableRoutes(bool bIsOut)
 {
     ALOGV("%s for %s:", __FUNCTION__,
           bIsOut ? "output" : "input");
@@ -1533,6 +1555,12 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
              bIsOut ? "Output" : "Input",
              _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(uiClosingRoutes).c_str());
 
+    selectedClosingRoutes(bIsOut)->setCriterionState(uiClosingRoutes);
+    selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
+}
+
+void CAudioRouteManager::doDisableRoutes(bool bIsOut)
+{
     RouteListIterator it;
 
     //
@@ -1551,9 +1579,6 @@ void CAudioRouteManager::disableRoutes(bool bIsOut)
             pRoute->unroute(bIsOut);
         }
     }
-
-    selectedClosingRoutes(bIsOut)->setCriterionState(uiClosingRoutes);
-    selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
 }
 
 void CAudioRouteManager::executeEnableStage()
@@ -1565,12 +1590,14 @@ void CAudioRouteManager::executeEnableStage()
 
         _pParameterMgrPlatformConnector->applyConfigurations();
 
+#ifndef OPEN_ROUTES_BEFORE_CONFIG
     if (_bRoutingLocked) {
 
         // Connect all streams that need to be connected (starting from output streams)
         enableRoutes(CUtils::EOutput);
         enableRoutes(CUtils::EInput);
     }
+#endif
 }
 
 void CAudioRouteManager::enableRoutes(bool bIsOut)

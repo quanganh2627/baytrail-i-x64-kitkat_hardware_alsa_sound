@@ -15,15 +15,15 @@
  */
 
 #define LOG_TAG "RouteManager/StreamRoute"
-#include <utils/Log.h>
 
-#include <ALSAStreamOps.h>
 #include "AudioPlatformHardware.h"
+#include "AudioStreamRoute.h"
 #include "AudioUtils.h"
+#include "ALSAStreamOps.h"
 #include <tinyalsa/asoundlib.h>
 #include <hardware_legacy/power.h>
-
-#include "AudioStreamRoute.h"
+#include <utils/Log.h>
+#include <algorithm>
 
 #define base    CAudioRoute
 
@@ -269,12 +269,24 @@ status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)
               getPcmDeviceId(bIsOut),
               bIsOut? "output" : "input",
               pcm_get_error(_astPcmDevice[bIsOut]));
-        pcm_close(_astPcmDevice[bIsOut]);
-        _astPcmDevice[bIsOut] = NULL;
-        releasePowerLock(bIsOut);
-        return NO_MEMORY;
+        goto close_device;
+    }
+
+    // Prepare the device (ie allocation of the stream)
+    if (pcm_prepare(_astPcmDevice[bIsOut]) != 0) {
+
+        ALOGE("%s: prepare failed with error %s", __FUNCTION__,
+                                        pcm_get_error(_astPcmDevice[bIsOut]));
+        goto close_device;
     }
     return NO_ERROR;
+
+close_device:
+
+    pcm_close(_astPcmDevice[bIsOut]);
+    _astPcmDevice[bIsOut] = NULL;
+    releasePowerLock(bIsOut);
+    return NO_MEMORY;
 }
 
 void CAudioStreamRoute::closePcmDevice(bool bIsOut)

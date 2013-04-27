@@ -17,8 +17,6 @@
 
 #define LOG_TAG "AudioConversion"
 
-#include <cutils/log.h>
-
 #include "AudioBufferProvider.h"
 #include "AudioConversion.h"
 #include "AudioConverter.h"
@@ -26,6 +24,8 @@
 #include "AudioRemapper.h"
 #include "AudioResampler.h"
 #include "AudioUtils.h"
+#include <cutils/log.h>
+#include <stdlib.h>
 
 using namespace android;
 using namespace std;

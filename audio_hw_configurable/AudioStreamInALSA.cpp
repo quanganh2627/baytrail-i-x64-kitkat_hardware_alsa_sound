@@ -15,6 +15,17 @@
  ** limitations under the License.
  */
 
+#define LOG_TAG "AudioStreamInALSA"
+
+#include "AudioStreamInALSA.h"
+#include "AudioAutoRoutingLock.h"
+
+#include <hardware_legacy/power.h>
+#include <media/AudioRecord.h>
+#include <utils/Log.h>
+#include <utils/String8.h>
+#include <cutils/properties.h>
+#include <algorithm>
 #include <errno.h>
 #include <stdarg.h>
 #include <sys/stat.h>
@@ -22,20 +33,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
-
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
-#define LOG_TAG "AudioStreamInALSA"
-#include <utils/Log.h>
-#include <utils/String8.h>
-
-#include <cutils/properties.h>
-#include <media/AudioRecord.h>
-#include <hardware_legacy/power.h>
-
-#include "AudioStreamInALSA.h"
-#include "AudioAutoRoutingLock.h"
 
 #define base ALSAStreamOps
 
@@ -274,7 +271,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if (!isRouteAvailable()) {
 
         ALOGD("%s(buffer=%p, bytes=%ld) No route available. Generating silence.",
-            __FUNCTION__, buffer, bytes);
+            __FUNCTION__, buffer, static_cast<long int>(bytes));
         return generateSilence(buffer, bytes);
     }
 
@@ -294,7 +291,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if (received_frames < 0) {
 
         ALOGE("%s(buffer=%p, bytes=%ld) returns %ld. Generating silence.",
-             __FUNCTION__, buffer, bytes, received_frames);
+             __FUNCTION__, buffer, static_cast<long int>(bytes),
+             static_cast<long int>(received_frames));
         //
         // Generate Silence here
         //
@@ -307,7 +305,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if (mParent->mMicMuteState ) {
 
         ALOGD("%s(buffer=%p, bytes=%ld). Mic muted. Generating silence.",
-            __FUNCTION__, buffer, bytes);
+            __FUNCTION__, buffer, static_cast<long int>(bytes));
         generateSilence(buffer, readBytes);
     }
     return readBytes;
@@ -605,7 +603,8 @@ int32_t AudioStreamInALSA::updateEchoReference(ssize_t frames,
                                     mSampleSpec.convertFramesToBytes(mReferenceBufferSizeInFrames));
             if (pReferenceBuffer == NULL) {
 
-                ALOGE(" %s(frames=%ld): realloc failed", __FUNCTION__, frames);
+                ALOGE(" %s(frames=%ld): realloc failed", __FUNCTION__,
+                      static_cast<long int>(frames));
                 return NO_MEMORY;
             }
             mReferenceBuffer = pReferenceBuffer;
@@ -644,7 +643,8 @@ status_t AudioStreamInALSA::pushEchoReference(ssize_t frames, effect_handle_t pr
 
     if ((*preprocessor)->process_reverse == NULL) {
 
-        ALOGW(" %s(frames %ld): process_reverse is NULL", __FUNCTION__, frames);
+        ALOGW(" %s(frames %ld): process_reverse is NULL", __FUNCTION__,
+              static_cast<long int>(frames));
         return BAD_VALUE;
     }
 
@@ -724,15 +724,16 @@ status_t AudioStreamInALSA::allocateProcessingMemory(ssize_t frames)
                                    mSampleSpec.convertFramesToBytes(mProcessingBufferSizeInFrames));
     if (pProcessingBuffer == NULL) {
 
-        ALOGE(" %s(frames=%ld): realloc failed errno = %s!", __FUNCTION__, frames, strerror(errno));
+        ALOGE(" %s(frames=%ld): realloc failed errno = %s!", __FUNCTION__,
+              static_cast<long int>(frames), strerror(errno));
         return NO_MEMORY;
     }
     mProcessingBuffer = pProcessingBuffer;
     ALOGD("%s(frames=%ld): mProcessingBuffer=%p size extended to %ld frames (i.e. %d bytes)",
           __FUNCTION__,
-          frames,
+          static_cast<long int>(frames),
           mProcessingBuffer,
-          mProcessingBufferSizeInFrames,
+          static_cast<long int>(mProcessingBufferSizeInFrames),
           mSampleSpec.convertFramesToBytes(mProcessingBufferSizeInFrames));
 
     return NO_ERROR;
