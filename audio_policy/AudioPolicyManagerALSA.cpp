@@ -331,7 +331,7 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
     if (isInCall() &&
         (stream == AudioSystem::VOICE_CALL ||
          stream == AudioSystem::DTMF ||
-         stream == AudioSystem::SYSTEM)) {
+        (stream == AudioSystem::SYSTEM && index != mStreams[stream].mIndexMin))) {
 
         LOG_ALWAYS_FATAL_IF((mPhoneState != AudioSystem::MODE_IN_COMMUNICATION) &&
                             (mPhoneState != AudioSystem::MODE_IN_CALL));
