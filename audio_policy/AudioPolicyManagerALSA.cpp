@@ -324,9 +324,12 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
         return 1.0f;
     }
 
-    // Process in call ALARM/DTMF/SYSTEM volume
+    // Process in call VOICE_CALL/ALARM/DTMF/SYSTEM volume
+    // Do not update SYSTEM stream volume when its index is already at min value
+    // Note: the voice volume will not be affected by this change
+    // because the computeVolume() method is only used for AudioFlinger volumes
     if (isInCall() &&
-        (stream == AudioSystem::ALARM ||
+        (stream == AudioSystem::VOICE_CALL ||
          stream == AudioSystem::DTMF ||
          stream == AudioSystem::SYSTEM)) {
 
@@ -338,8 +341,8 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
 
         if (mVoiceVolumeAppliedAfterMix) {
 
-            //set the ALARM/DTMF/SYSTEM volume to 1.0 to avoid double attenuation when the voice
-            //volume will be applied after mix ALARM/DTMF/SYSTEM and voice.
+            // Set the VOICE_CALL/DTMF/SYSTEM volume to 1.0 to avoid double attenuation
+            // when the voice volume will be applied after mix VOICE_CALL/DTMF/SYSTEM and voice
             return 1.0f;
         }
     }
