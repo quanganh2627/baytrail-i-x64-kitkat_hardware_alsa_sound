@@ -20,6 +20,7 @@
 #include <vector>
 #include <utils/threads.h>
 #include <hardware_legacy/AudioHardwareBase.h>
+#include <tinyalsa/asoundlib.h>
 
 #include "AudioRoute.h"
 #include "SyncSemaphoreList.h"
@@ -241,6 +242,20 @@ public:
     struct echo_reference_itfe* getEchoReference(int format,
                                                  uint32_t channel_count,
                                                  uint32_t sampling_rate);
+
+    /**
+     * Get the default pcm configuration.
+     * Upon creation, streams need to provide latency and buffer size. As stream are not attached
+     * to any route at creation, they must get a default pcm configuration dependant of the
+     * platform to provide information of latency and buffersize (inferred from ALSA ring buffer).
+     *
+     * @param[in] bIsOut direction of the stream requesting the configuration
+     * @param[in] uiFlags only valid for output stream, depends on flag, might use different
+     *                    buffering model.
+     *
+     * @return reference of default pcm_config
+     */
+    const pcm_config& getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags = 0) const;
 
 private:
     CAudioRouteManager(const CAudioRouteManager &);

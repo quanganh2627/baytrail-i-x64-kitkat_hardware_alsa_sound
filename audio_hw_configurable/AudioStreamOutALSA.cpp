@@ -43,12 +43,10 @@ const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
 const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
 const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
 const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 2;
-const uint32_t AudioStreamOutALSA ::USEC_PER_MSEC = 1000;
-const uint32_t AudioStreamOutALSA::DEEP_PLAYBACK_PERIOD_TIME_US = 96000;
-const uint32_t AudioStreamOutALSA::PLAYBACK_PERIOD_TIME_US = 48000;
+const uint32_t AudioStreamOutALSA::USEC_PER_MSEC = 1000;
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
-    base(parent, PLAYBACK_PERIOD_TIME_US, "AudioOutLock"),
+    base(parent, "AudioOutLock"),
     mFrameCount(0),
     mFlags(AUDIO_OUTPUT_FLAG_NONE),
     mEchoReference(NULL)
@@ -212,7 +210,6 @@ status_t AudioStreamOutALSA::standby()
 
 uint32_t AudioStreamOutALSA::latency() const
 {
-    // Android wants latency in milliseconds.
     return base::latency();
 }
 
@@ -245,17 +242,7 @@ void AudioStreamOutALSA::setFlags(uint32_t uiFlags)
 {
     mFlags = uiFlags;
 
-    updatePeriodTime();
-}
-
-void AudioStreamOutALSA::updatePeriodTime()
-{
-    // Update the latency according to the flags
-    uint32_t uiPeriodUs = mFlags & AUDIO_OUTPUT_FLAG_DEEP_BUFFER ?
-                DEEP_PLAYBACK_PERIOD_TIME_US :
-                PLAYBACK_PERIOD_TIME_US;
-
-    setPeriodTime(uiPeriodUs);
+    updateLatency(uiFlags);
 }
 
 status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)

@@ -2377,4 +2377,9 @@ status_t CAudioRouteManager::getAudioEffectUuidFromHandle(effect_handle_t effect
     return NO_ERROR;
 }
 
+const pcm_config& CAudioRouteManager::getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags) const
+{
+    return CAudioPlatformHardware::getDefaultPcmConfig(bIsOut, uiFlags);
+}
+
 }       // namespace android

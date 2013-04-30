@@ -55,7 +55,7 @@ public:
 
     android::status_t   setStandby(bool bIsSet);
 
-    virtual bool        isOut() const = 0 ;
+    virtual bool        isOut() const = 0;
 
     void                setNewRoute(CAudioStreamRoute* attachRoute);
     void                resetRoute();
@@ -77,7 +77,7 @@ public:
     virtual uint32_t    getApplicabilityMask() const = 0;
 
 protected:
-    ALSAStreamOps(AudioHardwareALSA* parent, uint32_t uiDefaultPeriodUs, const char* pcLockTag);
+    ALSAStreamOps(AudioHardwareALSA* parent, const char* pcLockTag);
     friend class AudioHardwareALSA;
     ALSAStreamOps(const ALSAStreamOps &);
     ALSAStreamOps& operator = (const ALSAStreamOps &);
@@ -86,7 +86,7 @@ protected:
     android::status_t getConvertedBuffer(void* dst, const uint32_t outFrames, android::AudioBufferProvider* pBufferProvider);
 
     uint32_t            latency() const;
-    void                setPeriodTime(uint32_t uiPeriodTimeUs);
+    void                updateLatency(uint32_t uiFlags = 0);
 
     AudioHardwareALSA*      mParent;
     pcm*                    mHandle;
@@ -125,8 +125,6 @@ private:
     // Audio Conversion utility class
     CAudioConversion* mAudioConversion;
 
-    static const pcm_config DEFAULT_PCM_CONFIG;
-    static const uint32_t NB_RING_BUFFER;
     static const uint32_t STR_FORMAT_LENGTH;
 };
 

@@ -43,7 +43,7 @@ public:
       * Constante used during convert of frames to delays in micro-seconds (us).
       * It is used for delays computation of AEC effect
       */
-    static const uint32_t USEC_TO_SEC = 1000000000;
+    static const uint32_t USEC_TO_SEC = 1000000;
 };
 
 }; // namespace android

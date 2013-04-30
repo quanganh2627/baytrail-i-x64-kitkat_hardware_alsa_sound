@@ -211,6 +211,27 @@ public:
         return channelsPolicyVector;
     }
 
+    /**
+     * Get the default pcm configuration.
+     * Upon creation, streams need to provide latency and buffer size. As stream are not attached
+     * to any route at creation, they must get a default pcm configuration dependant of the
+     * platform to provide information of latency and buffersize (inferred from ALSA ring buffer).
+     *
+     * @param[in] bIsOut direction of the stream requesting the configuration
+     * @param[in] uiFlags only valid for output stream, depends on flag, might use different
+     *                    buffering model.
+     *
+     * @return reference of default pcm_config
+     */
+    static const pcm_config& getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags)
+    {
+        bool bIsDeepFlag = uiFlags & AUDIO_OUTPUT_FLAG_DEEP_BUFFER;
+        return bIsOut ?
+                    (bIsDeepFlag ?
+                         pcm_config_deep_media_playback : pcm_config_media_playback) :
+                    pcm_config_media_capture;
+    }
+
 private:
     static const uint32_t MAX_CHANNELS = 32;
 
@@ -256,5 +277,11 @@ private:
     static const char* const _acPortGroups[];
 
     static const s_route_t _astAudioRoutes[];
+
+    static const pcm_config pcm_config_media_playback;
+
+    static const pcm_config pcm_config_media_capture;
+
+    static const pcm_config pcm_config_deep_media_playback;
 };
 };        // namespace android

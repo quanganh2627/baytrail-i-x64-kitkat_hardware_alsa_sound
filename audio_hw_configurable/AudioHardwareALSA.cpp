@@ -299,6 +299,11 @@ void AudioHardwareALSA::unlockRouting()
     mRouteMgr->unlock();
 }
 
+const pcm_config& AudioHardwareALSA::getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags) const
+{
+    return mRouteMgr->getDefaultPcmConfig(bIsOut, uiFlags);
+}
+
 status_t AudioHardwareALSA::startStream(ALSAStreamOps* pStream)
 {
     bool bIsStreamOut;

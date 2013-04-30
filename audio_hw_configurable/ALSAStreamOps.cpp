@@ -54,27 +54,13 @@ using namespace android;
 namespace android_audio_legacy
 {
 
-const uint32_t ALSAStreamOps::NB_RING_BUFFER = 2;
 const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
-
-const pcm_config ALSAStreamOps::DEFAULT_PCM_CONFIG = {
-    channels        : 0,
-    rate            : 0,
-    period_size     : 0,
-    period_count    : ALSAStreamOps::NB_RING_BUFFER,
-    format          : PCM_FORMAT_S16_LE,
-    start_threshold : 0,
-    stop_threshold  : 0,
-    silence_threshold : 0,
-    avail_min       : 0,
-};
-
 
 static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Headset//pmdown_time";
 static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
 static const char* voicePmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Voice//pmdown_time";
 
-ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, uint32_t uiDefaultPeriodUs, const char* pcLockTag) :
+ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
     mParent(parent),
     mHandle(NULL),
     mStandby(true),
@@ -84,7 +70,7 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, uint32_t uiDefaultPeriod
     mNewRoute(NULL),
     mCurrentDevices(0),
     mNewDevices(0),
-    mLatencyUs(uiDefaultPeriodUs * NB_RING_BUFFER),
+    mLatencyUs(0),
     mPowerLock(false),
     mPowerLockTag(pcLockTag),
     mAudioConversion(new CAudioConversion)
@@ -200,6 +186,8 @@ status_t ALSAStreamOps::set(int      *format,
 
     mHwSampleSpec = mSampleSpec;
 
+    updateLatency();
+
     ALOGD("%s() -- OUT", __FUNCTION__);
     return NO_ERROR;
 }
@@ -246,13 +234,16 @@ size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
 
 uint32_t ALSAStreamOps::latency() const
 {
-    // Android wants latency in milliseconds.
     return CAudioUtils::convertUsecToMsec(mLatencyUs);
 }
 
-void ALSAStreamOps::setPeriodTime(uint32_t uiPeriodTimeUs)
+void ALSAStreamOps::updateLatency(uint32_t uiFlags)
 {
-    mLatencyUs = uiPeriodTimeUs * NB_RING_BUFFER;
+    pcm_config pcmConf = mParent->getDefaultPcmConfig(isOut(), uiFlags);
+    uint64_t latency = (uint64_t)CAudioUtils::USEC_TO_SEC * pcmConf.period_count *
+                                            pcmConf.period_size  / pcmConf.rate;
+    LOG_ALWAYS_FATAL_IF(latency > UINT_MAX);
+    mLatencyUs = latency;
 }
 
 status_t ALSAStreamOps::setStandby(bool bIsSet)
