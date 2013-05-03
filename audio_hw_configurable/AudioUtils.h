@@ -41,6 +41,8 @@ public:
 
     static uint32_t convertUsecToMsec(uint32_t uiTimeUsec);
 
+    static bool isAudioInputDevice(uint32_t uiDevices);
+
     /**
       * Constante used during convert of frames to delays in micro-seconds (us).
       * It is used for delays computation of AEC effect

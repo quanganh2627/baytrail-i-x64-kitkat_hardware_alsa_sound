@@ -17,9 +17,6 @@
 
 #pragma once
 
-#define MASK_32_BITS_MSB    0x7FFFFFFF
-#define REMOVE_32_BITS_MSB(bitfield) bitfield & MASK_32_BITS_MSB
-
 #define __UNUSED __attribute__((unused))
 
 class CUtils

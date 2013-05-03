@@ -26,8 +26,14 @@
 
 namespace android_audio_legacy {
 
+/**< Note that Audio Policy makes use of HAL_API_REV_2_0
+ * Do not use HAL_API_REV_1_0
+ * For input devices, not only a direction bit has been added but also the mapping is different
+ * As input devices is a bitfield, provides here a macro to remove the direction bit
+ */
 #define MASK_DEVICE_NO_DIR    ((unsigned int)~AUDIO_DEVICE_BIT_IN)
 #define REMOVE_DEVICE_DIR(device) ((unsigned int)device & MASK_DEVICE_NO_DIR)
+
 
 //  Is voice volume applied after mixing while in mode IN_COMM ?
 const String8 AudioPolicyManagerALSA::mVoiceVolumeAppliedAfterMixInCommPropName("voice_volume_applied_after_mixing_in_communication");
@@ -115,12 +121,14 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     if (!mInputs.isEmpty() && activeInput) {
         AudioInputDescriptor *inputDesc = mInputs.valueFor(activeInput);
 
-        uint32_t deviceMediaRecMic = (AudioSystem::DEVICE_IN_BUILTIN_MIC | AudioSystem::DEVICE_IN_BACK_MIC |
-                                      AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_IN_WIRED_HEADSET);
+        uint32_t deviceMediaRecMic = (AUDIO_DEVICE_IN_BUILTIN_MIC | AUDIO_DEVICE_IN_BACK_MIC |
+                                      AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET | AUDIO_DEVICE_IN_WIRED_HEADSET);
 
-        if (((REMOVE_DEVICE_DIR(inputDesc->mDevice) & deviceMediaRecMic) &&
+        // If an application uses already an input and the requested input is from a VoIP call
+        // or a CSV call record, stop the current active input to enable requested input start.
+        if(((REMOVE_DEVICE_DIR(inputDesc->mDevice) & deviceMediaRecMic) &&
             (inputDesc->mInputSource != AUDIO_SOURCE_VOICE_COMMUNICATION)) &&
-            ((REMOVE_DEVICE_DIR(device) & AudioSystem::DEVICE_IN_VOICE_CALL) ||
+           ((REMOVE_DEVICE_DIR(device) & AUDIO_DEVICE_IN_VOICE_CALL) ||
             (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION))) {
             LOGI("Stop current active input %d because of higher priority input %d !",
                 inputDesc->mInputSource, inputSource);
@@ -136,7 +144,7 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
             // Create a concurrent input and let upper layers close the active camcorder input
             LOGI("Grant request for input %d creation while current camcorder input", inputSource);
         }
-        else if ((REMOVE_DEVICE_DIR(inputDesc->mDevice) & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+        else if ((REMOVE_DEVICE_DIR(inputDesc->mDevice) & AUDIO_DEVICE_IN_VOICE_CALL) &&
                  (inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION)) {
             LOGI("Incoming VoIP call during VCR or VCR -> VoIP swap");
         }
@@ -147,6 +155,13 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
         else if ((inputDesc->mInputSource == AUDIO_SOURCE_MIC) &&
                  (inputSource == AUDIO_SOURCE_VOICE_RECOGNITION)){
             LOGI("Voice recognition requested while current MIC input source");
+        }
+        // Force use of built-in mic in case of force use of the speaker in VoIP and wsHS connected
+        else if ((inputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) &&
+                 (REMOVE_DEVICE_DIR(inputDesc->mDevice) & AUDIO_DEVICE_IN_WIRED_HEADSET) &&
+                 (getForceUse(AudioSystem::FOR_COMMUNICATION) == AudioSystem::FORCE_SPEAKER)) {
+            device = AUDIO_DEVICE_IN_BUILTIN_MIC;
+            LOGI("Changing input device to built-in mic as force use to speaker requested with wsHS connected");
         }
         else {
             LOGW("getInput() mPhoneState : %d, device 0x%x, unhandled input source concurrency,"
@@ -233,7 +248,7 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
         if (activeInput != 0) {
             AudioInputDescriptor *activeInputDesc = mInputs.valueFor(activeInput);
             if ((inputDesc->mInputSource & AUDIO_SOURCE_VOICE_COMMUNICATION) &&
-                ( REMOVE_DEVICE_DIR(activeInputDesc->mDevice) & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                (REMOVE_DEVICE_DIR(activeInputDesc->mDevice) & AUDIO_DEVICE_IN_VOICE_CALL) &&
                 ((activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_UPLINK) ||
                  (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_DOWNLINK) ||
                  (activeInputDesc->mInputSource == AUDIO_SOURCE_VOICE_CALL))){
