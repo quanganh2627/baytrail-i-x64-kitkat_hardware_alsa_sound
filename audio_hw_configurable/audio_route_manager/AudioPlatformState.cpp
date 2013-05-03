@@ -35,6 +35,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _iTtyDirection(0),
     _bIsHacModeEnabled(false),
     _bBtHeadsetNrEcEnabled(false),
+    _eBtHeadsetBandType(CAudioBand::ENarrow),
     _bIsBtEnabled(false),
     _uiInputSource(0),
     _uiDirectStreamsRefCount(0),
@@ -45,7 +46,6 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bScreenOn(true),
     _bIsContextAwarenessEnabled(false),
     _uiPlatformEventChanged(false),
-    _iVolumeKeysRefCount(0),
     _pAudioRouteManager(pAudioRouteManager)
 {
     _uiDevices[EInput] = 0;
@@ -182,6 +182,16 @@ void CAudioPlatformState::setBtHeadsetNrEc(bool bIsAcousticSupportedOnBT)
     _bBtHeadsetNrEcEnabled = bIsAcousticSupportedOnBT;
 }
 
+void CAudioPlatformState::setBtHeadsetBandType(CAudioBand::Type eBtHeadsetBandType)
+{
+    if (_eBtHeadsetBandType == eBtHeadsetBandType) {
+
+        return;
+    }
+    setPlatformStateEvent(EBtHeadsetBandTypeChange);
+    _eBtHeadsetBandType = eBtHeadsetBandType;
+}
+
 // Set devices
 void CAudioPlatformState::setDevices(uint32_t devices, bool bIsOut)
 {
@@ -314,12 +324,10 @@ bool CAudioPlatformState::checkHwMode()
 
         _iHwMode = iTmpHwMode;
 
-        if (_iHwMode == AudioSystem::MODE_IN_CALL || _iHwMode == AudioSystem::MODE_IN_COMMUNICATION) {
-
-       //     CVolumeKeys::wakeupEnable();
+        if (_iHwMode == AudioSystem::MODE_IN_CALL) {
+            CVolumeKeys::wakeupEnable();
         } else {
-
-       //     CVolumeKeys::wakeupDisable();
+            CVolumeKeys::wakeupDisable();
         }
 
         bHwModeHasChanged = true;
@@ -336,26 +344,6 @@ void CAudioPlatformState::clearPlatformStateEvents()
     _uiPlatformEventChanged = 0;
 }
 
-void CAudioPlatformState::enableVolumeKeys(bool bEnable)
-{
-    if (bEnable) {
-
-        _iVolumeKeysRefCount += 1;
-    } else {
-
-        _iVolumeKeysRefCount -= 1;
-    }
-    assert(_iVolumeKeysRefCount >= 0);
-
-    if (_iVolumeKeysRefCount == 0) {
-
-        CVolumeKeys::wakeupDisable();
-
-    } else if (_iVolumeKeysRefCount == 1) {
-
-        CVolumeKeys::wakeupEnable();
-    }
-}
 
 void CAudioPlatformState::setDirectStreamEvent(uint32_t uiFlags)
 {

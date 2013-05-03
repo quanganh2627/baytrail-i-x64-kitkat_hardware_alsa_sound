@@ -324,8 +324,11 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
         return 1.0f;
     }
 
-    // Process in call DTMF/SYSTEM volume
-    if (isInCall() && (stream == AudioSystem::DTMF || stream == AudioSystem::SYSTEM)) {
+    // Process in call ALARM/DTMF/SYSTEM volume
+    if (isInCall() &&
+        (stream == AudioSystem::ALARM ||
+         stream == AudioSystem::DTMF ||
+         stream == AudioSystem::SYSTEM)) {
 
         LOG_ALWAYS_FATAL_IF((mPhoneState != AudioSystem::MODE_IN_COMMUNICATION) &&
                             (mPhoneState != AudioSystem::MODE_IN_CALL));
@@ -335,8 +338,8 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
 
         if (mVoiceVolumeAppliedAfterMix) {
 
-            //set the DTMF/SYSTEM volume to 1.0 to avoid double attenuation when the voice
-            //volume will be applied after mix DTMF/SYSTEM and voice.
+            //set the ALARM/DTMF/SYSTEM volume to 1.0 to avoid double attenuation when the voice
+            //volume will be applied after mix ALARM/DTMF/SYSTEM and voice.
             return 1.0f;
         }
     }
@@ -426,6 +429,16 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                         ALOGV("%s- Current device(0x%x) and speaker stream output for an enforced audible stream", __FUNCTION__, currentDevice);
                         device = (mAvailableOutputDevices & AudioSystem::DEVICE_OUT_SPEAKER) | currentDevice;
                 }
+            break;
+        case STRATEGY_SONIFICATION_LOCAL:
+            // Check if the phone state has already passed from MODE_RINGTONE to
+            //  MODE_IN_COMMUNICATION or IN_CALL. In this case the output device is Earpiece and not IHF.
+            if ((device == AudioSystem::DEVICE_OUT_SPEAKER)
+                    && (isInCall())
+                    && (getForceUse(AudioSystem::FOR_COMMUNICATION) != AudioSystem::FORCE_SPEAKER)) {
+               ALOGV("%s- Force the device to earpiece and not IHF", __FUNCTION__);
+               device = mAvailableOutputDevices & AudioSystem::DEVICE_OUT_EARPIECE;
+            }
             break;
 
        default:
