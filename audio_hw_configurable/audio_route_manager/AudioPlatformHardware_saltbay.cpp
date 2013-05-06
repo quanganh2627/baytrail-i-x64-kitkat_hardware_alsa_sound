@@ -125,11 +125,13 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
+        // When VoIP will use direct output, add AUDIO_SOURCE_IN_COMMUNICATION
         {
           (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_CAMCORDER) |
           (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
+        // When VoIP will use direct output, add MODE_IN_COMMUNICATION
         {
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_CALL),
@@ -167,13 +169,12 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         {
-            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
-            (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION),
+            (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION),
             AUDIO_OUTPUT_FLAG_PRIMARY,
         },
         {
-            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
-            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+            (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
         {
             NOT_APPLICABLE,
