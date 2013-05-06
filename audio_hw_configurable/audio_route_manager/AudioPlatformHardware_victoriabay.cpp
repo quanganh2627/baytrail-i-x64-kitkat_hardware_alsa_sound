@@ -672,12 +672,6 @@ public:
         _pPlatformState->setBtEnabled(true);
 #endif
 
-        // BT module must be on and as the BT is on the shared I2S bus
-        // the share bus must be available
-        if (!_pPlatformState->isBtEnabled()) {
-
-            return false;
-        }
         if (!bIsOut && (iMode == AudioSystem::MODE_IN_CALL)) {
 
             // In Voice CALL, the audio policy does not give any input device
