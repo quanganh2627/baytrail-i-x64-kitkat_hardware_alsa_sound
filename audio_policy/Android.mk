@@ -20,13 +20,13 @@ LOCAL_C_INCLUDES += \
     external/stlport/stlport/ \
     bionic/
 
-LOCAL_C_INCLUDES += \
-    $(TARGET_OUT_HEADERS)/property
-
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libutils \
     libstlport
+
+LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_SHARED_LIBRARIES := \
+    libproperty
 
 LOCAL_STATIC_LIBRARIES := \
     libmedia_helper

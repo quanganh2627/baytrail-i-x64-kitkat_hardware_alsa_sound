@@ -19,7 +19,7 @@
 #include <utils/Log.h>
 #include "AudioPolicyManagerALSA.h"
 #include <media/mediarecorder.h>
-#include "Property.h"
+#include <Property.h>
 
 #define baseClass AudioPolicyManagerBase
 
