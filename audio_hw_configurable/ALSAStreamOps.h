@@ -58,6 +58,15 @@ public:
     virtual bool        isOut() const = 0;
 
     void                setNewRoute(CAudioStreamRoute* attachRoute);
+
+    /**
+     * Check if the stream has a new route assigned.
+     * A stream might be eligible for a stream route. If so, the new route pointer will be set.
+     * This function will inform if the stream has been assigned or not to a route.
+     *
+     * @return true if the stream has already a route assigned to it.
+     */
+    inline bool         isRouteAssignedToStream() const { return mNewRoute != NULL; }
     void                resetRoute();
 
     uint32_t            getNewDevices() const { return mNewDevices; }

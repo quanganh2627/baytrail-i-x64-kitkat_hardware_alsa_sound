@@ -1414,7 +1414,7 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, con
         assert(isOut == pOps->isOut());
 
         // Check stream state - only evaluates streams that are started
-        if (pOps->isStarted()) {
+        if (pOps->isStarted() && !pOps->isRouteAssignedToStream()) {
 
             // Check if the route is applicable
             // Applicability will also check if this route is already busy or not.
