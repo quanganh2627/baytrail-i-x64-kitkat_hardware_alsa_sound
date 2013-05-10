@@ -1903,10 +1903,7 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
 
     if (!pParameterHandle) {
 
-        strError = strParameterPath.c_str();
-        strError += " not found!";
-
-        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+        ALOGE("Unable to get parameter handle: '%s' '%s'", strParameterPath.c_str(), strError.c_str());
 
         ALOGV("%s returning %d", __FUNCTION__, uiDefaultValue);
 
@@ -1916,6 +1913,7 @@ uint32_t CAudioRouteManager::getIntegerParameterValue(const string& strParameter
     // Retrieve value
     uint32_t uiValue;
 
+    strError.clear();
     if (!pParameterHandle->getAsInteger(uiValue, strError)) {
 
         ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(), strParameterPath.c_str());
@@ -1953,16 +1951,14 @@ status_t CAudioRouteManager::getStringParameterValue(const string& strParameterP
 
     if (!pParameterHandle) {
 
-        strError = strParameterPath.c_str();
-        strError += " not found!";
-
-        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+        ALOGE("Unable to get parameter handle: '%s' '%s'", strParameterPath.c_str(), strError.c_str());
 
         return DEAD_OBJECT;
     }
 
     // Retrieve value
     status_t ret = OK;
+    strError.clear();
     if (!pParameterHandle->getAsString(strValue, strError)) {
 
         ALOGE("Unable to get value: %s, from parameter path: %s", strError.c_str(),
@@ -1993,15 +1989,13 @@ status_t CAudioRouteManager::setIntegerParameterValue(const string& strParameter
 
     if (!pParameterHandle) {
 
-        strError = strParameterPath.c_str();
-        strError += " not found!";
-
-        ALOGE("%s: Unable to set parameter handle: %s", __FUNCTION__, strError.c_str());
+        ALOGE("%s: Unable to set parameter handle: '%s' '%s'", __FUNCTION__, strParameterPath.c_str(), strError.c_str());
 
         return NAME_NOT_FOUND;
     }
 
     // set value
+    strError.clear();
     if (!pParameterHandle->setAsInteger(uiValue, strError)) {
 
         ALOGE("%s: Unable to set value: %s, from parameter path: %s", __FUNCTION__, strError.c_str(), strParameterPath.c_str());
@@ -2035,10 +2029,7 @@ status_t CAudioRouteManager::setIntegerArrayParameterValue(const string& strPara
 
     if (!pParameterHandle) {
 
-        strError = strParameterPath.c_str();
-        strError += " not found!";
-
-        ALOGE("Unable to get parameter handle: %s", strError.c_str());
+        ALOGE("Unable to get parameter handle: '%s' '%s'", strParameterPath.c_str(), strError.c_str());
 
         return NAME_NOT_FOUND;
     }
@@ -2078,9 +2069,7 @@ CParameterHandle* CAudioRouteManager::getDynamicParameterHandle(const string& st
                                                                                        strError);
     if (!pHandle) {
 
-        strError = strParameter.c_str();
-        strError += " not found!";
-        ALOGE("%s: Unable to get parameter handle for %s: %s",
+        ALOGE("%s: Unable to get parameter handle for %s: '%s'",
                                         __FUNCTION__,
                                         strParameter.c_str(),
                                         strError.c_str());
