@@ -332,7 +332,13 @@ void CAudioPlatformState::setDirectStreamEvent(uint32_t uiFlags)
         _uiDirectStreamsRefCount += 1;
     } else {
 
-        _uiDirectStreamsRefCount -= 1;
+        ALOGW_IF(_uiDirectStreamsRefCount == 0,
+                            "%s: Decrement null direct stream reference counter "
+                            "ok if restarting media", __FUNCTION__);
+        if (_uiDirectStreamsRefCount > 0) {
+
+            _uiDirectStreamsRefCount -= 1;
+        }
     }
     if (hadDirectStreams != (_uiDirectStreamsRefCount != 0)) {
 
