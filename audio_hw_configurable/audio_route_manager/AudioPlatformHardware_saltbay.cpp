@@ -489,7 +489,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Media"
+        "ModemIA,Voice,Media"
     },
     //
     // FM route
