@@ -310,12 +310,52 @@ private:
      * streams, closing alsa devices.
      *
      * @param[in] bIsOut direction of the routes to disable.
+     * @param[in] bIsPostDisable if set, it indicates that the disable happens after unrouting.
      */
-    void doDisableRoutes(bool bIsOut);
+    void doDisableRoutes(bool bIsOut, bool bIsPostDisable = false);
+
+    /**
+     * Performs the post-disabling of the route.
+     * It only concerns the action that needs to be done on routes themselves, ie detaching
+     * streams, closing alsa devices. Some platform requires to close stream before unrouting.
+     * Behavior is encoded in the route itself.
+     *
+     * @tparam isOut direction of the routes to disable.
+     */
+    template <bool isOut>
+    inline void doPostDisableRoutes()
+    {
+
+        doDisableRoutes(isOut, true);
+    }
 
     // Enable the routes
     void executeEnableStage();
-    void enableRoutes(bool bIsOut);
+
+    /**
+     * Performs the enabling of the routes.
+     * It only concerns the action that needs to be done on routes themselves, ie attaching
+     * streams, opening alsa devices.
+     *
+     * @param[in] bIsOut direction of the routes to disable.
+     * @param[in] bIsPreEnable if set, it indicates that the enable happens before routing.
+     */
+    void doEnableRoutes(bool bIsOut, bool bIsPreEnable = false);
+
+    /**
+     * Performs the pre-enabling of the routes.
+     * It only concerns the action that needs to be done on routes themselves, ie attaching
+     * streams, opening alsa devices. Some platform requires to open stream before routing.
+     * Behavior is encoded in the route itself.
+     *
+     * @tparam isOut direction of the routes to disable.
+     */
+    template <bool isOut>
+    inline void doPreEnableRoutes()
+    {
+
+        doEnableRoutes(isOut, true);
+    }
 
     // unsigned integer parameter value retrieval
     uint32_t getIntegerParameterValue(const string& strParameterPath, uint32_t uiDefaultValue) const;

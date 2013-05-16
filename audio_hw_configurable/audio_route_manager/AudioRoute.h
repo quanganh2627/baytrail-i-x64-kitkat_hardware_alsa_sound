@@ -89,6 +89,10 @@ public:
     // after reconsiderRouting but needs to be reconfigured
     virtual bool needReconfiguration(bool bIsOut) const;
 
+    virtual bool isPreEnableRequired() { return false; }
+
+    virtual bool isPostDisableRequired() { return false; }
+
 protected:
     CAudioRoute(const CAudioRoute &);
     CAudioRoute& operator = (const CAudioRoute &);

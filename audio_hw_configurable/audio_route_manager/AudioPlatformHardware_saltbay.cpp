@@ -674,6 +674,18 @@ public:
     }
 };
 
+class CAudioLPECentricStreamRoute : public CAudioStreamRoute
+{
+public:
+    CAudioLPECentricStreamRoute(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+    }
+
+    virtual bool isPreEnableRequired() { return true; }
+
+    virtual bool isPostDisableRequired() { return true; }
+};
+
 //
 // Once all deriavated class exception has been removed
 // replace this function by a generic route creator according to the route type
@@ -706,11 +718,11 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     } else if (strName == "Media") {
 
-        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "Voice") {
 
-        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "CompressedMedia") {
 
