@@ -1424,7 +1424,7 @@ ALSAStreamOps* CAudioRouteManager::findApplicableStreamForRoute(bool bIsOut, con
             //  -Input stream: input source
             uint32_t uiApplicabilityMask = pOps->getApplicabilityMask();
 
-            if (pRoute->isApplicable(pOps->getNewDevices(),
+            if (pRoute->isApplicable(_pPlatformState->getDevices(bIsOut),
                                      _pPlatformState->getHwMode(),
                                      bIsOut,
                                      uiApplicabilityMask)) {
