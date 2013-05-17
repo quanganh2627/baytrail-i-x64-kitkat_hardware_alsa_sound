@@ -184,6 +184,20 @@ protected:
 
     struct echo_reference_itfe* mEchoReference;
 
+    /**
+     * Get the default pcm configuration.
+     * Upon creation, streams need to provide latency and buffer size. As stream are not attached
+     * to any route at creation, they must get a default pcm configuration dependant of the
+     * platform to provide information of latency and buffersize (inferred from ALSA ring buffer).
+     *
+     * @param[in] bIsOut direction of the stream requesting the configuration
+     * @param[in] uiFlags only valid for output stream, depends on flag, might use different
+     *                    buffering model.
+     *
+     * @return reference of default pcm_config
+     */
+    const pcm_config& getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags = 0) const;
+
     friend class AudioStreamOutALSA;
     friend class AudioStreamInALSA;
     friend class ALSAStreamOps;

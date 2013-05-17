@@ -269,7 +269,6 @@ private:
 
     static const uint32_t HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
-    static const uint32_t CAPTURE_PERIOD_TIME_US;
 };
 
 };        // namespace android

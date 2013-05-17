@@ -65,7 +65,7 @@ namespace android_audio_legacy
 // first period is full.
 // For recording, configure ALSA to start the transfer on the
 // first frame.
-static const pcm_config pcm_config_media_playback = {
+const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
     channels            : 2,
     rate                : SAMPLE_RATE_48000,
     period_size         : PLAYBACK_48000_PERIOD_SIZE,
@@ -77,7 +77,7 @@ static const pcm_config pcm_config_media_playback = {
     avail_min           : PLAYBACK_48000_PERIOD_SIZE,
 };
 
-static const pcm_config pcm_config_media_capture = {
+const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels            : 2,
     rate                : SAMPLE_RATE_48000,
     period_size         : CAPTURE_48000_PERIOD_SIZE,
@@ -88,6 +88,9 @@ static const pcm_config pcm_config_media_capture = {
     silence_threshold   : 0,
     avail_min           : CAPTURE_48000_PERIOD_SIZE,
 };
+
+const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback =
+                CAudioPlatformHardware::pcm_config_media_playback;
 
 static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
@@ -198,8 +201,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             MEDIA_PLAYBACK_DEVICE_ID
         },
         {
-            pcm_config_media_capture,
-            pcm_config_media_playback
+            CAudioPlatformHardware::pcm_config_media_capture,
+            CAudioPlatformHardware::pcm_config_media_playback
         },
         {
             { CSampleSpec::ECopy, CSampleSpec::ECopy },

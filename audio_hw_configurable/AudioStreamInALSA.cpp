@@ -44,11 +44,10 @@ namespace android_audio_legacy
 
 const uint32_t AudioStreamInALSA::HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO = 1;
 const uint32_t AudioStreamInALSA::LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
-const uint32_t AudioStreamInALSA::CAPTURE_PERIOD_TIME_US = 40000;
 
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
                                      AudioSystem::audio_in_acoustics audio_acoustics) :
-    base(parent, CAPTURE_PERIOD_TIME_US, "AudioInLock"),
+    base(parent, "AudioInLock"),
     mFramesLost(0),
     mAcoustics(audio_acoustics),
     mInputSource(0),

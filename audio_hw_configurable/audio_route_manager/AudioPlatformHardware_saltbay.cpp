@@ -47,7 +47,7 @@ namespace android_audio_legacy
 // first period is full.
 // For recording, configure ALSA to start the transfer on the
 // first frame.
-static const pcm_config pcm_config_media_playback = {
+const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
     period_size     : PLAYBACK_48000_PERIOD_SIZE,
@@ -59,7 +59,7 @@ static const pcm_config pcm_config_media_playback = {
     avail_min       : PLAYBACK_48000_PERIOD_SIZE,
 };
 
-static const pcm_config pcm_config_media_capture = {
+const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
     period_size     : CAPTURE_48000_PERIOD_SIZE,
@@ -70,6 +70,9 @@ static const pcm_config pcm_config_media_capture = {
     silence_threshold : 0,
     avail_min       : CAPTURE_48000_PERIOD_SIZE,
 };
+
+const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback =
+                CAudioPlatformHardware::pcm_config_media_playback;
 
 static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
@@ -122,11 +125,13 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
+        // When VoIP will use direct output, add AUDIO_SOURCE_IN_COMMUNICATION
         {
           (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_CAMCORDER) |
           (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
+        // When VoIP will use direct output, add MODE_IN_COMMUNICATION
         {
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_CALL),
@@ -143,8 +148,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             MEDIA_PLAYBACK_DEVICE_ID
         },
         {
-            pcm_config_media_capture,
-            pcm_config_media_playback
+            CAudioPlatformHardware::pcm_config_media_capture,
+            CAudioPlatformHardware::pcm_config_media_playback
         },
         {
             { CSampleSpec::ECopy, CSampleSpec::EIgnore },
@@ -164,13 +169,12 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         {
-            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
-            (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION),
+            (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION),
             AUDIO_OUTPUT_FLAG_PRIMARY,
         },
         {
-            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
-            (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+            (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
         {
             NOT_APPLICABLE,
@@ -191,7 +195,41 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
-
+    {
+        "CompressedMedia",
+        CAudioRoute::ECompressedStreamRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            DEVICE_OUT_MM_ALL
+        },
+        {
+            NOT_APPLICABLE,
+            AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD
+        },
+        {
+            NOT_APPLICABLE,
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            pcm_config_not_applicable,
+            pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
     ////////////////////////////////////////////////////////////////////////
     //
     // External routes
@@ -233,7 +271,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,ContextAwareness"
+        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia"
     },
     //
     // HWCODEC 1 route
@@ -271,7 +309,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media"
+        "ModemIA,Voice,Media,CompressedMedia"
     },
     //
     // ModemIA route
@@ -628,6 +666,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
         return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
 
+    } else if (strName == "CompressedMedia") {
+
+        return new CAudioCompressedStreamRoute(uiRouteIndex, pPlatformState);
+
     } else if (strName == "ContextAwareness") {
 
         return new CAudioVirtualRouteContextAwareness(uiRouteIndex, pPlatformState);
@@ -636,5 +678,6 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     ALOGE("%s: wrong route index=%d", __FUNCTION__, uiRouteIndex);
     return NULL;
 }
+
 }        // namespace android
 

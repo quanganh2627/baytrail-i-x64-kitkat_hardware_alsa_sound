@@ -45,6 +45,14 @@ public:
         return ALSAStreamOps::format();
     }
 
+    /**
+     * Get the latency of the output stream.
+     * Android wants latency in milliseconds. It must match the latency introduced by
+     * driver buffering (Size of ring buffer). Audio Flinger will use this value to
+     * calculate each track buffer depth.
+     *
+     * @return latency in ms
+     */
     virtual uint32_t    latency() const;
 
     virtual ssize_t     write(const void* buffer, size_t bytes);
@@ -112,8 +120,6 @@ private:
 
     ssize_t             writeFrames(void* buffer, ssize_t frames);
 
-    void                updatePeriodTime();
-
     uint32_t            mFrameCount;
 
     uint32_t            mFlags;
@@ -129,8 +135,6 @@ private:
     static const uint32_t WAIT_BEFORE_RETRY_US;
     static const uint32_t LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t USEC_PER_MSEC;
-    static const uint32_t DEEP_PLAYBACK_PERIOD_TIME_US;
-    static const uint32_t PLAYBACK_PERIOD_TIME_US;
 };
 
 };        // namespace android
