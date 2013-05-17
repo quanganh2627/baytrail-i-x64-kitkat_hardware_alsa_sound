@@ -16,6 +16,8 @@
 #pragma once
 
 #include <tinyalsa/asoundlib.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 
 namespace android_audio_legacy {

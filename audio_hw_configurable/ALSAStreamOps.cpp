@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <limits>
 
 #ifdef LOG_TAG
 #undef LOG_TAG
@@ -238,7 +239,7 @@ void ALSAStreamOps::updateLatency(uint32_t uiFlags)
     pcm_config pcmConf = mParent->getDefaultPcmConfig(isOut(), uiFlags);
     uint64_t latency = (uint64_t)CAudioUtils::USEC_TO_SEC * pcmConf.period_count *
                                             pcmConf.period_size  / pcmConf.rate;
-    LOG_ALWAYS_FATAL_IF(latency > UINT_MAX);
+    LOG_ALWAYS_FATAL_IF(latency > std::numeric_limits<uint32_t>::max());
     mLatencyUs = latency;
 }
 
