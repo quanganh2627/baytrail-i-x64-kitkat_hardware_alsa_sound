@@ -85,7 +85,7 @@ const char* const AudioHardwareALSA::gapcLineInToSpeakerLineVolume = "/Audio/CIR
 const char* const AudioHardwareALSA::gapcLineInToEarSpeakerLineVolume = "/Audio/CIRRUS/SOUND_CARD/MIXER/EAR_SPEAKER_LINE/INPUT_PATH_SOURCE/VOLUME"; // Type = integer
 
 // Defines the name of the Android property describing the name of the PFW configuration file
-const char* const AudioHardwareALSA::mPFWConfigurationFileNamePropertyName = "ro.AudioComms.PFW.ConfPath";
+const char* const AudioHardwareALSA::mPFWConfigurationFileNamePropertyName = "AudioComms.PFW.ConfPath";
 
 // Default clock selection
 const uint32_t AudioHardwareALSA::DEFAULT_IFX_CLK_SELECT = -1;

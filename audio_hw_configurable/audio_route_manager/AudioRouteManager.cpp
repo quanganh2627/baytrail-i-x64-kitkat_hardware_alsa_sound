@@ -51,7 +51,7 @@ namespace android_audio_legacy
 const char* const CAudioRouteManager::ROUTING_LOCKED_PROP_NAME = "AudioComms.HAL.isLocked";
 
 // Defines the name of the Android property describing the name of the PFW configuration file
-const char* const CAudioRouteManager::PFW_CONF_FILE_NAME_PROP_NAME = "ro.AudioComms.PFW.ConfPath";
+const char* const CAudioRouteManager::PFW_CONF_FILE_NAME_PROP_NAME = "AudioComms.PFW.ConfPath";
 
 const char* const CAudioRouteManager::gPfwConfFileDefaultName =
                                 "/etc/parameter-framework/ParameterFrameworkConfiguration.xml";
