@@ -156,7 +156,6 @@ LOCAL_SHARED_LIBRARIES := \
     libmedia \
     libhardware \
     libhardware_legacy \
-    libxmlserializer \
     libparameter \
     libstlport \
     libicuuc \
