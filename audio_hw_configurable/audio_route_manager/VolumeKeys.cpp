@@ -14,6 +14,8 @@
  ** limitations under the License.
  */
 
+#define LOG_TAG "RouteManager/VolumeKeys"
+
 #include <utils/Log.h>
 
 #include <fcntl.h>

@@ -94,7 +94,7 @@ audio_hw_configurable_header_files :=  \
 audio_hw_configurable_header_copy_folder_unit_test := \
     audio_hw_configurable_unit_test
 
-audio_hw_configurable_cflags := -D_POSIX_SOURCE -Wall -Werror
+audio_hw_configurable_cflags := -Wall -Werror
 
 #######################################################################
 # Phony package definition
