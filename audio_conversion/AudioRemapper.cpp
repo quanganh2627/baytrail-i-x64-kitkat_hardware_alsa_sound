@@ -101,8 +101,8 @@ status_t CAudioRemapper::convertStereoToMonoInS16(const void* src,
                                                   const uint32_t inFrames,
                                                   uint32_t* outFrames)
 {
-    const int16_t* src16 = (const int16_t* )src;
-    int16_t* dst16 = (int16_t* )dst;
+    const int16_t* src16 = static_cast<const int16_t *>(src);
+    int16_t* dst16 = static_cast<int16_t *>(dst);
     uint32_t uiSrcChannels = _ssSrc.getChannelCount();
     size_t frames;
 
@@ -121,8 +121,8 @@ status_t CAudioRemapper::convertMonoToStereoInS16(const void* src,
                                                   const uint32_t inFrames,
                                                   uint32_t* outFrames)
 {
-    const int16_t* src16 = (const int16_t* )src;
-    int16_t* dst16 = (int16_t* )dst;
+    const int16_t* src16 = static_cast<const int16_t *>(src);
+    int16_t* dst16 = static_cast<int16_t *>(dst);
     size_t frames = 0;
     uint32_t uiDstChannels = _ssDst.getChannelCount();
 
@@ -148,7 +148,7 @@ status_t CAudioRemapper::convertChannelsPolicyInStereoS16(const void* src,
                                                           const uint32_t inFrames,
                                                           uint32_t *outFrames)
 {
-    const int16_t* src16 = (const int16_t* )src;
+    const int16_t* src16 = static_cast<const int16_t *>(src);
     uint32_t frames = 0;
     uint32_t uiSrcChannels = _ssSrc.getChannelCount();
 
@@ -221,8 +221,8 @@ status_t CAudioRemapper::convertStereoToMonoInS24o32(const void* src,
                                                      const uint32_t inFrames,
                                                      uint32_t* outFrames)
 {
-    const int32_t* src32 = (const int32_t* )src;
-    int32_t* dst32 = (int32_t* )dst;
+    const uint32_t* src32 = static_cast<const uint32_t *>(src);
+    uint32_t* dst32 = static_cast<uint32_t *>(dst);
     uint32_t uiSrcChannels = _ssSrc.getChannelCount();
     size_t frames;
 
@@ -241,8 +241,8 @@ status_t CAudioRemapper::convertMonoToStereoInS24o32(const void* src,
                                                      const uint32_t inFrames,
                                                      uint32_t* outFrames)
 {
-    const int32_t* src32 = (const int32_t* )src;
-    int32_t* dst32 = (int32_t* )dst;
+    const uint32_t* src32 = static_cast<const uint32_t *>(src);
+    uint32_t* dst32 = static_cast<uint32_t *>(dst);
     size_t frames = 0;
     uint32_t uiDstChannels = _ssDst.getChannelCount();
 
@@ -268,7 +268,7 @@ status_t CAudioRemapper::convertChannelsPolicyInStereoS24o32(const void* src,
                                                              const uint32_t inFrames,
                                                              uint32_t *outFrames)
 {
-    const int32_t* src32 = (const int32_t* )src;
+    const uint32_t* src32 = static_cast<const uint32_t *>(src);
     uint32_t frames = 0;
     uint32_t uiSrcChannels = _ssSrc.getChannelCount();
 
@@ -288,7 +288,7 @@ status_t CAudioRemapper::convertChannelsPolicyInStereoS24o32(const void* src,
     return NO_ERROR;
 }
 
-int32_t CAudioRemapper::convertSampleInS32(const int32_t* src32, Channel eChannel) const
+int32_t CAudioRemapper::convertSampleInS32(const uint32_t* src32, Channel eChannel) const
 {
     CSampleSpec::ChannelsPolicy dstPolicy = _ssDst.getChannelsPolicy(eChannel);
 
@@ -311,10 +311,10 @@ int32_t CAudioRemapper::convertSampleInS32(const int32_t* src32, Channel eChanne
     return getAveragedSrcSampleInS32(src32);
 }
 
-int32_t CAudioRemapper::getAveragedSrcSampleInS32(const int32_t* src32) const
+int32_t CAudioRemapper::getAveragedSrcSampleInS32(const uint32_t* src32) const
 {
     uint32_t uiValidDstChannels = 0;
-    int32_t iDst = 0;
+    uint64_t iDst = 0;
     //
     // Loops on source channels, checks upon the channel policy to take it into account
     // or not.

@@ -170,11 +170,11 @@ private:
      * channel policy.
      *
      * @param[in] src32 the address of the source frame.
-     * @param[in] epolicy the policy of the destination channel.
+     * @param[in] eChannel the channel of the destination.
      *
      * @return destination channel sample.
      */
-    int32_t convertSampleInS32(const int32_t* src32, Channel eChannel) const;
+    int32_t convertSampleInS32(const uint32_t* src32, Channel eChannel) const;
 
     /**
      * Average source frame in S24 over 32.
@@ -185,7 +185,7 @@ private:
      *
      * @return destination channel sample.
      */
-    int32_t getAveragedSrcSampleInS32(const int32_t* src32) const;
+    int32_t getAveragedSrcSampleInS32(const uint32_t *src32) const;
 
     /**
      * Average source frame in S16.
