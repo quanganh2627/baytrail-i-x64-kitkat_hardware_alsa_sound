@@ -195,7 +195,7 @@ int16_t CAudioRemapper::convertSampleInS16(const int16_t* src16, Channel eChanne
 
 int16_t CAudioRemapper::getAveragedSrcFrameInS16(const int16_t* src16) const
 {
-    uint32_t uiValidDstChannels = 0;
+    uint32_t uiValidSrcChannels = 0;
     int32_t iDst = 0;
 
     // Loops on source channels, checks upon the channel policy to take it into account
@@ -206,12 +206,12 @@ int16_t CAudioRemapper::getAveragedSrcFrameInS16(const int16_t* src16) const
         if (_ssSrc.getChannelsPolicy(iSrcChannels) != CSampleSpec::EIgnore) {
 
             iDst += src16[iSrcChannels];
-            uiValidDstChannels += 1;
+            uiValidSrcChannels += 1;
         }
     }
-    if (uiValidDstChannels) {
+    if (uiValidSrcChannels) {
 
-        iDst = iDst / uiValidDstChannels;
+        iDst = iDst / uiValidSrcChannels;
     }
     return iDst;
 }
@@ -313,7 +313,7 @@ int32_t CAudioRemapper::convertSampleInS32(const uint32_t* src32, Channel eChann
 
 int32_t CAudioRemapper::getAveragedSrcSampleInS32(const uint32_t* src32) const
 {
-    uint32_t uiValidDstChannels = 0;
+    uint32_t uiValidSrcChannels = 0;
     uint64_t iDst = 0;
     //
     // Loops on source channels, checks upon the channel policy to take it into account
@@ -325,12 +325,12 @@ int32_t CAudioRemapper::getAveragedSrcSampleInS32(const uint32_t* src32) const
         if (_ssSrc.getChannelsPolicy(iSrcChannels) != CSampleSpec::EIgnore) {
 
             iDst += src32[iSrcChannels];
-            uiValidDstChannels += 1;
+            uiValidSrcChannels += 1;
         }
     }
-    if (uiValidDstChannels) {
+    if (uiValidSrcChannels) {
 
-        iDst = iDst / uiValidDstChannels;
+        iDst = iDst / uiValidSrcChannels;
     }
     return iDst;
 }
