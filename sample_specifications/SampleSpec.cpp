@@ -30,10 +30,31 @@ const uint32_t CSampleSpec::USEC_PER_SEC = 1000000;
 
 #define SAMPLE_SPEC_ITEM_IS_VALID(eSampleSpecItem) LOG_ALWAYS_FATAL_IF(eSampleSpecItem < 0 || eSampleSpecItem >= ENbSampleSpecItems)
 
-CSampleSpec::CSampleSpec() :
-    _uiChannelMask(0)
+
+CSampleSpec::CSampleSpec(uint32_t channel,
+                         uint32_t format,
+                         uint32_t rate)
 {
-    bzero(_auiSampleSpec, sizeof(_auiSampleSpec[0]) * ENbSampleSpecItems);
+    init(channel, format, rate);
+}
+
+CSampleSpec::CSampleSpec(uint32_t channel,
+                         uint32_t format,
+                         uint32_t rate,
+                         const vector<ChannelsPolicy> &channelsPolicy)
+{
+    init(channel, format, rate);
+    setChannelsPolicy(channelsPolicy);
+}
+
+void CSampleSpec::init(uint32_t channel,
+                       uint32_t format,
+                       uint32_t rate)
+{
+    _channelMask = 0;
+    setSampleSpecItem(EChannelCountSampleSpecItem, channel);
+    setSampleSpecItem(EFormatSampleSpecItem, format);
+    setSampleSpecItem(ERateSampleSpecItem, rate);
 }
 
 // Generic Accessor

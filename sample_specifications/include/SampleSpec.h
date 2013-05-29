@@ -73,7 +73,14 @@ public:
         ENbChannelsPolicy
     };
 
-    CSampleSpec();
+    CSampleSpec(uint32_t channel = _defaultChannels,
+                uint32_t format = _defaultFormat,
+                uint32_t rate = _defaultRate);
+
+    CSampleSpec(uint32_t channel,
+               uint32_t format,
+               uint32_t rate,
+               const std::vector<ChannelsPolicy> &channelsPolicy);
 
     // Specific Accessors
     void setChannelCount(uint32_t uiChannelCount) {
@@ -133,6 +140,8 @@ public:
                                       const CSampleSpec& ssDst);
 
 private:
+    void init(uint32_t channel, uint32_t format, uint32_t rate);
+
     // Attributes
 
     // Array of sample spec items:
@@ -151,6 +160,9 @@ private:
     std::vector<ChannelsPolicy> _aChannelsPolicy;
 
     static const uint32_t MAX_CHANNELS = 32;
+    static const uint32_t _defaultChannels = 2;
+    static const uint32_t _defaultFormat = AUDIO_FORMAT_PCM_16_BIT;
+    static const uint32_t _defaultRate = 48000;
 };
 
 }; // namespace android
