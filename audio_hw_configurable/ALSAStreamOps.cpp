@@ -46,6 +46,7 @@
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
 using namespace android;
+using std::numeric_limits;
 
 namespace android_audio_legacy
 {
@@ -248,7 +249,7 @@ void ALSAStreamOps::updateLatency(uint32_t uiFlags)
     pcm_config pcmConf = mParent->getDefaultPcmConfig(isOut(), uiFlags);
     uint64_t latency = (uint64_t)CAudioUtils::USEC_TO_SEC * pcmConf.period_count *
                                             pcmConf.period_size  / pcmConf.rate;
-    LOG_ALWAYS_FATAL_IF(latency > std::numeric_limits<uint32_t>::max());
+    LOG_ALWAYS_FATAL_IF(latency > numeric_limits<uint32_t>::max());
     mLatencyUs = latency;
 }
 
