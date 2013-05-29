@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include "SampleSpec.h"
 #include <tinyalsa/asoundlib.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -22,9 +23,7 @@
 
 namespace android_audio_legacy {
 
-class CSampleSpec;
-
-class CAudioUtils
+class AudioUtils
 {
 public:
     /**
@@ -51,7 +50,9 @@ public:
      *
      * @return number of bytes in the destination sample specification.
      */
-    static size_t convertSrcToDstInBytes(size_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    static size_t convertSrcToDstInBytes(size_t bytes,
+                                          const SampleSpec &ssSrc,
+                                          const SampleSpec &ssDst);
 
     /**
      * Converts a number of frames from one sample specification to another.
@@ -66,7 +67,9 @@ public:
      *
      * @return number of frames in the destination sample specification.
      */
-    static size_t convertSrcToDstInFrames(size_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    static size_t convertSrcToDstInFrames(size_t frames,
+                                           const SampleSpec &ssSrc,
+                                           const SampleSpec &ssDst);
 
     /**
      * Converts a format from Tiny alsa to HAL domains.
@@ -100,7 +103,7 @@ public:
      *
      * @return index if found, negative value otherwise.
      */
-    static int getCardIndexByName(const char* name);
+    static int getCardIndexByName(const char *name);
 
     /**
      * Converts a time in micro to milliseconds.
@@ -111,7 +114,7 @@ public:
      *
      * @return converted value in milliseconds.
      */
-    static uint32_t convertUsecToMsec(uint32_t uiTimeUsec);
+    static uint32_t convertUsecToMsec(uint32_t timeUsec);
 
     /**
      * Checks the device is an input device.
@@ -119,13 +122,16 @@ public:
      * REV2.0 introduced the sign bit to refer to input devices, breaking the cardinality of
      * one bit in the mask - one device.
      *
-     * @param[in] uiDevices mask of the device to check.
+     * @param[in] devices mask of the device to check.
      *
      * @return true if input device, false otherwise.
      */
-    static bool isAudioInputDevice(uint32_t uiDevices);
+    static bool isAudioInputDevice(uint32_t devices);
 
     static const uint32_t USEC_TO_SEC = 1000000; /**< Constant used or delays computation */
+
+private:
+    static const uint32_t FRAME_ALIGNEMENT_ON_16 = 16; /**< 16 is an audioflinger requirement. */
 };
 
 }; // namespace android

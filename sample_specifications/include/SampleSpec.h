@@ -30,24 +30,24 @@ namespace android_audio_legacy {
 // on the channels, then the format and the rate
 //
 enum SampleSpecItem {
-    EChannelCountSampleSpecItem = 0,
-    EFormatSampleSpecItem,
-    ERateSampleSpecItem,
+    ChannelCountSampleSpecItem = 0,
+    FormatSampleSpecItem,
+    RateSampleSpecItem,
 
-    ENbSampleSpecItems
+    NbSampleSpecItems
 };
 
 
-class CSampleSpec {
+class SampleSpec {
 
 public:
-    bool operator==(const CSampleSpec& right) const {
+    bool operator==(const SampleSpec &right) const {
 
-        return !memcmp(_auiSampleSpec, right._auiSampleSpec, sizeof(_auiSampleSpec)) &&
-                (_aChannelsPolicy == right._aChannelsPolicy);
+        return !memcmp(_sampleSpec, right._sampleSpec, sizeof(_sampleSpec)) &&
+                (_channelsPolicy == right._channelsPolicy);
     }
 
-    bool operator!=(const CSampleSpec& right) const {
+    bool operator!=(const SampleSpec &right) const {
 
         return !operator==(right);
     }
@@ -61,54 +61,54 @@ public:
      * So, the other channel will be tagged as "average"
      *
      *      SOURCE              DESTINATION
-     *  channel 1 (ECopy) ---> channel 1 (EAverage) = (source channel 1 + source channel 2) / 2
-     *  channel 2 (ECopy) ---> channel 2 (EIgnore)  = empty
+     *  channel 1 (copy) ---> channel 1 (average) = (source channel 1 + source channel 2) / 2
+     *  channel 2 (copy) ---> channel 2 (ignore)  = empty
      *
      */
     enum ChannelsPolicy {
-        ECopy = 0,      /**< This channel is valid. */
-        EAverage,       /**< This channel contains all valid audio data. */
-        EIgnore,        /**< This channel does not contains any valid audio data. */
+        Copy = 0,      /**< This channel is valid. */
+        Average,       /**< This channel contains all valid audio data. */
+        Ignore,        /**< This channel does not contains any valid audio data. */
 
-        ENbChannelsPolicy
+        NbChannelsPolicy
     };
 
-    CSampleSpec(uint32_t channel = _defaultChannels,
-                uint32_t format = _defaultFormat,
-                uint32_t rate = _defaultRate);
+    SampleSpec(uint32_t channel = DEFAULT_CHANNELS,
+               uint32_t format = DEFAULT_FORMAT,
+               uint32_t rate = DEFAULT_RATE);
 
-    CSampleSpec(uint32_t channel,
+    SampleSpec(uint32_t channel,
                uint32_t format,
                uint32_t rate,
                const std::vector<ChannelsPolicy> &channelsPolicy);
 
     // Specific Accessors
-    void setChannelCount(uint32_t uiChannelCount) {
+    void setChannelCount(uint32_t channelCount) {
 
-        setSampleSpecItem(EChannelCountSampleSpecItem, uiChannelCount);
+        setSampleSpecItem(ChannelCountSampleSpecItem, channelCount);
     }
-    uint32_t getChannelCount() const { return getSampleSpecItem(EChannelCountSampleSpecItem); }
-    void setSampleRate(uint32_t uiSampleRate) {
+    uint32_t getChannelCount() const { return getSampleSpecItem(ChannelCountSampleSpecItem); }
+    void setSampleRate(uint32_t sampleRate) {
 
-        setSampleSpecItem(ERateSampleSpecItem, uiSampleRate);
+        setSampleSpecItem(RateSampleSpecItem, sampleRate);
     }
-    uint32_t getSampleRate() const { return getSampleSpecItem(ERateSampleSpecItem); }
-    void setFormat(uint32_t uiFormat) { setSampleSpecItem(EFormatSampleSpecItem, uiFormat); }
+    uint32_t getSampleRate() const { return getSampleSpecItem(RateSampleSpecItem); }
+    void setFormat(uint32_t format) { setSampleSpecItem(FormatSampleSpecItem, format); }
     audio_format_t getFormat() const {
 
-        return static_cast<audio_format_t>(getSampleSpecItem(EFormatSampleSpecItem));
+        return static_cast<audio_format_t>(getSampleSpecItem(FormatSampleSpecItem));
     }
-    void setChannelMask(uint32_t uiChannelMask) { _uiChannelMask = uiChannelMask; }
-    uint32_t getChannelMask() const { return _uiChannelMask; }
+    void setChannelMask(uint32_t channelMask) { _channelMask = channelMask; }
+    uint32_t getChannelMask() const { return _channelMask; }
 
-    void setChannelsPolicy(const std::vector<ChannelsPolicy>& channelsPolicy);
-    const std::vector<ChannelsPolicy>& getChannelsPolicy() const { return _aChannelsPolicy; }
-    ChannelsPolicy getChannelsPolicy(uint32_t uiChannelIndex) const;
+    void setChannelsPolicy(const std::vector<ChannelsPolicy> &channelsPolicy);
+    const std::vector<ChannelsPolicy>& getChannelsPolicy() const { return _channelsPolicy; }
+    ChannelsPolicy getChannelsPolicy(uint32_t channelIndex) const;
 
     // Generic Accessor
-    void setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiValue);
+    void setSampleSpecItem(SampleSpecItem sampleSpecItem, uint32_t value);
 
-    uint32_t getSampleSpecItem(SampleSpecItem eSampleSpecItem) const;
+    uint32_t getSampleSpecItem(SampleSpecItem sampleSpecItem) const;
 
     size_t getFrameSize() const;
 
@@ -143,7 +143,7 @@ public:
      *
      * @return time in microseconds.
      */
-    size_t convertFramesToUsec(uint32_t uiFrames) const;
+    size_t convertFramesToUsec(uint32_t frames) const;
 
     /**
      * Translates a time period into a frame number.
@@ -153,26 +153,26 @@ public:
      *
      * @return number of frames corresponding to the period of time.
      */
-    size_t convertUsecToframes(uint32_t uiIntervalUsec) const;
+    size_t convertUsecToframes(uint32_t intervalUsec) const;
 
-    bool isMono() const { return _auiSampleSpec[EChannelCountSampleSpecItem] == 1; }
+    bool isMono() const { return _sampleSpec[ChannelCountSampleSpecItem] == 1; }
 
-    bool isStereo() const { return _auiSampleSpec[EChannelCountSampleSpecItem] == 2; }
+    bool isStereo() const { return _sampleSpec[ChannelCountSampleSpecItem] == 2; }
 
     /**
      * Checks upon equality of a sample spec item.
      *  For channels, it checks:
      *          -not only that channels count is equal
      *          -but also the channels policy of source and destination is the same.
-     * @param[in] eSampleSpecItem item to checks.
+     * @param[in] sampleSpecItem item to checks.
      * @param[in] ssSrc source sample specifications.
      * @param[in] ssDst destination sample specifications.
      *
      * @return true upon equality, false otherwise.
      */
-    static bool isSampleSpecItemEqual(SampleSpecItem eSampleSpecItem,
-                                      const CSampleSpec& ssSrc,
-                                      const CSampleSpec& ssDst);
+    static bool isSampleSpecItemEqual(SampleSpecItem sampleSpecItem,
+                                      const SampleSpec &ssSrc,
+                                      const SampleSpec &ssDst);
 
 private:
     /**
@@ -186,21 +186,20 @@ private:
      */
     void init(uint32_t channel, uint32_t format, uint32_t rate);
 
-    uint32_t _auiSampleSpec[ENbSampleSpecItems]; /**< Array of sample spec items:
+    uint32_t _sampleSpec[NbSampleSpecItems]; /**< Array of sample spec items:
                                                         -channel number
                                                         -format
                                                         -sample rate. */
 
-    uint32_t _uiChannelMask; /**< Bit field that defines the channels used. */
+    uint32_t _channelMask; /**< Bit field that defines the channels used. */
 
-    static const uint32_t USEC_PER_SEC; /**< constant to convert sec to / from microseconds. */
+    std::vector<ChannelsPolicy> _channelsPolicy; /**< channels policy array. */
 
-    std::vector<ChannelsPolicy> _aChannelsPolicy; /**< channels policy array. */
-
+    static const uint32_t USEC_PER_SEC = 1000000; /**<  to convert sec to-from microseconds. */
+    static const uint32_t DEFAULT_CHANNELS = 2; /**< default channel used is stereo. */
+    static const uint32_t DEFAULT_FORMAT = AUDIO_FORMAT_PCM_16_BIT; /**< default format is 16bits.*/
+    static const uint32_t DEFAULT_RATE = 48000; /**< default rate is 48 kHz. */
     static const uint32_t MAX_CHANNELS = 32; /**< supports until 32 channels. */
-    static const uint32_t _defaultChannels = 2; /**< default channel used is stereo. */
-    static const uint32_t _defaultFormat = AUDIO_FORMAT_PCM_16_BIT; /**< default format is 16bits.*/
-    static const uint32_t _defaultRate = 48000; /**< default rate is 48 kHz. */
 };
 
 }; // namespace android

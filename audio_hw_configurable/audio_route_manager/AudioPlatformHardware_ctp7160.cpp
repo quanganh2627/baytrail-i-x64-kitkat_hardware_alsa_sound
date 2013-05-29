@@ -183,8 +183,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             CAudioPlatformHardware::pcm_config_media_playback
         },
         {
-            { CSampleSpec::ECopy, CSampleSpec::ECopy },
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+            { SampleSpec::Copy, SampleSpec::Copy },
+            { SampleSpec::Copy, SampleSpec::Copy }
         },
         ""
     },
@@ -219,7 +219,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             channel_policy_not_applicable,
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+            { SampleSpec::Copy, SampleSpec::Copy }
         },
         ""
     },
@@ -254,7 +254,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             channel_policy_not_applicable,
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+            { SampleSpec::Copy, SampleSpec::Copy }
         },
         ""
     },
@@ -287,8 +287,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_mixing_playback,
         },
         {
-            { CSampleSpec::ECopy, CSampleSpec::ECopy },
-            { CSampleSpec::EAverage, CSampleSpec::EIgnore }
+            { SampleSpec::Copy, SampleSpec::Copy },
+            { SampleSpec::Average, SampleSpec::Ignore }
         },
         ""
     },

@@ -15,27 +15,24 @@
  ** limitations under the License.
  */
 
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
 #define LOG_TAG "AudioRemapper"
 
-#include <cutils/log.h>
 #include "AudioRemapper.h"
+#include <cutils/log.h>
 
-#define base CAudioConverter
+#define base AudioConverter
 
 using namespace android;
 
 namespace android_audio_legacy{
 
 
-CAudioRemapper::CAudioRemapper(SampleSpecItem eSampleSpecItem) :
-    base(eSampleSpecItem)
+AudioRemapper::AudioRemapper(SampleSpecItem sampleSpecItem) :
+    base(sampleSpecItem)
 {
 }
 
-status_t CAudioRemapper::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t AudioRemapper::configure(const SampleSpec &ssSrc, const SampleSpec &ssDst)
 {
     status_t ret = base::configure(ssSrc, ssDst);
     if (ret != NO_ERROR) {
@@ -49,16 +46,19 @@ status_t CAudioRemapper::configure(const CSampleSpec& ssSrc, const CSampleSpec& 
 
         if (ssSrc.isMono() && ssDst.isStereo()) {
 
-            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertMonoToStereoInS16);
+            _convertSamplesFct =
+                    static_cast<SampleConverter>(&AudioRemapper::convertMonoToStereoInS16);
         } else if (ssSrc.isStereo() && ssDst.isMono()) {
 
-            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertStereoToMonoInS16);
+            _convertSamplesFct =
+                    static_cast<SampleConverter>(&AudioRemapper::convertStereoToMonoInS16);
         } else if (ssSrc.isStereo() && ssDst.isStereo()) {
 
             // Iso channel, checks the channels policy
-            if (!CSampleSpec::isSampleSpecItemEqual(EChannelCountSampleSpecItem, ssSrc, ssDst)) {
+            if (!SampleSpec::isSampleSpecItemEqual(ChannelCountSampleSpecItem, ssSrc, ssDst)) {
 
-                _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertChannelsPolicyInStereoS16);
+                _convertSamplesFct =
+                     static_cast<SampleConverter>(&AudioRemapper::convertChannelsPolicyInStereoS16);
             }
         } else {
 
@@ -70,16 +70,19 @@ status_t CAudioRemapper::configure(const CSampleSpec& ssSrc, const CSampleSpec& 
 
         if (ssSrc.isMono() && ssDst.isStereo()) {
 
-            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertMonoToStereoInS24o32);
+            _convertSamplesFct =
+                    static_cast<SampleConverter>(&AudioRemapper::convertMonoToStereoInS24o32);
         } else if (ssSrc.isStereo() && ssDst.isMono()) {
 
-            _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertStereoToMonoInS24o32);
+            _convertSamplesFct =
+                    static_cast<SampleConverter>(&AudioRemapper::convertStereoToMonoInS24o32);
         } else if (ssSrc.isStereo() && ssDst.isStereo()) {
 
             // Iso channel, checks the channels policy
-            if (!CSampleSpec::isSampleSpecItemEqual(EChannelCountSampleSpecItem, ssSrc, ssDst)) {
+            if (!SampleSpec::isSampleSpecItemEqual(ChannelCountSampleSpecItem, ssSrc, ssDst)) {
 
-                _pfnConvertSamples = (SampleConverter)(&CAudioRemapper::convertChannelsPolicyInStereoS24o32);
+                _convertSamplesFct =
+                  static_cast<SampleConverter>(&AudioRemapper::convertChannelsPolicyInStereoS24o32);
             }
         } else {
 
@@ -96,61 +99,61 @@ status_t CAudioRemapper::configure(const CSampleSpec& ssSrc, const CSampleSpec& 
     return ret;
 }
 
-status_t CAudioRemapper::convertStereoToMonoInS16(const void* src,
-                                                  void* dst,
-                                                  const uint32_t inFrames,
-                                                  uint32_t* outFrames)
+status_t AudioRemapper::convertStereoToMonoInS16(const void *src,
+                                                 void *dst,
+                                                 const uint32_t inFrames,
+                                                 uint32_t *outFrames)
 {
-    const int16_t* src16 = static_cast<const int16_t *>(src);
-    int16_t* dst16 = static_cast<int16_t *>(dst);
-    uint32_t uiSrcChannels = _ssSrc.getChannelCount();
+    const int16_t *src16 = static_cast<const int16_t *>(src);
+    int16_t *dst16 = static_cast<int16_t *>(dst);
+    uint32_t srcChannels = _ssSrc.getChannelCount();
     size_t frames;
 
     for (frames = 0; frames < inFrames; frames++) {
 
-        dst16[frames] = getAveragedSrcFrameInS16(&src16[uiSrcChannels * frames]);
+        dst16[frames] = getAveragedSrcFrameInS16(&src16[srcChannels * frames]);
     }
-    // Transformation is "iso"frames
+    // Transformation is "iso" frames
     *outFrames = inFrames;
     return NO_ERROR;
 }
 
 
-status_t CAudioRemapper::convertMonoToStereoInS16(const void* src,
-                                                  void* dst,
-                                                  const uint32_t inFrames,
-                                                  uint32_t* outFrames)
+status_t AudioRemapper::convertMonoToStereoInS16(const void *src,
+                                                 void *dst,
+                                                 const uint32_t inFrames,
+                                                 uint32_t *outFrames)
 {
-    const int16_t* src16 = static_cast<const int16_t *>(src);
-    int16_t* dst16 = static_cast<int16_t *>(dst);
+    const int16_t *src16 = static_cast<const int16_t *>(src);
+    int16_t *dst16 = static_cast<int16_t *>(dst);
     size_t frames = 0;
-    uint32_t uiDstChannels = _ssDst.getChannelCount();
+    uint32_t dstChannels = _ssDst.getChannelCount();
 
     for (frames = 0; frames < inFrames; frames++) {
 
-        uint32_t uiChannels;
-        for (uiChannels = 0; uiChannels < uiDstChannels; uiChannels++) {
+        uint32_t channels;
+        for (channels = 0; channels < dstChannels; channels++) {
 
-            if (_ssDst.getChannelsPolicy(uiChannels) != CSampleSpec::EIgnore) {
+            if (_ssDst.getChannelsPolicy(channels) != SampleSpec::Ignore) {
 
-                dst16[uiDstChannels * frames + uiChannels] = src16[frames];
+                dst16[dstChannels * frames + channels] = src16[frames];
             }
         }
     }
 
-    // Transformation is "iso"frames
+    // Transformation is "iso" frames
     *outFrames = inFrames;
     return NO_ERROR;
 }
 
-status_t CAudioRemapper::convertChannelsPolicyInStereoS16(const void* src,
-                                                          void* dst,
-                                                          const uint32_t inFrames,
-                                                          uint32_t *outFrames)
+status_t AudioRemapper::convertChannelsPolicyInStereoS16(const void *src,
+                                                         void *dst,
+                                                         const uint32_t inFrames,
+                                                         uint32_t *outFrames)
 {
-    const int16_t* src16 = static_cast<const int16_t *>(src);
+    const int16_t *src16 = static_cast<const int16_t *>(src);
     uint32_t frames = 0;
-    uint32_t uiSrcChannels = _ssSrc.getChannelCount();
+    uint32_t srcChannels = _ssSrc.getChannelCount();
 
     struct StereoS16 {
         int16_t left;
@@ -159,24 +162,24 @@ status_t CAudioRemapper::convertChannelsPolicyInStereoS16(const void* src,
 
     for (frames = 0; frames < inFrames; frames++) {
 
-        dst16[frames].left = convertSampleInS16(&src16[uiSrcChannels * frames], ELeft);
-        dst16[frames].right = convertSampleInS16(&src16[uiSrcChannels * frames], ERight);
+        dst16[frames].left = convertSampleInS16(&src16[srcChannels * frames], Left);
+        dst16[frames].right = convertSampleInS16(&src16[srcChannels * frames], Right);
     }
-    // Transformation is "iso"frames
+    // Transformation is "iso" frames
     *outFrames = inFrames;
     return NO_ERROR;
 }
 
-int16_t CAudioRemapper::convertSampleInS16(const int16_t* src16, Channel eChannel) const
+int16_t AudioRemapper::convertSampleInS16(const int16_t *src16, Channel channel) const
 {
-    CSampleSpec::ChannelsPolicy dstPolicy = _ssDst.getChannelsPolicy(eChannel);
+    SampleSpec::ChannelsPolicy dstPolicy = _ssDst.getChannelsPolicy(channel);
 
-    if (dstPolicy == CSampleSpec::EIgnore) {
+    if (dstPolicy == SampleSpec::Ignore) {
 
-        // Destination policy is ignore, so set to null dest sample
+        // Destination policy is Ignore, so set to null dest sample
         return 0;
 
-    } else if (dstPolicy == CSampleSpec::EAverage) {
+    } else if (dstPolicy == SampleSpec::Average) {
 
         // Destination policy is average, so average on all channels of the source frame
         return getAveragedSrcFrameInS16(src16);
@@ -184,93 +187,93 @@ int16_t CAudioRemapper::convertSampleInS16(const int16_t* src16, Channel eChanne
     }
     // Destination policy is Copy
     // so copy only if source channel policy is not ignore
-    if (_ssSrc.getChannelsPolicy(eChannel) != CSampleSpec::EIgnore) {
+    if (_ssSrc.getChannelsPolicy(channel) != SampleSpec::Ignore) {
 
-        return src16[eChannel];
+        return src16[channel];
     }
-    // Even if policy is copy, if the source channel is ignore,
+    // Even if policy is Copy, if the source channel is Ignore,
     // take the average of the other source channels
     return getAveragedSrcFrameInS16(src16);
 }
 
-int16_t CAudioRemapper::getAveragedSrcFrameInS16(const int16_t* src16) const
+int16_t AudioRemapper::getAveragedSrcFrameInS16(const int16_t *src16) const
 {
-    uint32_t uiValidSrcChannels = 0;
-    int32_t iDst = 0;
+    uint32_t validSrcChannels = 0;
+    int32_t dst = 0;
 
     // Loops on source channels, checks upon the channel policy to take it into account
     // or not.
     // Average on all valid source channels
     for (uint32_t iSrcChannels = 0; iSrcChannels < _ssSrc.getChannelCount(); iSrcChannels++) {
 
-        if (_ssSrc.getChannelsPolicy(iSrcChannels) != CSampleSpec::EIgnore) {
+        if (_ssSrc.getChannelsPolicy(iSrcChannels) != SampleSpec::Ignore) {
 
-            iDst += src16[iSrcChannels];
-            uiValidSrcChannels += 1;
+            dst += src16[iSrcChannels];
+            validSrcChannels += 1;
         }
     }
-    if (uiValidSrcChannels) {
+    if (validSrcChannels) {
 
-        iDst = iDst / uiValidSrcChannels;
+        dst = dst / validSrcChannels;
     }
-    return iDst;
+    return dst;
 }
 
-status_t CAudioRemapper::convertStereoToMonoInS24o32(const void* src,
-                                                     void* dst,
-                                                     const uint32_t inFrames,
-                                                     uint32_t* outFrames)
+status_t AudioRemapper::convertStereoToMonoInS24o32(const void *src,
+                                                    void *dst,
+                                                    const uint32_t inFrames,
+                                                    uint32_t *outFrames)
 {
-    const uint32_t* src32 = static_cast<const uint32_t *>(src);
-    uint32_t* dst32 = static_cast<uint32_t *>(dst);
-    uint32_t uiSrcChannels = _ssSrc.getChannelCount();
+    const uint32_t *src32 = static_cast<const uint32_t *>(src);
+    uint32_t *dst32 = static_cast<uint32_t *>(dst);
+    uint32_t srcChannels = _ssSrc.getChannelCount();
     size_t frames;
 
     for (frames = 0; frames < inFrames; frames++) {
 
-        dst32[frames] = getAveragedSrcSampleInS32(&src32[uiSrcChannels * frames]);
+        dst32[frames] = getAveragedSrcSampleInS32(&src32[srcChannels * frames]);
     }
-    // Transformation is "iso"frames
+    // Transformation is "iso" frames
     *outFrames = inFrames;
 
     return NO_ERROR;
 }
 
-status_t CAudioRemapper::convertMonoToStereoInS24o32(const void* src,
-                                                     void* dst,
-                                                     const uint32_t inFrames,
-                                                     uint32_t* outFrames)
+status_t AudioRemapper::convertMonoToStereoInS24o32(const void *src,
+                                                    void *dst,
+                                                    const uint32_t inFrames,
+                                                    uint32_t *outFrames)
 {
-    const uint32_t* src32 = static_cast<const uint32_t *>(src);
-    uint32_t* dst32 = static_cast<uint32_t *>(dst);
+    const uint32_t *src32 = static_cast<const uint32_t *>(src);
+    uint32_t *dst32 = static_cast<uint32_t *>(dst);
     size_t frames = 0;
-    uint32_t uiDstChannels = _ssDst.getChannelCount();
+    uint32_t dstChannels = _ssDst.getChannelCount();
 
     for (frames = 0; frames < inFrames; frames++) {
 
-        uint32_t uiChannels;
-        for (uiChannels = 0; uiChannels < _ssDst.getChannelCount(); uiChannels++) {
+        uint32_t channels;
+        for (channels = 0; channels < _ssDst.getChannelCount(); channels++) {
 
-            if (_ssDst.getChannelsPolicy(uiChannels) != CSampleSpec::EIgnore) {
+            if (_ssDst.getChannelsPolicy(channels) != SampleSpec::Ignore) {
 
-                dst32[uiDstChannels * frames + uiChannels] = src32[frames];
+                dst32[dstChannels * frames + channels] = src32[frames];
             }
         }
     }
-    // Transformation is "iso"frames
+    // Transformation is "iso" frames
     *outFrames = inFrames;
 
     return NO_ERROR;
 }
 
-status_t CAudioRemapper::convertChannelsPolicyInStereoS24o32(const void* src,
-                                                             void* dst,
-                                                             const uint32_t inFrames,
-                                                             uint32_t *outFrames)
+status_t AudioRemapper::convertChannelsPolicyInStereoS24o32(const void *src,
+                                                            void *dst,
+                                                            const uint32_t inFrames,
+                                                            uint32_t *outFrames)
 {
-    const uint32_t* src32 = static_cast<const uint32_t *>(src);
+    const uint32_t *src32 = static_cast<const uint32_t *>(src);
     uint32_t frames = 0;
-    uint32_t uiSrcChannels = _ssSrc.getChannelCount();
+    uint32_t srcChannels = _ssSrc.getChannelCount();
 
     struct StereoS24o32 {
         uint32_t left;
@@ -279,42 +282,42 @@ status_t CAudioRemapper::convertChannelsPolicyInStereoS24o32(const void* src,
 
     for (frames = 0; frames < inFrames; frames++) {
 
-        dst32[frames].left = convertSampleInS32(&src32[uiSrcChannels * frames], ELeft);
-        dst32[frames].right = convertSampleInS32(&src32[uiSrcChannels * frames], ERight);
+        dst32[frames].left = convertSampleInS32(&src32[srcChannels * frames], Left);
+        dst32[frames].right = convertSampleInS32(&src32[srcChannels * frames], Right);
     }
-    // Transformation is "iso"frames
+    // Transformation is "iso" frames
     *outFrames = inFrames;
 
     return NO_ERROR;
 }
 
-int32_t CAudioRemapper::convertSampleInS32(const uint32_t* src32, Channel eChannel) const
+int32_t AudioRemapper::convertSampleInS32(const uint32_t *src32, Channel channel) const
 {
-    CSampleSpec::ChannelsPolicy dstPolicy = _ssDst.getChannelsPolicy(eChannel);
+    SampleSpec::ChannelsPolicy dstPolicy = _ssDst.getChannelsPolicy(channel);
 
-    if (dstPolicy == CSampleSpec::EIgnore) {
+    if (dstPolicy == SampleSpec::Ignore) {
 
         return 0;
 
-    } else if (dstPolicy == CSampleSpec::EAverage) {
+    } else if (dstPolicy == SampleSpec::Average) {
 
         return getAveragedSrcSampleInS32(src32);
     }
     // Policy is Copy
-    // Copy only if source channel policy is not ignore
-    if (_ssSrc.getChannelsPolicy(eChannel) != CSampleSpec::EIgnore) {
+    // Copy only if source channel policy is not Ignore
+    if (_ssSrc.getChannelsPolicy(channel) != SampleSpec::Ignore) {
 
-        return src32[eChannel];
+        return src32[channel];
     }
     // Source channel policy is Ignore, so provide the average of all the
     // other channels of the source frame.
     return getAveragedSrcSampleInS32(src32);
 }
 
-int32_t CAudioRemapper::getAveragedSrcSampleInS32(const uint32_t* src32) const
+int32_t AudioRemapper::getAveragedSrcSampleInS32(const uint32_t *src32) const
 {
-    uint32_t uiValidSrcChannels = 0;
-    uint64_t iDst = 0;
+    uint32_t validSrcChannels = 0;
+    uint64_t dst = 0;
     //
     // Loops on source channels, checks upon the channel policy to take it into account
     // or not.
@@ -322,17 +325,17 @@ int32_t CAudioRemapper::getAveragedSrcSampleInS32(const uint32_t* src32) const
     //
     for (uint32_t iSrcChannels = 0; iSrcChannels < _ssSrc.getChannelCount(); iSrcChannels++) {
 
-        if (_ssSrc.getChannelsPolicy(iSrcChannels) != CSampleSpec::EIgnore) {
+        if (_ssSrc.getChannelsPolicy(iSrcChannels) != SampleSpec::Ignore) {
 
-            iDst += src32[iSrcChannels];
-            uiValidSrcChannels += 1;
+            dst += src32[iSrcChannels];
+             validSrcChannels += 1;
         }
     }
-    if (uiValidSrcChannels) {
+    if ( validSrcChannels) {
 
-        iDst = iDst / uiValidSrcChannels;
+        dst = dst /  validSrcChannels;
     }
-    return iDst;
+    return dst;
 }
 
 }; // namespace android

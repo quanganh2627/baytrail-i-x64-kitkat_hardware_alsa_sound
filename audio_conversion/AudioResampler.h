@@ -20,35 +20,40 @@
 
 namespace android_audio_legacy {
 
-class CResampler;
+class Resampler;
 
-class CAudioResampler : public CAudioConverter {
+class AudioResampler : public AudioConverter {
 
-    typedef std::list<CResampler*>::iterator ResamplerListIterator;
+    typedef std::list<Resampler *>::iterator ResamplerListIterator;
 
 public:
-    CAudioResampler(SampleSpecItem eSampleSpecItem);
+    AudioResampler(SampleSpecItem sampleSpecItem);
 
-    virtual ~CAudioResampler();
+    virtual ~AudioResampler();
 
 private:
     // forbid copy
-    CAudioResampler(const CAudioResampler &);
-    CAudioResampler& operator =(const CAudioResampler &);
+    AudioResampler(const AudioResampler &);
+    AudioResampler &operator =(const AudioResampler &);
+    android::status_t resampleFrames(const void *src,
+                                     void *dst,
+                                     const uint32_t inFrames,
+                                     uint32_t *outFrames);
 
-    android::status_t resampleFrames(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
+    virtual android::status_t configure(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
-    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t convert(const void *src,
+                                      void **dst,
+                                      uint32_t inFrames,
+                                      uint32_t *outFrames);
 
-    virtual android::status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
-
-    CResampler* _pResampler;
-    CResampler* _pPivotResampler;
+    Resampler *_resampler;
+    Resampler *_pivotResampler;
 
     // List of audio converter enabled
-    std::list<CResampler*> _activeResamplerList;
+    std::list<Resampler *> _activeResamplerList;
 
-    static const uint32_t _guiPivotSampleRate;
+    static const uint32_t PIVOT_SAMPLE_RATE = 48000;
 };
 
 }; // namespace android

@@ -210,9 +210,10 @@ public:
     // Property name indicating time to write silence before first write
     static const char* CODEC_DELAY_PROP_NAME;
 
-    static const vector<CSampleSpec::ChannelsPolicy> getChannelsPolicy(int iRouteIndex, bool bIsOut) {
+    static const vector<SampleSpec::ChannelsPolicy> getChannelsPolicy(int iRouteIndex,
+                                                                      bool bIsOut) {
 
-        std::vector<CSampleSpec::ChannelsPolicy> channelsPolicyVector(
+        std::vector<SampleSpec::ChannelsPolicy> channelsPolicyVector(
                     _astAudioRoutes[iRouteIndex].aChannelsPolicy[bIsOut],
                     _astAudioRoutes[iRouteIndex].aChannelsPolicy[bIsOut] +
                             getRoutePcmConfig(iRouteIndex, bIsOut).channels);
@@ -266,8 +267,8 @@ private:
         /**< Structure of the capture or uplink config and playback
            or downlink config per direction: 0 : EInput, 1 : EOutput */
         pcm_config astPcmConfig[CUtils::ENbDirections];
-      /**< Channels policy used in case of remap operation , e.g. EAverage */
-        CSampleSpec::ChannelsPolicy aChannelsPolicy[CUtils::ENbDirections][MAX_CHANNELS];
+        /**< Channels policy used in case of remap operation , e.g. average */
+        SampleSpec::ChannelsPolicy aChannelsPolicy[CUtils::ENbDirections][MAX_CHANNELS];
         /**< Literal coma list separated of slave routes */
         const char* pcSlaveRoutes;
     };

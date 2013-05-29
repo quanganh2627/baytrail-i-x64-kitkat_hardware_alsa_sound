@@ -37,21 +37,25 @@ using audio_comms::utilities::convertTo;
 
 namespace android_audio_legacy {
 
-#define FRAME_ALIGNEMENT_ON_16  16
-
-uint32_t CAudioUtils::alignOn16(uint32_t u)
+uint32_t AudioUtils::alignOn16(uint32_t u)
 {
     LOG_ALWAYS_FATAL_IF((u / FRAME_ALIGNEMENT_ON_16) >
                         (numeric_limits<uint32_t>::max() / FRAME_ALIGNEMENT_ON_16));
     return (u + (FRAME_ALIGNEMENT_ON_16 - 1)) & ~(FRAME_ALIGNEMENT_ON_16 - 1);
 }
 
-size_t CAudioUtils::convertSrcToDstInBytes(size_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+size_t AudioUtils::convertSrcToDstInBytes(size_t bytes,
+                                          const SampleSpec &ssSrc,
+                                          const SampleSpec &ssDst)
 {
-    return ssDst.convertFramesToBytes(convertSrcToDstInFrames(ssSrc.convertBytesToFrames(bytes), ssSrc, ssDst));
+    return ssDst.convertFramesToBytes(convertSrcToDstInFrames(ssSrc.convertBytesToFrames(bytes),
+                                                              ssSrc,
+                                                              ssDst));
 }
 
-size_t CAudioUtils::convertSrcToDstInFrames(size_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+size_t AudioUtils::convertSrcToDstInFrames(size_t frames,
+                                           const SampleSpec &ssSrc,
+                                           const SampleSpec &ssDst)
 {
     LOG_ALWAYS_FATAL_IF(ssSrc.getSampleRate() == 0);
     AUDIOCOMMS_COMPILE_TIME_ASSERT(sizeof(uint64_t) >= (2 * sizeof(ssize_t)));
@@ -61,7 +65,7 @@ size_t CAudioUtils::convertSrcToDstInFrames(size_t frames, const CSampleSpec& ss
     return dstFrames;
 }
 
-int CAudioUtils::convertTinyToHalFormat(pcm_format format)
+int AudioUtils::convertTinyToHalFormat(pcm_format format)
 {
     int convFormat;
 
@@ -81,7 +85,7 @@ int CAudioUtils::convertTinyToHalFormat(pcm_format format)
     return convFormat;
 }
 
-pcm_format CAudioUtils::convertHalToTinyFormat(int format)
+pcm_format AudioUtils::convertHalToTinyFormat(int format)
 {
     pcm_format convFormat;
 
@@ -101,7 +105,7 @@ pcm_format CAudioUtils::convertHalToTinyFormat(int format)
     return convFormat;
 }
 
-int CAudioUtils::getCardIndexByName(const char* name)
+int AudioUtils::getCardIndexByName(const char *name)
 {
     char id_filepath[PATH_MAX] = {0};
     char number_filepath[PATH_MAX] = {0};
@@ -134,15 +138,15 @@ int CAudioUtils::getCardIndexByName(const char* name)
     return indexCard;
 }
 
-uint32_t CAudioUtils::convertUsecToMsec(uint32_t uiTimeUsec)
+uint32_t AudioUtils::convertUsecToMsec(uint32_t timeUsec)
 {
     // Round up to the nearest Msec
-    return (((uint64_t)uiTimeUsec + 999) / 1000);
+    return ((static_cast<uint64_t>(timeUsec) + 999) / 1000);
 }
 
-bool CAudioUtils::isAudioInputDevice(uint32_t uiDevices)
+bool AudioUtils::isAudioInputDevice(uint32_t devices)
 {
-    return (popcount(uiDevices) == 1) && ((uiDevices & ~AudioSystem::DEVICE_IN_ALL) == 0);
+    return (popcount(devices) == 1) && ((devices & ~AudioSystem::DEVICE_IN_ALL) == 0);
 }
 
 }; // namespace android

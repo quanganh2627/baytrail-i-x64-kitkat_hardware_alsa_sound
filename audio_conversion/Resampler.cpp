@@ -22,62 +22,64 @@
 #include <iasrc_resampler.h>
 #include <limits.h>
 
-#define base CAudioConverter
+#define base AudioConverter
 
 using namespace android;
 
 namespace android_audio_legacy{
 
-CResampler::CResampler(SampleSpecItem eSampleSpecItem) :
-    base(eSampleSpecItem),
-    mMaxFrameCnt(0),
-    mContext(NULL), mFloatInp(NULL), mFloatOut(NULL)
+Resampler::Resampler(SampleSpecItem sampleSpecItem) :
+    base(sampleSpecItem),
+    _maxFrameCnt(0),
+    _context(NULL), _floatInp(NULL), _floatOut(NULL)
 {
 }
 
-CResampler::~CResampler()
+Resampler::~Resampler()
 {
-    if (mContext) {
-        iaresamplib_reset(mContext);
-        iaresamplib_delete(&mContext);
+    if (_context) {
+        iaresamplib_reset(_context);
+        iaresamplib_delete(&_context);
     }
 
-    delete []mFloatInp;
-    delete []mFloatOut;
+    delete []_floatInp;
+    delete []_floatOut;
 }
 
-status_t CResampler::allocateBuffer()
+status_t Resampler::allocateBuffer()
 {
-    if (mMaxFrameCnt == 0) {
-        mMaxFrameCnt = BUF_SIZE;
+    if (_maxFrameCnt == 0) {
+        _maxFrameCnt = BUF_SIZE;
     } else {
-        mMaxFrameCnt *= 2; // simply double the buf size
+        _maxFrameCnt *= 2; // simply double the buf size
     }
 
-    delete []mFloatInp;
-    delete []mFloatOut;
+    delete []_floatInp;
+    delete []_floatOut;
 
-    mFloatInp = new float[(mMaxFrameCnt + 1) * _ssSrc.getChannelCount()];
-    mFloatOut = new float[(mMaxFrameCnt + 1) * _ssSrc.getChannelCount()];
+    _floatInp = new float[(_maxFrameCnt + 1) * _ssSrc.getChannelCount()];
+    _floatOut = new float[(_maxFrameCnt + 1) * _ssSrc.getChannelCount()];
 
-    if (!mFloatInp || !mFloatOut) {
+    if (!_floatInp || !_floatOut) {
 
         LOGE("cannot allocate resampler tmp buffers.\n");
-        delete []mFloatInp;
-        delete []mFloatOut;
+        delete []_floatInp;
+        delete []_floatOut;
 
         return NO_MEMORY;
     }
     return NO_ERROR;
 }
 
-status_t CResampler::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t Resampler::configure(const SampleSpec &ssSrc, const SampleSpec &ssDst)
 {
-    ALOGD("%s: SOURCE rate=%d format=%d channels=%d", __FUNCTION__, ssSrc.getSampleRate(), ssSrc.getFormat(), ssSrc.getChannelCount());
-    ALOGD("%s: DST rate=%d format=%d channels=%d", __FUNCTION__, ssDst.getSampleRate(), ssDst.getFormat(), ssDst.getChannelCount());
+    ALOGD("%s: SOURCE rate=%d format=%d channels=%d",  __FUNCTION__, ssSrc.getSampleRate(),
+          ssSrc.getFormat(), ssSrc.getChannelCount());
+    ALOGD("%s: DST rate=%d format=%d channels=%d", __FUNCTION__, ssDst.getSampleRate(),
+          ssDst.getFormat(), ssDst.getChannelCount());
 
     if (ssSrc.getSampleRate() == _ssSrc.getSampleRate() &&
-        ssDst.getSampleRate() == _ssDst.getSampleRate() && mContext) {
+        ssDst.getSampleRate() == _ssDst.getSampleRate() && _context) {
 
         return NO_ERROR;
     }
@@ -88,10 +90,10 @@ status_t CResampler::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDs
         return status;
     }
 
-    if (mContext) {
-        iaresamplib_reset(mContext);
-        iaresamplib_delete(&mContext);
-        mContext = NULL;
+    if (_context) {
+        iaresamplib_reset(_context);
+        iaresamplib_delete(&_context);
+        _context = NULL;
     }
 
     if (!iaresamplib_supported_conversion(ssSrc.getSampleRate(), ssDst.getSampleRate())) {
@@ -100,17 +102,18 @@ status_t CResampler::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDs
         return INVALID_OPERATION;
     }
 
-    iaresamplib_new(&mContext, ssSrc.getChannelCount(), ssSrc.getSampleRate(), ssDst.getSampleRate());
-    if (!mContext) {
+    iaresamplib_new(&_context, ssSrc.getChannelCount(),
+                    ssSrc.getSampleRate(), ssDst.getSampleRate());
+    if (!_context) {
         ALOGE("cannot create resampler handle for lacking of memory.\n");
         return BAD_VALUE;
     }
 
-    _pfnConvertSamples = (SampleConverter)(&CResampler::resampleFrames);
+    _convertSamplesFct = static_cast<SampleConverter>(&Resampler::resampleFrames);
     return NO_ERROR;
 }
 
-void CResampler::convert_short_2_float(int16_t *inp, float * out, size_t sz) const
+void Resampler::convertShort2Float(int16_t *inp, float *out, size_t sz) const
 {
     size_t i;
     for (i = 0; i < sz; i++) {
@@ -118,7 +121,7 @@ void CResampler::convert_short_2_float(int16_t *inp, float * out, size_t sz) con
     }
 }
 
-void CResampler::convert_float_2_short(float *inp, int16_t * out, size_t sz) const
+void Resampler::convertFloat2Short(float *inp, int16_t *out, size_t sz) const
 {
     size_t i;
     for (i = 0; i < sz; i++) {
@@ -131,11 +134,14 @@ void CResampler::convert_float_2_short(float *inp, int16_t * out, size_t sz) con
     }
 }
 
-status_t CResampler::resampleFrames(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
+status_t Resampler::resampleFrames(const void *src,
+                                    void *dst,
+                                    const uint32_t inFrames,
+                                    uint32_t *outFrames)
 {
     size_t outFrameCount = convertSrcToDstInFrames(inFrames);
 
-    while (outFrameCount > mMaxFrameCnt) {
+    while (outFrameCount > _maxFrameCnt) {
 
         status_t ret = allocateBuffer();
         if (ret != NO_ERROR) {
@@ -144,12 +150,12 @@ status_t CResampler::resampleFrames(const void *src, void *dst, const uint32_t i
             return ret;
         }
     }
-    unsigned int out_n_frames;
-    convert_short_2_float((short*)src, mFloatInp, inFrames * _ssSrc.getChannelCount());
-    iaresamplib_process_float(mContext, mFloatInp, inFrames, mFloatOut, &out_n_frames);
-    convert_float_2_short(mFloatOut, (short*)dst, out_n_frames * _ssSrc.getChannelCount());
+    unsigned int outNbFrames;
+    convertShort2Float((short *)src, _floatInp, inFrames * _ssSrc.getChannelCount());
+    iaresamplib_process_float(_context, _floatInp, inFrames, _floatOut, &outNbFrames);
+    convertFloat2Short(_floatOut, (short *)dst, outNbFrames * _ssSrc.getChannelCount());
 
-    *outFrames = out_n_frames;
+    *outFrames = outNbFrames;
 
     return NO_ERROR;
 }

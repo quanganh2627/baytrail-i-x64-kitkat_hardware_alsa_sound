@@ -16,36 +16,42 @@
  */
 #pragma once
 
-#include <list>
-#include <media/AudioBufferProvider.h>
 #include <SampleSpec.h>
+#include <media/AudioBufferProvider.h>
+#include <list>
 
 namespace android_audio_legacy {
 
-class CAudioConverter;
+class AudioConverter;
 
-class CAudioConversion {
+class AudioConversion {
 
-    typedef std::list<CAudioConverter*>::iterator AudioConverterListIterator;
-    typedef std::list<CAudioConverter*>::const_iterator AudioConverterListConstIterator;
+    typedef std::list<AudioConverter*>::iterator AudioConverterListIterator;
+    typedef std::list<AudioConverter*>::const_iterator AudioConverterListConstIterator;
 
 public:
 
-    CAudioConversion();
-    virtual ~CAudioConversion();
+    AudioConversion();
+    virtual ~AudioConversion();
 
     /**
      * Configures the conversion chain.
      * It configures the conversion chain that may be used to convert samples from the source
      * to destination sample specification. This configuration tries to order the list of converters
      * so that it minimizes the number of samples on which the resampling is done.
+     * To optimize the convertion and make the processing as light as possible, the
+     * order of converter is important.
+     * This function will call the recursive function configureAndAddConverter starting
+     * from the remapper operation (ie the converter working on the number of channels),
+     * then the reformatter operation (ie converter changing the format of the samples),
+     * and finally the resampler (ie converter changing the sample rate).
      *
      * @param[in] ssSrc source sample specifications.
      * @param[in] ssDst destination sample specifications.
      *
      * @return status OK, error code otherwise.
      */
-    android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    android::status_t configure(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
     /**
      * Converts audio samples.
@@ -66,7 +72,10 @@ public:
      *
      * @return status OK, error code otherwise.
      */
-    android::status_t convert(const void* src, void** dst, const uint32_t inFrames, uint32_t *outFrames);
+    android::status_t convert(const void *src,
+                              void **dst,
+                              const uint32_t inFrames,
+                              uint32_t *outFrames);
 
     /**
      * Converts audio samples and output an exact number of output frames.
@@ -76,15 +85,17 @@ public:
      *
      * @param[out] dst pointer on the caller destination buffer.
      * @param[in] outFrames frames in the destination sample specification requested to be outputed.
-     * @param[in:out] pBufferProvider object that will provide source buffer.
+     * @param[in:out] bufferProvider object that will provide source buffer.
      *
      * @return status OK, error code otherwise.
      */
-    android::status_t getConvertedBuffer(void* dst, const uint32_t outFrames, android::AudioBufferProvider *pBufferProvider);
+    android::status_t getConvertedBuffer(void *dst,
+                                         const uint32_t outFrames,
+                                         android::AudioBufferProvider *bufferProvider);
 
 private:
-    CAudioConversion(const CAudioConversion&);
-    CAudioConversion& operator = (const CAudioConversion&);
+    AudioConversion(const AudioConversion &);
+    AudioConversion &operator = (const AudioConversion &);
 
     /**
      * This function pushes the converter to the list
@@ -105,13 +116,15 @@ private:
      * next convertion that might have to be added.
      * ssSrc = temp dest = { a, b', c }
      *
-     * @param[in] eConverterType sample spec item on which the converter is working
+     * @param[in] sampleSpecItem sample spec item on which the converter is working
      * @param[in:out] ssSrc source sample specifications.
      * @param[in] ssDst destination sample specifications.
      *
      * @return status OK, error code otherwise.
      */
-    android::status_t doConfigureAndAddConverter(SampleSpecItem eConverterType, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst);
+    android::status_t doConfigureAndAddConverter(SampleSpecItem sampleSpecItem,
+                                                 SampleSpec *ssSrc,
+                                                 const SampleSpec *ssDst);
 
     /**
      * Recursive function to add converters to the chain of convertion required.
@@ -155,38 +168,57 @@ private:
      *
      * Exit from recursive call
      *
-     * @param[in] eConverterType sample spec item on which the converter is working
+     * @param[in] sampleSpecItem sample spec item on which the converter is working
      * @param[in:out] ssSrc source sample specifications.
      * @param[in] ssDst destination sample specifications.
      *
      * @return status OK, error code otherwise.
      */
-    android::status_t configureAndAddConverter(SampleSpecItem eConverterType, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst);
+    android::status_t configureAndAddConverter(SampleSpecItem sampleSpecItem,
+                                               SampleSpec *ssSrc,
+                                               const SampleSpec *ssDst);
 
+    /**
+     * Reset the list of active converter.
+     * This function must be called before reconfiguring the conversion chain.
+     */
     void emptyConversionChain();
 
-    // List of audio converter enabled
-    std::list<CAudioConverter*> _activeAudioConvList;
+    /**
+     * List of audio converter enabled
+     */
+    std::list<AudioConverter *> _activeAudioConvList;
 
-    // List of Audio Converter objects available
-    // (Each converter works on a dedicated sample spec item)
-    CAudioConverter* _apAudioConverter[ENbSampleSpecItems];
+    /**
+     * List of Audio Converter objects available.
+     * Each converter works on a dedicated sample spec item.
+     */
+    AudioConverter *_audioConverter[NbSampleSpecItems];
 
-    CSampleSpec   _ssSrc;
-    CSampleSpec   _ssDst;
+    /**
+     * Source audio data sample specifications
+     */
+    SampleSpec _ssSrc;
+
+    /**
+     * Destination audio data sample specifications
+     */
+    SampleSpec _ssDst;
 
     // Conversion is done into ConvOutBuffer
-    size_t _ulConvOutBufferIndex;
-    size_t _ulConvOutFrames;
-    size_t _ulConvOutBufferSizeInFrames;
-    int16_t* _pConvOutBuffer;
+    size_t _convOutBufferIndex; /**< Current position into the Converted buffer. */
+    size_t _convOutFrames; /**< Number of converted Frames. */
+    size_t _convOutBufferSizeInFrames; /**< Converted buffer size in Frames. */
+    int16_t *_convOutBuffer; /**< Converted buffer. */
 
-    // Buffer is acquired from the provider into ConvInBuffer
-    android::AudioBufferProvider::Buffer _pConvInBuffer;
+    /**
+     * Buffer is acquired from the provider into ConvInBuffer.
+     */
+    android::AudioBufferProvider::Buffer _convInBuffer;
 
-    static const uint32_t MAX_RATE;
+    static const uint32_t MAX_RATE; /**< Max rate supported by resampler converter. */
 
-    static const uint32_t MIN_RATE;
+    static const uint32_t MIN_RATE; /**< Min rate supported by resampler converter. */
 };
 
 }; // namespace android

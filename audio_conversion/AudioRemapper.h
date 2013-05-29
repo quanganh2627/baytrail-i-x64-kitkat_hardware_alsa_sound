@@ -19,21 +19,21 @@
 
 namespace android_audio_legacy {
 
-class CAudioRemapper : public CAudioConverter {
+class AudioRemapper : public AudioConverter {
 
     enum Channel {
 
-        ELeft = 0,
-        ERight
+        Left = 0,
+        Right
     };
 
 public:
     /**
      * Constructor of the remapper.
-     * @param[in] eSampleSpecItem Sample specification item on which this audio
+     * @param[in] sampleSpecItem Sample specification item on which this audio
      *             converter is working on.
      */
-    CAudioRemapper(SampleSpecItem eSampleSpecItem);
+    AudioRemapper(SampleSpecItem sampleSpecItem);
 
 private:
     /**
@@ -46,7 +46,7 @@ private:
      *
      * @return error code.
      */
-    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
     /**
      * Remap from stereo to mono in S16.
@@ -60,10 +60,10 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertStereoToMonoInS16(const void* src,
-                                               void* dst,
+    android::status_t convertStereoToMonoInS16(const void *src,
+                                               void *dst,
                                                const uint32_t inFrames,
-                                               uint32_t* outFrames);
+                                               uint32_t *outFrames);
 
     /**
      * Remap from mono to stereo in S16.
@@ -77,10 +77,10 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertMonoToStereoInS16(const void* src,
-                                               void* dst,
+    android::status_t convertMonoToStereoInS16(const void *src,
+                                               void *dst,
                                                const uint32_t inFrames,
-                                               uint32_t* outFrames);
+                                               uint32_t *outFrames);
 
     /**
      * Remap channels policy in S16.
@@ -95,8 +95,8 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertChannelsPolicyInStereoS16(const void* src,
-                                                       void* dst,
+    android::status_t convertChannelsPolicyInStereoS16(const void *src,
+                                                       void *dst,
                                                        const uint32_t inFrames,
                                                        uint32_t *outFrames);
 
@@ -112,10 +112,10 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertStereoToMonoInS24o32(const void* src,
-                                                  void* dst,
+    android::status_t convertStereoToMonoInS24o32(const void *src,
+                                                  void *dst,
                                                   const uint32_t inFrames,
-                                                  uint32_t* outFrames);
+                                                  uint32_t *outFrames);
 
     /**
      * Remap from mono to stereo in S24 over 32.
@@ -130,9 +130,9 @@ private:
      * @return error code.
      */
     android::status_t convertMonoToStereoInS24o32(const void *src,
-                                                  void* dst,
+                                                  void *dst,
                                                   const uint32_t inFrames,
-                                                  uint32_t* outFrames);
+                                                  uint32_t *outFrames);
 
     /**
      * Remap channels policy in S24 over 32.
@@ -147,8 +147,8 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertChannelsPolicyInStereoS24o32(const void* src,
-                                                          void* dst,
+    android::status_t convertChannelsPolicyInStereoS24o32(const void *src,
+                                                          void *dst,
                                                           const uint32_t inFrames,
                                                           uint32_t *outFrames);
 
@@ -158,11 +158,11 @@ private:
      * channel policy.
      *
      * @param[in] src16 the address of the source frame.
-     * @param[in] eChannel the channel of the destination.
+     * @param[in] channel the channel of the destination.
      *
      * @return destination channel sample.
      */
-    int16_t convertSampleInS16(const int16_t* src, Channel eChannel) const;
+    int16_t convertSampleInS16(const int16_t *src, Channel channel) const;
 
     /**
      * Convert a source sample in S24 over 32.
@@ -170,11 +170,11 @@ private:
      * channel policy.
      *
      * @param[in] src32 the address of the source frame.
-     * @param[in] eChannel the channel of the destination.
+     * @param[in] channel the channel of the destination.
      *
      * @return destination channel sample.
      */
-    int32_t convertSampleInS32(const uint32_t* src32, Channel eChannel) const;
+    int32_t convertSampleInS32(const uint32_t *src32, Channel channel) const;
 
     /**
      * Average source frame in S24 over 32.
@@ -196,7 +196,7 @@ private:
      *
      * @return destination channel sample.
      */
-    int16_t getAveragedSrcFrameInS16(const int16_t* src16) const;
+    int16_t getAveragedSrcFrameInS16(const int16_t *src16) const;
 };
 
 }; // namespace android

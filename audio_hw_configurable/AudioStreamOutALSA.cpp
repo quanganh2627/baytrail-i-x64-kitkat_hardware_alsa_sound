@@ -152,7 +152,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
                                                  "after_conversion");
     }
 
-    return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret,
+    return mSampleSpec.convertFramesToBytes(AudioUtils::convertSrcToDstInFrames(ret,
                                                                                  mHwSampleSpec,
                                                                                  mSampleSpec));
 }

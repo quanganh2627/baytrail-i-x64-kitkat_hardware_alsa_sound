@@ -21,7 +21,7 @@
 
 namespace android_audio_legacy {
 
-class CAudioConverter {
+class AudioConverter {
 
 public:
 
@@ -37,10 +37,13 @@ public:
      *
      * @return status OK if conversion is successful, error code otherwise.
      */
-    typedef android::status_t (CAudioConverter::*SampleConverter)(const void* src, void* dst, uint32_t inFrames, uint32_t* outFrames);
+    typedef android::status_t (AudioConverter::*SampleConverter)(const void *src,
+                                                                  void *dst,
+                                                                  uint32_t inFrames,
+                                                                  uint32_t *outFrames);
 
-    CAudioConverter(SampleSpecItem eSampleSpecItem);
-    virtual ~CAudioConverter();
+    AudioConverter(SampleSpecItem sampleSpecItem);
+    virtual ~AudioConverter();
 
     /**
      * Configures the converters.
@@ -52,7 +55,7 @@ public:
      *
      * @return status OK if converter is configured properly error code otherwise.
      */
-    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const SampleSpec& ssSrc, const SampleSpec& ssDst);
 
     /**
      * Converts buffer from source to destination sample spec item.
@@ -70,7 +73,10 @@ public:
      *
      * @return status OK is convertion is successfull, error code otherwise.
      */
-    virtual android::status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
+    virtual android::status_t convert(const void *src,
+                                      void **dst,
+                                      uint32_t inFrames,
+                                      uint32_t *outFrames);
 
 protected:
 
@@ -94,31 +100,31 @@ protected:
      */
     size_t convertSrcToDstInFrames(ssize_t frames) const;
 
-    SampleConverter _pfnConvertSamples;
+    SampleConverter _convertSamplesFct;
 
     /**
      * Source audio data sample specifications
      */
-    CSampleSpec   _ssSrc;
+    SampleSpec _ssSrc;
 
     /**
      * Destination audio data sample specifications
      */
-    CSampleSpec   _ssDst;
+    SampleSpec _ssDst;
 
 private:
     // forbid copy
-    CAudioConverter(const CAudioConverter &);
-    CAudioConverter& operator =(const CAudioConverter &);
+    AudioConverter(const AudioConverter &);
+    AudioConverter &operator =(const AudioConverter &);
 
     void* getOutputBuffer(ssize_t inFrames);
-     android::status_t allocateConvertBuffer(ssize_t bytes);
+    android::status_t allocateConvertBuffer(ssize_t bytes);
 
-    char*           _pConvertBuf;
-    size_t          _pConvertBufSize;
+    char *_convertBuf;
+    size_t  _convertBufSize;
 
     // Sample spec item on which the converter is working
-    SampleSpecItem  _eSampleSpecItem;
+    SampleSpecItem _sampleSpecItem;
 };
 
 }; // namespace android

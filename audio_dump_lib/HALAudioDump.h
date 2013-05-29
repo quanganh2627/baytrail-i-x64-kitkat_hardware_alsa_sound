@@ -48,7 +48,7 @@ public:
     void dumpAudioSamples(const void *buf,
                           ssize_t bytes,
                           bool isOutput,
-                          uint32_t samplingRate, // Use CSampleSpec class as soon as it
+                          uint32_t samplingRate, // Use SampleSpec class as soon as it
                                                  // is unbound to the route manager, to
                                                  // avoid circular dependencies
                           uint32_t channelNb,

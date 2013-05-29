@@ -21,12 +21,12 @@
 
 namespace android_audio_legacy {
 
-class CResampler : public CAudioConverter {
+class Resampler : public AudioConverter {
 
 public:
-    CResampler(SampleSpecItem eSampleSpecItem);
+    Resampler(SampleSpecItem sampleSpecItem);
 
-    virtual ~CResampler();
+    virtual ~Resampler();
 
     /**
      * Resamples buffer from source to destination sample rate.
@@ -42,7 +42,10 @@ public:
      *
      * @return error code.
      */
-    android::status_t resampleFrames(const void* src, void* dst, const uint32_t inFrames, uint32_t *outFrames);
+    android::status_t resampleFrames(const void *src,
+                                     void *dst,
+                                     const uint32_t inFrames,
+                                     uint32_t *outFrames);
 
     /**
      * Configures the resampler.
@@ -54,25 +57,25 @@ public:
      *
      * @return status OK, error code otherwise.
      */
-    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
 private:
     // forbid copy
-    CResampler(const CResampler &);
-    CResampler& operator =(const CResampler &);
+    Resampler(const Resampler &);
+    Resampler &operator =(const Resampler &);
 
 
     android::status_t allocateBuffer();
 
-    void convert_short_2_float(int16_t *inp, float * out, size_t sz) const;
+    void convertShort2Float(int16_t *inp, float *out, size_t sz) const;
 
-    void convert_float_2_short(float *inp, int16_t * out, size_t sz) const;
+    void convertFloat2Short(float *inp, int16_t *out, size_t sz) const;
 
     static const int BUF_SIZE = (1 << 13);
-    size_t  mMaxFrameCnt;  /* max frame count the buffer can store */
-    void*   mContext;      /* handle used to do resample */
-    float*  mFloatInp;     /* here sample size is 4 bytes */
-    float*  mFloatOut;     /* here sample size is 4 bytes */
+    size_t  _maxFrameCnt;  /* max frame count the buffer can store */
+    void *_context;      /* handle used to do resample */
+    float *_floatInp;     /* here sample size is 4 bytes */
+    float *_floatOut;     /* here sample size is 4 bytes */
 };
 
 }; // namespace android
