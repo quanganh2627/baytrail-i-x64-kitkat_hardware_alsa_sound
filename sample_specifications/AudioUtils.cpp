@@ -46,12 +46,12 @@ uint32_t CAudioUtils::alignOn16(uint32_t u)
     return (u + (FRAME_ALIGNEMENT_ON_16 - 1)) & ~(FRAME_ALIGNEMENT_ON_16 - 1);
 }
 
-ssize_t CAudioUtils::convertSrcToDstInBytes(ssize_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+size_t CAudioUtils::convertSrcToDstInBytes(size_t bytes, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
     return ssDst.convertFramesToBytes(convertSrcToDstInFrames(ssSrc.convertBytesToFrames(bytes), ssSrc, ssDst));
 }
 
-ssize_t CAudioUtils::convertSrcToDstInFrames(ssize_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+size_t CAudioUtils::convertSrcToDstInFrames(size_t frames, const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
     LOG_ALWAYS_FATAL_IF(ssSrc.getSampleRate() == 0);
     AUDIOCOMMS_COMPILE_TIME_ASSERT(sizeof(uint64_t) >= (2 * sizeof(ssize_t)));
@@ -61,8 +61,6 @@ ssize_t CAudioUtils::convertSrcToDstInFrames(ssize_t frames, const CSampleSpec& 
     return dstFrames;
 }
 
-// This fonction translates the format from tiny ALSA
-// to AudioSystem enum
 int CAudioUtils::convertTinyToHalFormat(pcm_format format)
 {
     int convFormat;
@@ -103,8 +101,6 @@ pcm_format CAudioUtils::convertHalToTinyFormat(int format)
     return convFormat;
 }
 
-// This function return the card number associated with the card ID (name)
-// passed as argument
 int CAudioUtils::getCardIndexByName(const char* name)
 {
     char id_filepath[PATH_MAX] = {0};

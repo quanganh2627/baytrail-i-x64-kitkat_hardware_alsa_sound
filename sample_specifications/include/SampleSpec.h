@@ -112,12 +112,47 @@ public:
 
     size_t getFrameSize() const;
 
+    /**
+     * Converts the bytes number to frames number.
+     * It converts a bytes number into a frame number it represents in this sample spec instance.
+     * It asserts if the frame size is null.
+
+     * @param[in] number of bytes to be translated in frames.
+     *
+     * @return frames number in the sample spec given in param for this instance.
+     */
     size_t convertBytesToFrames(size_t bytes) const;
 
+    /**
+     * Converts the frames number to bytes number.
+     * It converts the frame number (independant of the channel number and format number) into
+     * a byte number (sample spec dependant). In case of overflow, this function will assert.
+
+     * @param[in] number of frames to be translated in bytes.
+     *
+     * @return bytes number in the sample spec given in param for this instance
+     */
     size_t convertFramesToBytes(size_t frames) const;
 
+    /**
+     * Translates the frame number into time.
+     * It converts the frame number into the time it represents in this sample spec instance.
+     * It may assert if overflow is detected.
+     *
+     * @param[in] number of frames to be translated in time.
+     *
+     * @return time in microseconds.
+     */
     size_t convertFramesToUsec(uint32_t uiFrames) const;
 
+    /**
+     * Translates a time period into a frame number.
+     * It converts a period of time into a frame number it represents in this sample spec instance.
+     *
+     * @param[in] time interval in micro second to be translated.
+     *
+     * @return number of frames corresponding to the period of time.
+     */
     size_t convertUsecToframes(uint32_t uiIntervalUsec) const;
 
     bool isMono() const { return _auiSampleSpec[EChannelCountSampleSpecItem] == 1; }
@@ -140,29 +175,32 @@ public:
                                       const CSampleSpec& ssDst);
 
 private:
+    /**
+     * Initialise the sample specifications.
+     * Parts of the private constructor. It sets the basic fields, reset the channel mask to 0,
+     * and sets the channel policy to "Copy" for each of the channels used.
+     *
+     * @param[in] channel number of channels.
+     * @param[in] format sample format, eg 16 or 24 bits(coded on 32 bits).
+     * @param[in] rate sample rate.
+     */
     void init(uint32_t channel, uint32_t format, uint32_t rate);
 
-    // Attributes
+    uint32_t _auiSampleSpec[ENbSampleSpecItems]; /**< Array of sample spec items:
+                                                        -channel number
+                                                        -format
+                                                        -sample rate. */
 
-    // Array of sample spec items:
-    //  -channel numbers
-    //  -format
-    //  -sample rate
-    uint32_t _auiSampleSpec[ENbSampleSpecItems];
+    uint32_t _uiChannelMask; /**< Bit field that defines the channels used. */
 
-    // Bit field that defines the channels used.
-    // Refer to AudioSystemLegacy.h for the definition of the bit field
-    // (enum audio_channels)
-    uint32_t _uiChannelMask;
+    static const uint32_t USEC_PER_SEC; /**< constant to convert sec to / from microseconds. */
 
-    static const uint32_t USEC_PER_SEC;
+    std::vector<ChannelsPolicy> _aChannelsPolicy; /**< channels policy array. */
 
-    std::vector<ChannelsPolicy> _aChannelsPolicy;
-
-    static const uint32_t MAX_CHANNELS = 32;
-    static const uint32_t _defaultChannels = 2;
-    static const uint32_t _defaultFormat = AUDIO_FORMAT_PCM_16_BIT;
-    static const uint32_t _defaultRate = 48000;
+    static const uint32_t MAX_CHANNELS = 32; /**< supports until 32 channels. */
+    static const uint32_t _defaultChannels = 2; /**< default channel used is stereo. */
+    static const uint32_t _defaultFormat = AUDIO_FORMAT_PCM_16_BIT; /**< default format is 16bits.*/
+    static const uint32_t _defaultRate = 48000; /**< default rate is 48 kHz. */
 };
 
 }; // namespace android
