@@ -15,8 +15,9 @@
  ** limitations under the License.
  */
 
-#include "SampleSpec.h"
+#define LOG_TAG "SampleSpec"
 
+#include "SampleSpec.h"
 #include <cutils/log.h>
 #include <stdint.h>
 #include <errno.h>

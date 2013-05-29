@@ -19,10 +19,7 @@ audio_hw_configurable_src_files :=  \
     AudioRemapper.cpp \
     AudioResampler.cpp \
     AudioStreamInALSA.cpp \
-    AudioStreamOutALSA.cpp \
-    AudioUtils.cpp \
-    Resampler.cpp \
-    SampleSpec.cpp
+    AudioStreamOutALSA.cpp
 
 audio_hw_configurable_src_files +=  \
     audio_route_manager/AudioCompressedStreamRoute.cpp \
@@ -84,10 +81,7 @@ audio_hw_configurable_header_files :=  \
     audio_route_manager/VolumeKeys.h \
     audio_route_manager/AudioStreamRouteIaSspWorkaround.h \
     AudioStreamInALSA.h \
-    AudioStreamOutALSA.h \
-    AudioUtils.h \
-    Resampler.h \
-    SampleSpec.h
+    AudioStreamOutALSA.h
 
 audio_hw_configurable_header_copy_folder_unit_test := \
     audio_hw_configurable_unit_test
@@ -140,8 +134,11 @@ endif
 LOCAL_MODULE := audio.primary.$(TARGET_DEVICE)
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE_TAGS := optional
+TARGET_ERROR_FLAGS += -Wno-non-virtual-dtor
+
 LOCAL_STATIC_LIBRARIES := \
     libmedia_helper \
+    libsamplespec_static \
     libaudio_comms_utilities
 
 LOCAL_SHARED_LIBRARIES := \

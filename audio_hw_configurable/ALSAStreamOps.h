@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "AudioBufferProvider.h"
-#include "SampleSpec.h"
+#include <media/AudioBufferProvider.h>
+#include <SampleSpec.h>
 #include <utils/String8.h>
 #include "Utils.h"
 
