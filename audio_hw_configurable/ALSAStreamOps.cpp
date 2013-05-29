@@ -39,12 +39,7 @@
 
 #include "ALSAStreamOps.h"
 #include "AudioStreamRoute.h"
-#include "AudioConverter.h"
-#include "AudioConversion.h"
-#include "AudioResampler.h"
-#include "AudioReformatter.h"
-#include "AudioRemapper.h"
-#include "AudioConversion.h"
+#include <AudioConversion.h>
 #include "AudioHardwareALSA.h"
 #include "Property.h"
 

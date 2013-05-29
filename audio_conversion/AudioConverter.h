@@ -17,7 +17,7 @@
 #pragma once
 
 #include <utils/Errors.h>
-#include "SampleSpec.h"
+#include <SampleSpec.h>
 
 namespace android_audio_legacy {
 

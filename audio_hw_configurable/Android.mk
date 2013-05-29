@@ -11,13 +11,8 @@ audio_hw_configurable_src_files :=  \
     ALSAStreamOps.cpp \
     audio_hw_hal.cpp \
     AudioAutoRoutingLock.cpp \
-    AudioConversion.cpp \
-    AudioConverter.cpp \
     AudioHardwareALSA.cpp \
     AudioHardwareInterface.cpp \
-    AudioReformatter.cpp \
-    AudioRemapper.cpp \
-    AudioResampler.cpp \
     AudioStreamInALSA.cpp \
     AudioStreamOutALSA.cpp
 
@@ -45,7 +40,7 @@ audio_hw_configurable_includes_dir := \
     $(TARGET_OUT_HEADERS)/hal_audio_dump \
     $(TARGET_OUT_HEADERS)/hw \
     $(TARGET_OUT_HEADERS)/parameter \
-    frameworks/av/include/media \
+    frameworks/av/include \
     external/tinyalsa/include \
     system/media/audio_utils/include \
     system/media/audio_effects/include
@@ -61,13 +56,8 @@ audio_hw_configurable_includes_dir_target := \
 audio_hw_configurable_header_files :=  \
     ALSAStreamOps.h \
     AudioAutoRoutingLock.h \
-    AudioConversion.h \
-    AudioConverter.h \
     AudioDumpInterface.h \
     AudioHardwareALSA.h \
-    AudioReformatter.h \
-    AudioRemapper.h \
-    AudioResampler.h \
     audio_route_manager/AudioCompressedStreamRoute.h \
     audio_route_manager/AudioExternalRoute.h \
     audio_route_manager/AudioParameterHandler.h \
@@ -139,7 +129,8 @@ TARGET_ERROR_FLAGS += -Wno-non-virtual-dtor
 LOCAL_STATIC_LIBRARIES := \
     libmedia_helper \
     libsamplespec_static \
-    libaudio_comms_utilities
+    libaudio_comms_utilities \
+    libaudioconversion_static
 
 LOCAL_SHARED_LIBRARIES := \
     libtinyalsa \

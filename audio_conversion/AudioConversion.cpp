@@ -17,13 +17,13 @@
 
 #define LOG_TAG "AudioConversion"
 
-#include "AudioBufferProvider.h"
 #include "AudioConversion.h"
 #include "AudioConverter.h"
 #include "AudioReformatter.h"
 #include "AudioRemapper.h"
 #include "AudioResampler.h"
 #include "AudioUtils.h"
+#include <media/AudioBufferProvider.h>
 #include <cutils/log.h>
 #include <stdlib.h>
 

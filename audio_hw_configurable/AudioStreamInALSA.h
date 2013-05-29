@@ -19,7 +19,7 @@
 
 #include "AudioHardwareALSA.h"
 #include "ALSAStreamOps.h"
-#include "AudioBufferProvider.h"
+#include <media/AudioBufferProvider.h>
 #include <Mutex.hpp>
 
 /**

@@ -18,7 +18,7 @@
 
 #include <list>
 #include <media/AudioBufferProvider.h>
-#include "SampleSpec.h"
+#include <SampleSpec.h>
 
 namespace android_audio_legacy {
 
