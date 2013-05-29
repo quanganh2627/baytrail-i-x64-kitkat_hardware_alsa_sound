@@ -25,7 +25,7 @@ public:
     CAudioReformatter(SampleSpecItem eSampleSpecItem);
 
 private:
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
     android::status_t convertS16toS24over32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
 

@@ -48,17 +48,17 @@ CAudioResampler::~CAudioResampler()
     delete _pPivotResampler;
 }
 
-status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t CAudioResampler::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
     _activeResamplerList.clear();
 
-    status_t status = base::doConfigure(ssSrc, ssDst);
+    status_t status = base::configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         return status;
     }
 
-    status = _pResampler->doConfigure(ssSrc, ssDst);
+    status = _pResampler->configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         //
@@ -69,7 +69,7 @@ status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
         CSampleSpec pivotSs = ssDst;
         pivotSs.setSampleRate(_guiPivotSampleRate);
 
-        status = _pPivotResampler->doConfigure(ssSrc, pivotSs);
+        status = _pPivotResampler->configure(ssSrc, pivotSs);
         if (status != NO_ERROR) {
 
             LOGD("%s: trying to use pivot sample rate @ %dkHz: FAILED", __FUNCTION__, _guiPivotSampleRate);
@@ -77,7 +77,7 @@ status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
         }
         _activeResamplerList.push_back(_pPivotResampler);
 
-        status = _pResampler->doConfigure(pivotSs, ssDst);
+        status = _pResampler->configure(pivotSs, ssDst);
         if (status != NO_ERROR) {
 
             LOGD("%s: trying to use pivot sample rate @ 48kHz: FAILED", __FUNCTION__);

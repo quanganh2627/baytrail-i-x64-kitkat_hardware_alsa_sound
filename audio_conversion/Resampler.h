@@ -28,9 +28,33 @@ public:
 
     virtual ~CResampler();
 
-    android::status_t resampleFrames(const void* in, void* out, const uint32_t inFrames, uint32_t *outFrames);
+    /**
+     * Resamples buffer from source to destination sample rate.
+     * Resamples input frames of the provided input buffer into the destination buffer already
+     * allocated by the converter or given by the client.
+     * Before using this function, configure must have been called.
+     *
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer, caller to ensure the destination
+     *             is large enough.
+     * @param[in] inFrames number of input frames.
+     * @param[out] outFrames output frames processed.
+     *
+     * @return error code.
+     */
+    android::status_t resampleFrames(const void* src, void* dst, const uint32_t inFrames, uint32_t *outFrames);
 
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    /**
+     * Configures the resampler.
+     * It configures the resampler that may be used to convert samples from the source
+     * to destination sample rate.
+     *
+     * @param[in] ssSrc source sample specifications.
+     * @param[in] ssDst destination sample specification.
+     *
+     * @return status OK, error code otherwise.
+     */
+    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
 private:
     // forbid copy

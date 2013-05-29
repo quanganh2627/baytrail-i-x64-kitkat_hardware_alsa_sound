@@ -25,24 +25,85 @@ class CAudioConverter {
 
 public:
 
+    /**
+     * conversion function pointer definition.
+     *
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer.
+     *                  Note that if the memory is allocated by the converted, it is freed upon next
+     *                  call of configure or upon deletion of the converter.
+     * @param[in] inFrames number of input frames.
+     * @param[out] outFrames output frames processed.
+     *
+     * @return status OK if conversion is successful, error code otherwise.
+     */
     typedef android::status_t (CAudioConverter::*SampleConverter)(const void* src, void* dst, uint32_t inFrames, uint32_t* outFrames);
 
     CAudioConverter(SampleSpecItem eSampleSpecItem);
     virtual ~CAudioConverter();
 
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    /**
+     * Configures the converters.
+     * It configures the converter that may be used to convert one sample spec item from the source
+     * to destination sample spec item.
+     *
+     * @param[in] ssSrc source sample specifications.
+     * @param[in] ssDst destination sample specification.
+     *
+     * @return status OK if converter is configured properly error code otherwise.
+     */
+    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
+    /**
+     * Converts buffer from source to destination sample spec item.
+     * Converts input frames of the provided input buffer into the destination buffer that may be
+     * allocated by the client. If not, the converter will allocate the output and give it back
+     * to the client.
+     * Before using this function, configure must have been called.
+     *
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer.
+     *                  Note that if the memory is allocated by the converted, it is freed upon next
+     *                  call of configure or upon deletion of the converter.
+     * @param[in] inFrames number of input frames.
+     * @param[out] outFrames output frames processed.
+     *
+     * @return status OK is convertion is successfull, error code otherwise.
+     */
     virtual android::status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
 
 protected:
 
+    /**
+     * Converts the number of frames in the destination sample spec in a number of frames in the
+     * source sample spec.
+     *
+     * @param[in] frames in the destination sample spec
+     *
+     * @return frames in the source sample spec.
+     */
     size_t convertSrcFromDstInFrames(ssize_t frames) const;
 
+    /**
+     * Converts the number of frames in the source sample spec in a number of frames in the
+     * destination sample spec.
+     *
+     * @param[in] frames in the source sample spec
+     *
+     * @return frames in the destination sample spec.
+     */
     size_t convertSrcToDstInFrames(ssize_t frames) const;
 
     SampleConverter _pfnConvertSamples;
 
+    /**
+     * Source audio data sample specifications
+     */
     CSampleSpec   _ssSrc;
+
+    /**
+     * Destination audio data sample specifications
+     */
     CSampleSpec   _ssDst;
 
 private:

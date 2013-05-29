@@ -34,9 +34,9 @@ CAudioReformatter::CAudioReformatter(SampleSpecItem eSampleSpecItem) :
 {
 }
 
-status_t CAudioReformatter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t CAudioReformatter::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    status_t status = base::doConfigure(ssSrc, ssDst);
+    status_t status = base::configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         return status;

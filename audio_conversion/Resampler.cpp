@@ -71,7 +71,7 @@ status_t CResampler::allocateBuffer()
     return NO_ERROR;
 }
 
-status_t CResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t CResampler::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
     ALOGD("%s: SOURCE rate=%d format=%d channels=%d", __FUNCTION__, ssSrc.getSampleRate(), ssSrc.getFormat(), ssSrc.getChannelCount());
     ALOGD("%s: DST rate=%d format=%d channels=%d", __FUNCTION__, ssDst.getSampleRate(), ssDst.getFormat(), ssDst.getChannelCount());
@@ -82,7 +82,7 @@ status_t CResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ss
         return NO_ERROR;
     }
 
-    status_t status = base::doConfigure(ssSrc, ssDst);
+    status_t status = base::configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         return status;
@@ -131,7 +131,7 @@ void CResampler::convert_float_2_short(float *inp, int16_t * out, size_t sz) con
     }
 }
 
-status_t CResampler::resampleFrames(const void *in, void *out, const uint32_t inFrames, uint32_t *outFrames)
+status_t CResampler::resampleFrames(const void *src, void *dst, const uint32_t inFrames, uint32_t *outFrames)
 {
     size_t outFrameCount = convertSrcToDstInFrames(inFrames);
 
@@ -145,9 +145,9 @@ status_t CResampler::resampleFrames(const void *in, void *out, const uint32_t in
         }
     }
     unsigned int out_n_frames;
-    convert_short_2_float((short*)in, mFloatInp, inFrames * _ssSrc.getChannelCount());
+    convert_short_2_float((short*)src, mFloatInp, inFrames * _ssSrc.getChannelCount());
     iaresamplib_process_float(mContext, mFloatInp, inFrames, mFloatOut, &out_n_frames);
-    convert_float_2_short(mFloatOut, (short*)out, out_n_frames * _ssSrc.getChannelCount());
+    convert_float_2_short(mFloatOut, (short*)dst, out_n_frames * _ssSrc.getChannelCount());
 
     *outFrames = out_n_frames;
 

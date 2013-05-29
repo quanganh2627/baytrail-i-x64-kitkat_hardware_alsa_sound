@@ -35,9 +35,9 @@ CAudioRemapper::CAudioRemapper(SampleSpecItem eSampleSpecItem) :
 {
 }
 
-status_t CAudioRemapper::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t CAudioRemapper::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
-    status_t ret = base::doConfigure(ssSrc, ssDst);
+    status_t ret = base::configure(ssSrc, ssDst);
     if (ret != NO_ERROR) {
 
         return ret;

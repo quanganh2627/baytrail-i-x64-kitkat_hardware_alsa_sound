@@ -41,22 +41,22 @@ private:
      * Selects the appropriate remap operation to use according to the source
      * and destination sample specifications.
      *
-     * @param[in] ssSrc Reference on the source sample specifications.
-     * @param[in] ssDst Reference on the destination sample specifications.
+     * @param[in] ssSrc the source sample specifications.
+     * @param[in] ssDst the destination sample specifications.
      *
      * @return error code.
      */
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
     /**
      * Remap from stereo to mono in S16.
      * Convert a stereo source into a mono destination in S16 format.
      *
-     * @param[in] src the address of the source buffer.
-     * @param[out] dst the address of the destination buffer, caller to ensure the destination
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
      * @param[in] inFrames number of input frames.
-     * @param[out] outFrames pointer on output frames processed.
+     * @param[out] outFrames output frames processed.
      *
      * @return error code.
      */
@@ -69,11 +69,11 @@ private:
      * Remap from mono to stereo in S16.
      * Convert a mono source into a stereo destination in S16 format.
      *
-     * @param[in] src the address of the source buffer.
-     * @param[out] dst the address of the destination buffer, caller to ensure the destination
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
      * @param[in] inFrames number of input frames.
-     * @param[out] outFrames pointer on output frames processed.
+     * @param[out] outFrames output frames processed.
      *
      * @return error code.
      */
@@ -87,11 +87,11 @@ private:
      * Convert a stereo source into a stereo destination in S16 format
      * with different channels policy.
      *
-     * @param[in] src the address of the source buffer.
-     * @param[out] dst the address of the destination buffer, caller to ensure the destination
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
      * @param[in] inFrames number of input frames.
-     * @param[out] outFrames pointer on output frames processed.
+     * @param[out] outFrames output frames processed.
      *
      * @return error code.
      */
@@ -104,11 +104,11 @@ private:
      * Remap from stereo to mono in S24 over 32.
      * Convert a stereo source into a mono destination in S24 over 32 format.
      *
-     * @param[in] src the address of the source buffer.
-     * @param[out] dst the address of the destination buffer, caller to ensure the destination
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
      * @param[in] inFrames number of input frames.
-     * @param[out] outFrames pointer on output frames processed.
+     * @param[out] outFrames output frames processed.
      *
      * @return error code.
      */
@@ -121,11 +121,11 @@ private:
      * Remap from mono to stereo in S24 over 32.
      * Convert a mono source into a stereo destination in S24 over 32 format.
      *
-     * @param[in] src the address of the source buffer.
-     * @param[out] dst the address of the destination buffer., caller to ensure the destination
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer., caller to ensure the destination
      *             is large enough.
      * @param[in] inFrames number of input frames.
-     * @param[out] outFrames pointer on output frames processed.
+     * @param[out] outFrames output frames processed.
      *
      * @return error code.
      */
@@ -139,11 +139,11 @@ private:
      * Gets on destination channel from the source frame according to the destination
      * channel policy in S24 over 32 format.
      *
-     * @param[in] src the address of the source buffer.
-     * @param[out] dst the address of the destination buffer, caller to ensure the destination
+     * @param[in] src the source buffer.
+     * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
      * @param[in] iinFrames number of input frames.
-     * @param[out] outFrames pointer on output frames processed.
+     * @param[out] outFrames output frames processed.
      *
      * @return error code.
      */

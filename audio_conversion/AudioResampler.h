@@ -36,9 +36,9 @@ private:
     CAudioResampler(const CAudioResampler &);
     CAudioResampler& operator =(const CAudioResampler &);
 
-    android::status_t resampleFrames(const void* in, void* out, const uint32_t inFrames, uint32_t* outFrames);
+    android::status_t resampleFrames(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
 
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
     virtual android::status_t convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
 

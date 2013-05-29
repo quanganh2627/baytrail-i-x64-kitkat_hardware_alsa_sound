@@ -80,7 +80,7 @@ status_t CAudioConverter::allocateConvertBuffer(ssize_t bytes)
     return ret;
 }
 
-status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t CAudioConverter::configure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
 {
     _ssSrc = ssSrc;
     _ssDst = ssDst;

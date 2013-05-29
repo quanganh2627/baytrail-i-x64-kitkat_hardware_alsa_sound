@@ -274,22 +274,6 @@ void CAudioConversion::emptyConversionChain()
     _activeAudioConvList.clear();
 }
 
-
-//
-// This function pushes the converter to the list
-// and alters the source sample spec according to the sample spec reached
-// after this convertion.
-//
-// Lets take an example:
-// ssSrc = {a, b, c} and ssDst = {a', b', c'}
-//
-// Our converter works on sample spec item b
-// After the converter, temporary destination sample spec will be: {a, b', c}
-//
-// Update the source Sample Spec to this temporary sample spec for the
-// next convertion that might have to be added.
-// ssSrc = temp dest = {a, b', c}
-//
 status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpecItem, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst)
 {
     LOG_ALWAYS_FATAL_IF(eSampleSpecItem >= ENbSampleSpecItems);
@@ -301,7 +285,7 @@ status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpec
         tmpSsDst.setChannelsPolicy(pSsDst->getChannelsPolicy());
     }
 
-    status_t ret = _apAudioConverter[eSampleSpecItem]->doConfigure(*pSsSrc, tmpSsDst);
+    status_t ret = _apAudioConverter[eSampleSpecItem]->configure(*pSsSrc, tmpSsDst);
     if (ret != NO_ERROR) {
 
         return ret;
@@ -312,41 +296,6 @@ status_t CAudioConversion::doConfigureAndAddConverter(SampleSpecItem eSampleSpec
     return NO_ERROR;
 }
 
-//
-// Recursive function to add converters to the chain of convertion required.
-//
-// When a converter is added, the source sample specification is altered to reflects
-// the sample spec reached after this convertion. This sample spec will be used
-// as the source for next convertion.
-//
-// Let's take an example:
-// ssSrc = {a, b, c} and ssDst = {a', b', c'} with (a' > a) and (b' < b)
-// As all sample spec items are different, we need to use 3 resamplers:
-//
-// First take into account a (number of channels):
-//      As a' is higher than a, first performs the remapping:
-//      ssSrc = {a, b, c} dst = {a', b', c'}
-//      The temporary output becomes the new source for next converter
-//      ssSrc = temporary Output = {a', b, c}
-//
-// Then, take into account b (format size).
-//      As b' is lower than b, do not perform the reformating now...
-//
-// Finally, take into account the sample rate:
-//      as they are different, use a resampler:
-//      ssSrc = {a', b, c} dst = {a', b', c'}
-//      The temporary output becomes the new source for next converter
-//      ssSrc = temporary Output = {a', b, c'}
-//
-// No more converter: exit from last recursive call
-// Taking into account b again...(format size)
-//      as b' < b, use a reformatter
-//      ssSrc = {a', b, c'} dst = {a', b', c'}
-//      The temporary output becomes the new source for next converter
-//      ssSrc = temporary Output = {a', b', c'}
-//
-// Exit from recursive call
-//
 status_t CAudioConversion::configureAndAddConverter(SampleSpecItem eSampleSpecItem, CSampleSpec* pSsSrc, const CSampleSpec* pSsDst)
 {
     LOG_ALWAYS_FATAL_IF(eSampleSpecItem >= ENbSampleSpecItems);
