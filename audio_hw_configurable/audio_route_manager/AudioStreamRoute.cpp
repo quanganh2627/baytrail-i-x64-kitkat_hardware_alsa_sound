@@ -261,7 +261,7 @@ status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)
     // it will return a reference on a "bad pcm" structure
     //
     uint32_t uiFlags= (bIsOut ? PCM_OUT : PCM_IN);
-    _astPcmDevice[bIsOut] = pcm_open(CAudioUtils::getCardNumberByName(getCardName()), getPcmDeviceId(bIsOut), uiFlags, &config);
+    _astPcmDevice[bIsOut] = pcm_open(CAudioUtils::getCardIndexByName(getCardName()), getPcmDeviceId(bIsOut), uiFlags, &config);
     if (_astPcmDevice[bIsOut] && !pcm_is_ready(_astPcmDevice[bIsOut])) {
 
         ALOGE("%s: Cannot open tinyalsa (%s,%d) device for %s stream (error=%s)", __FUNCTION__,

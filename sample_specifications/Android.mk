@@ -31,21 +31,34 @@ sample_specifications_src_files :=  \
     AudioUtils.cpp \
     SampleSpec.cpp
 
-sample_specifications_includes_dir := \
+sample_specifications_common_includes_dir := \
     $(LOCAL_PATH)/include \
     frameworks/av/include \
     external/tinyalsa/include
 
+sample_specifications_includes_dir := \
+    audiocomms-include
+
 sample_specifications_includes_dir_host := \
-    $(sample_specifications_includes_dir) \
+    $(foreach inc, $(sample_specifications_includes_dir), $(HOST_OUT_HEADERS)/$(inc)) \
     bionic/libc/kernel/common
 
 sample_specifications_includes_dir_target := \
-    $(sample_specifications_includes_dir) \
+    $(foreach inc, $(sample_specifications_includes_dir), $(TARGET_OUT_HEADERS)/$(inc)) \
     external/stlport/stlport \
     bionic
 
-sample_specifications_cflags := -Wall -Werror
+sample_specifications_static_lib += \
+    libaudio_comms_convert \
+    libaudio_comms_utilities
+
+sample_specifications_static_lib_host += \
+    $(foreach lib, $(sample_specifications_static_lib), $(lib)_host)
+
+sample_specifications_static_lib_target += \
+    $(sample_specifications_static_lib)
+
+sample_specifications_cflags := -Wall -Werror -Wno-unused-parameter
 
 #######################################################################
 # Build for libsamplespec with and without gcov for host and target
@@ -55,8 +68,10 @@ sample_specifications_cflags := -Wall -Werror
 define make_sample_specifications_lib
 $( \
     $(eval LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include) \
-    $(eval LOCAL_C_INCLUDES := $(sample_specifications_includes_dir_$(1))) \
+    $(eval LOCAL_C_INCLUDES := $(sample_specifications_common_includes_dir)) \
+    $(eval LOCAL_C_INCLUDES += $(sample_specifications_includes_dir_$(1))) \
     $(eval LOCAL_SRC_FILES := $(sample_specifications_src_files)) \
+    $(eval LOCAL_STATIC_LIBRARIES := $(sample_specifications_static_lib_$(1))) \
     $(eval LOCAL_CFLAGS := $(sample_specifications_cflags)) \
     $(eval LOCAL_MODULE_TAGS := optional) \
 )

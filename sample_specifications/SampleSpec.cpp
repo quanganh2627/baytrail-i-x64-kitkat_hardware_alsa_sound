@@ -21,6 +21,7 @@
 #include <cutils/log.h>
 #include <stdint.h>
 #include <errno.h>
+#include <limits>
 
 using namespace std;
 
@@ -51,7 +52,7 @@ void CSampleSpec::init(uint32_t channel,
                        uint32_t format,
                        uint32_t rate)
 {
-    _channelMask = 0;
+    _uiChannelMask = 0;
     setSampleSpecItem(EChannelCountSampleSpecItem, channel);
     setSampleSpecItem(EFormatSampleSpecItem, format);
     setSampleSpecItem(ERateSampleSpecItem, rate);
@@ -78,7 +79,7 @@ void CSampleSpec::setSampleSpecItem(SampleSpecItem eSampleSpecItem, uint32_t uiV
 
 void CSampleSpec::setChannelsPolicy(const vector<ChannelsPolicy>& channelsPolicy)
 {
-    LOG_ALWAYS_FATAL_IF(channelsPolicy.size() >= MAX_CHANNELS);
+    LOG_ALWAYS_FATAL_IF(channelsPolicy.size() > _auiSampleSpec[EChannelCountSampleSpecItem]);
     _aChannelsPolicy = channelsPolicy;
 }
 
@@ -107,12 +108,17 @@ size_t CSampleSpec::convertBytesToFrames(size_t bytes) const
 
 size_t CSampleSpec::convertFramesToBytes(size_t frames) const
 {
+    LOG_ALWAYS_FATAL_IF(getFrameSize() == 0);
+    LOG_ALWAYS_FATAL_IF(frames > numeric_limits<size_t>::max() / getFrameSize());
     return frames * getFrameSize();
 }
 
 size_t CSampleSpec::convertFramesToUsec(uint32_t uiFrames) const
 {
-    return USEC_PER_SEC * (uint64_t)uiFrames / getSampleRate();
+    LOG_ALWAYS_FATAL_IF(getSampleRate() == 0);
+    LOG_ALWAYS_FATAL_IF((uiFrames / getSampleRate()) >
+                        (numeric_limits<size_t>::max() / USEC_PER_SEC));
+    return (USEC_PER_SEC * static_cast<uint64_t>(uiFrames)) / getSampleRate();
 }
 
 size_t CSampleSpec::convertUsecToframes(uint32_t uiIntervalUsec) const

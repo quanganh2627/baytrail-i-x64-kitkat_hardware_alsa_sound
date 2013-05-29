@@ -37,7 +37,7 @@ public:
     // to AudioSystem enum
     static int convertTinyToHalFormat(pcm_format format);
     static pcm_format convertHalToTinyFormat(int format);
-    static int getCardNumberByName(const char* name);
+    static int getCardIndexByName(const char* name);
 
     static uint32_t convertUsecToMsec(uint32_t uiTimeUsec);
 
