@@ -347,7 +347,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening,DeepMedia"
+        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening,DeepMedia,FMIA"
     },
     //
     // HWCODEC 1 route
@@ -381,7 +381,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening,DeepMedia"
+        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening,DeepMedia,FMIA"
     },
     //
     // ModemIA route
@@ -468,9 +468,9 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             (1 << AudioSystem::MODE_NORMAL),
-            NOT_APPLICABLE
+            (1 << AudioSystem::MODE_NORMAL)
         },
-       NOT_APPLICABLE,
+        NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
@@ -765,7 +765,23 @@ class CAudioExternalRouteFMIA : public CAudioExternalRoute
 {
 public:
     CAudioExternalRouteFMIA(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioExternalRoute(uiRouteIndex, pPlatformState) {
+        CAudioExternalRoute(uiRouteIndex, pPlatformState)
+    {
+    }
+
+    virtual bool isApplicable(uint32_t __UNUSED devices, int __UNUSED mode,
+                              bool __UNUSED isOut,
+                              uint32_t __UNUSED flags = 0) const
+    {
+        if (_pPlatformState->isFmStateOn()) {
+
+            // FM_OUT is activated as it is declared as a slave of Codec0,Codec1
+            // FM_IN is activated as PFW logic required FM_IN in OpenedPlayback route
+            // for FmRx UC
+            return true;
+        }
+
+        return false;
     }
 };
 
