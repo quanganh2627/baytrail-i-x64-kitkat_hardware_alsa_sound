@@ -73,7 +73,7 @@ int CAudioUtils::convertTinyToHalFormat(pcm_format format)
         convFormat = AUDIO_FORMAT_PCM_16_BIT;
         break;
     case PCM_FORMAT_S32_LE:
-        convFormat = AUDIO_FORMAT_PCM_32_BIT;
+        convFormat = AUDIO_FORMAT_PCM_8_24_BIT;
         break;
     default:
         ALOGE("%s: format not recognized", __FUNCTION__);
@@ -92,7 +92,7 @@ pcm_format CAudioUtils::convertHalToTinyFormat(int format)
     case AUDIO_FORMAT_PCM_16_BIT:
         convFormat = PCM_FORMAT_S16_LE;
         break;
-    case AUDIO_FORMAT_PCM_32_BIT:
+    case AUDIO_FORMAT_PCM_8_24_BIT:
         convFormat = PCM_FORMAT_S32_LE;
         break;
     default:
