@@ -39,7 +39,6 @@
 
 #define base ALSAStreamOps
 
-
 using namespace std;
 
 namespace android_audio_legacy
@@ -108,20 +107,24 @@ void AudioStreamInALSA::releaseBuffer(AudioBufferProvider::Buffer __UNUSED * buf
 
 ssize_t AudioStreamInALSA::readHwFrames(void *buffer, size_t frames)
 {
-    int ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
+    int ret = 0;
+    uint32_t uiRetryCount = 0;
 
-    if (ret) {
+    do {
+        ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
 
-        //
-        // @todo: Shall we try some recover procedure???
-        //
-        ALOGE("%s: read error: requested %d (bytes=%d)frames %s",
-              __FUNCTION__,
-              frames,
-              mHwSampleSpec.convertFramesToBytes(frames),
-              pcm_get_error(mHandle));
-        return ret;
-    }
+        ALOGV("%s %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
+
+        if (ret != 0) {
+            ALOGE("%s: read error: requested %d (bytes=%d) frames %s",
+                  __FUNCTION__,
+                  frames,
+                  mHwSampleSpec.convertFramesToBytes(frames),
+                  pcm_get_error(mHandle));
+            LOG_ALWAYS_FATAL_IF(++uiRetryCount >= MAX_READ_WRITE_RETRIES,
+                                    "Hardware not responding, restarting media server");
+        }
+    } while (ret != 0);
 
     return frames;
 }
