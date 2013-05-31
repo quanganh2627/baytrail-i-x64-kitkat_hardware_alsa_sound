@@ -683,6 +683,16 @@ public:
         CAudioExternalRoute(uiRouteIndex, pPlatformState)
     {
     }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
+                              uint32_t __UNUSED uiMask = 0) const {
+
+        if (bIsOut && _pPlatformState->isFmStateOn()) {
+
+            return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+        }
+        return false;
+    }
 };
 
 class CAudioExternalRouteHwCodecMedia : public CAudioExternalRoute
@@ -709,16 +719,6 @@ public:
                         CAudioPlatformState::EInputDevicesChange |
                         CAudioPlatformState::EInputSourceChange |
                         CAudioPlatformState::EHwModeChange);
-    }
-
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
-                              uint32_t __UNUSED uiMask = 0) const {
-
-        if (bIsOut && _pPlatformState->isFmStateOn()) {
-
-            return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
-        }
-        return false;
     }
 };
 
