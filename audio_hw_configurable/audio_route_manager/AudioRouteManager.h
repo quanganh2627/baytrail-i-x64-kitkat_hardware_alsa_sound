@@ -398,13 +398,70 @@ private:
      * @return status_t
      */
     status_t doSetParameters(const String8& keyValuePairs);
+
+    /**
+     * Do Screen State specific parameters pop & set.
+     * Pop all screen state parameters provided in the key/value and set those which are handled.
+     * Screen key value pair will be removed if found.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doSetScreenStateParameters(AudioParameter &param);
+
+    /**
+     * Do TTY specific parameters pop & set.
+     * Pop all TTY specific parameters provided in the key/value and set those which are handled.
+     * TTY key value pair will be removed if found.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doSetTtyParameters(AudioParameter &param);
+
+    /**
+     * Do HAC specific parameters pop & set.
+     * Pop all HAC specific parameters provided in the key/value and set those which are handled.
+     * HAC key value pair will be removed if found.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doSetHacParameters(AudioParameter &param);
+
+    /**
+     * Do Stream Flags specific parameters pop & set.
+     * Pop all Stream Flags  specific parameters provided in the key/value
+     * and set those which are handled.
+     * Stream Flags key value pair will be removed if found.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doSetStreamFlagsParameters(AudioParameter &param);
+
+    /**
+     * Do FM specific parameters pop & set.
+     * Pop all FM specific parameters provided in the key/value and set those which are handled.
+     * FM key value pairs will be removed if found.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doSetFmParameters(AudioParameter &param);
+
     /**
      * Do BT specific parameters pop & set.
      * Pop all BT specific parameters provided in the key/value and set those which are handled.
+     * BT key value pairs will be removed if found.
      *
-     * @param[in:out] param: the key/value pairs of parameters
+     * @param[in/out] param: reference of parameters helper object.
      */
-    void doSetBTParameters(AudioParameter& param);
+    void doSetBTParameters(AudioParameter &param);
+
+    /**
+     * Do Context Awareness specific parameters pop & set.
+     * Pop all BT specific parameters provided in the key/value and set those which are handled.
+     * Context Awareness key value pair will be removed if found.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doSetContextAwarenessParameters(AudioParameter &param);
 
     void createsRoutes();
 

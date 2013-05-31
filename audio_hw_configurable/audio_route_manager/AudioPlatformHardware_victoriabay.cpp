@@ -459,10 +459,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "HWCODEC_AUX_PORT,FM_I2S_PORT",
         {
             NOT_APPLICABLE,
-            NOT_APPLICABLE
+            DEVICE_OUT_MM_ALL
         },
         {
-            AUDIO_SOURCE_MIC,
+            NOT_APPLICABLE,
             AUDIO_OUTPUT_FLAG_NONE
         },
         {
@@ -661,6 +661,19 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
+
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - output devices did not change
+        return CAudioRoute::needReconfiguration(bIsOut) &&
+                _pPlatformState->hasPlatformStateChanged(
+                       CAudioPlatformState::EOutputDevicesChange |
+                       CAudioPlatformState::EInputDevicesChange |
+                       CAudioPlatformState::EHacModeChange |
+                       CAudioPlatformState::ETtyDirectionChange |
+                       CAudioPlatformState::EBandTypeChange);
+    }
 };
 
 class CAudioExternalRouteHwCodecFm : public CAudioExternalRoute
@@ -669,6 +682,43 @@ public:
     CAudioExternalRouteHwCodecFm(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioExternalRoute(uiRouteIndex, pPlatformState)
     {
+    }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
+                              uint32_t __UNUSED uiMask = 0) const {
+
+        if (bIsOut && _pPlatformState->isFmStateOn()) {
+
+            return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+        }
+        return false;
+    }
+};
+
+class CAudioExternalRouteHwCodecMedia : public CAudioExternalRoute
+{
+public:
+    CAudioExternalRouteHwCodecMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioExternalRoute(uiRouteIndex, pPlatformState)
+    {
+    }
+
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - output devices did not change
+        if (bIsOut) {
+
+            return CAudioRoute::needReconfiguration(bIsOut) &&
+                    _pPlatformState->hasPlatformStateChanged(
+                            CAudioPlatformState::EOutputDevicesChange |
+                            CAudioPlatformState::EHwModeChange);
+        }
+        return CAudioRoute::needReconfiguration(bIsOut) &&
+                _pPlatformState->hasPlatformStateChanged(
+                        CAudioPlatformState::EInputDevicesChange |
+                        CAudioPlatformState::EInputSourceChange |
+                        CAudioPlatformState::EHwModeChange);
     }
 };
 
@@ -735,7 +785,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     } else if (strName == "HwCodecMedia") {
 
-        return new CAudioExternalRoute(uiRouteIndex, pPlatformState);
+        return new CAudioExternalRouteHwCodecMedia(uiRouteIndex, pPlatformState);
 
     } else if (strName == "HwCodecCSV") {
 

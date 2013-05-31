@@ -177,10 +177,10 @@ endif
 
 ifeq ($(BOARD_USES_GTI_FRAMEWORK),true)
 LOCAL_C_INCLUDES += \
-    hardware/intel/PRIVATE/gti/GtiService \
-    hardware/intel/PRIVATE/gti/include \
-    hardware/intel/PRIVATE/uta_os/include \
-    hardware/intel/PRIVATE/gti/uta_inc
+    vendor/intel/hardware/PRIVATE/gti/GtiService \
+    vendor/intel/hardware/PRIVATE/gti/include \
+    vendor/intel/hardware/PRIVATE/uta_os/include \
+    vendor/intel/hardware/PRIVATE/gti/uta_inc
 
 LOCAL_SHARED_LIBRARIES += libgtisrv
 

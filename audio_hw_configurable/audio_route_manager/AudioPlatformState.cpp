@@ -38,6 +38,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _eBtHeadsetBandType(CAudioBand::ENarrow),
     _bIsBtEnabled(false),
     _uiInputSource(0),
+    _bFmIsOn(false),
     _uiDirectStreamsRefCount(0),
     _iHwMode(AudioSystem::MODE_NORMAL),
     _eCsvBandType(CAudioBand::ENarrow),
@@ -221,6 +222,17 @@ void CAudioPlatformState::setInputSource(uint32_t inputSource)
     setPlatformStateEvent(EInputSourceChange);
 }
 
+// Set FM state
+void CAudioPlatformState::setFmState(bool bIsFmOn)
+{
+    if (_bFmIsOn == bIsFmOn) {
+
+        return;
+    }
+    _bFmIsOn = bIsFmOn;
+    setPlatformStateEvent(EFmStateChange);
+}
+
 CAudioBand::Type CAudioPlatformState::getBandType() const
 {
     return getHwMode() == AudioSystem::MODE_IN_COMMUNICATION ? _eVoipBandType : _eCsvBandType ;
@@ -356,7 +368,13 @@ void CAudioPlatformState::setDirectStreamEvent(uint32_t uiFlags)
         _uiDirectStreamsRefCount += 1;
     } else {
 
-        _uiDirectStreamsRefCount -= 1;
+        ALOGW_IF(_uiDirectStreamsRefCount == 0,
+                            "%s: Decrement null direct stream reference counter "
+                            "ok if restarting media", __FUNCTION__);
+        if (_uiDirectStreamsRefCount > 0) {
+
+            _uiDirectStreamsRefCount -= 1;
+        }
     }
     if (hadDirectStreams != (_uiDirectStreamsRefCount != 0)) {
 

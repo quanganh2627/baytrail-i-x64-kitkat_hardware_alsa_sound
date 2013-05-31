@@ -88,6 +88,7 @@ public:
         StreamEvent,
         ScreenStateChange,
         ContextAwarenessStateChange,
+        FmStateChange,
 
         NbEvents
     };
@@ -111,7 +112,8 @@ public:
         ADD_EVENT(SharedI2SStateChange),
         ADD_EVENT(StreamEvent),
         ADD_EVENT(ScreenStateChange),
-        ADD_EVENT(ContextAwarenessStateChange)
+        ADD_EVENT(ContextAwarenessStateChange),
+        ADD_EVENT(FmStateChange)
     };
 
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
@@ -220,6 +222,15 @@ public:
     bool isContextAwarenessEnabled() const { return _bIsContextAwarenessEnabled; }
 
     /**
+     * Get FM State.
+     *
+     * @return true if FM module is powered on by FM stack.
+     */
+    inline bool isFmStateOn() const { return _bFmIsOn; }
+
+    void setFmState(bool bIsFmOn);
+
+    /**
       * Set the Band Type.
       * Band Type may come from either the modem (CSV) or from the stream (VoIP).
       *
@@ -289,6 +300,8 @@ private:
     uint32_t _uiDevices[ENbDirections];
 
     uint32_t _uiInputSource;
+
+    bool _bFmIsOn;
 
     uint32_t _uiDirectStreamsRefCount;
 
