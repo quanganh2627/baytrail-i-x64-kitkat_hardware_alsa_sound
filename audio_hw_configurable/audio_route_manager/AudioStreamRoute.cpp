@@ -279,6 +279,14 @@ status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)
                                         pcm_get_error(_astPcmDevice[bIsOut]));
         goto close_device;
     }
+
+    ALOGW_IF((getPcmConfig(bIsOut).period_count * getPcmConfig(bIsOut).period_size) !=
+            (pcm_get_buffer_size(_astPcmDevice[bIsOut])),
+             "%s, refine done by alsa, ALSA RingBuffer = %d (frames), "
+             "expected by AudioHAL and AudioFlinger = %d (frames)",
+             __FUNCTION__, pcm_get_buffer_size(_astPcmDevice[bIsOut]),
+             getPcmConfig(bIsOut).period_count * getPcmConfig(bIsOut).period_size);
+
     return NO_ERROR;
 
 close_device:
