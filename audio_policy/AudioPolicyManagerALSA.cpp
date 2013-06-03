@@ -454,6 +454,26 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
     return (audio_devices_t)device;
 }
 
+void AudioPolicyManagerALSA::releaseInput(audio_io_handle_t input)
+{
+    baseClass::releaseInput(input);
+    int mInputsSize = mInputs.size();
+    ALOGD("%s(input %d) mInputs.size() = %d", __FUNCTION__, input, mInputsSize);
+
+    //We will check if it is necessary to reroute latest stopped input stream. This stream
+    //is stored at the end of array.
+    //In order to ensure that only one input stream is active, we will check the status
+    //of currently active input.
+    if ((mInputsSize > 0) && (getActiveInput() == 0)) {
+        AudioInputDescriptor *inputDesc = mInputs.valueAt(mInputsSize - 1);
+        inputDesc->mRefCount = 1;
+        AudioParameter param;
+        param.addInt(String8(AudioParameter::keyRouting), (int)inputDesc->mDevice);
+        param.addInt(String8(AudioParameter::keyInputSource), (int)inputDesc->mInputSource);
+        mpClientInterface->setParameters(mInputs.keyAt(mInputsSize - 1), param.toString());
+    }
+}
+
 AudioPolicyManagerALSA::AudioPolicyManagerALSA(AudioPolicyClientInterface *clientInterface) :
     baseClass(clientInterface),
     mVoiceVolumeAppliedAfterMixInComm(false),

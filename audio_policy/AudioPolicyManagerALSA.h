@@ -64,6 +64,14 @@ public:
 
     virtual audio_devices_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
 
+    /**
+      * This function delegates to parent implementation the release of input stream and then
+      * it checks if it is necessary to restart a previously stopped input stream.
+      *
+      * @param [in] input handle of input stream to release
+      */
+    virtual void releaseInput(audio_io_handle_t input);
+
  private:
     // Is voice volume applied after mixing while in mode IN_COMM ?
     bool mVoiceVolumeAppliedAfterMixInComm;
