@@ -96,15 +96,6 @@ protected:
     CSampleSpec             mSampleSpec;
     CSampleSpec             mHwSampleSpec;
 
-    /**
-     * maximum number of read/write retries.
-     *
-     * This constant is used to set maximum number of retries to do
-     * on write/read operations before stating that error is not
-     * recoverable and reset media server.
-     */
-    static const uint32_t MAX_READ_WRITE_RETRIES = 50;
-
 private:
     void        storeAndResetPmDownDelay();
     void        restorePmDownDelay();
