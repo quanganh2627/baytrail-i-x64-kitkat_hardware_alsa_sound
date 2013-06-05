@@ -43,7 +43,7 @@ const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
 const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
 const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
 const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 2;
-const uint32_t AudioStreamOutALSA ::USEC_PER_MSEC = 1000;
+const uint32_t AudioStreamOutALSA::USEC_PER_MSEC = 1000;
 const uint32_t AudioStreamOutALSA::DEEP_PLAYBACK_PERIOD_TIME_US = 96000;
 const uint32_t AudioStreamOutALSA::PLAYBACK_PERIOD_TIME_US = 48000;
 
@@ -114,10 +114,10 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
         if (ret != -EPIPE) {
 
-            // Returns asap to catch up the broken pipe error else, trash the audio data
-            // and sleep the time the driver may use to consume it.
-            ALOGD("%s(buffer=%p, bytes=%d) Broken pipe. Generating silence to alsa device (0x%x).",
-                __FUNCTION__, buffer, bytes, getCurrentDevices());
+            // Returns asap to catch up the returned error else, trash the audio data
+            // and sleep the time the driver may need to consume it.
+            ALOGD("%s(buffer=%p, bytes=%d) %s. Generating silence to alsa device (0x%x).",
+                __FUNCTION__, buffer, bytes, pcm_get_error(mHandle), getCurrentDevices());
             generateSilence(bytes);
         }
 
@@ -131,18 +131,30 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
 {
     int ret;
+    uint32_t uiRetryCount = 0;
 
-    ret = pcm_write(mHandle,
-                  (char *)buffer,
-                  pcm_frames_to_bytes(mHandle, frames ));
+    do {
+        ret = pcm_write(mHandle, (char *)buffer, pcm_frames_to_bytes(mHandle, frames));
 
-    ALOGV("%s %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
+        ALOGV("%s %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
 
-    if (ret) {
+        if (ret != 0) {
+            ALOGE("%s: write error: %d %s", __FUNCTION__, ret, pcm_get_error(mHandle));
+            LOG_ALWAYS_FATAL_IF(++uiRetryCount >= MAX_READ_WRITE_RETRIES,
+                                    "Hardware not responding, restarting media server");
 
-        ALOGE("%s: write error: %s", __FUNCTION__, pcm_get_error(mHandle));
-        return ret;
-    }
+            // Get the number of microseconds to sleep, inferred from the number of
+            // frames to write.
+            size_t sSleepUSecs = mHwSampleSpec.convertFramesToUsec(frames);
+
+            // Go sleeping before trying I/O operation again.
+            if (!safeSleep(sSleepUSecs)) {
+                // If some error arises when trying to sleep, try I/O operation anyway.
+                // Error counter will provoke the restart of mediaserver.
+                ALOGE("%s:  Error while calling nanosleep interface", __FUNCTION__);
+            }
+        }
+    } while (ret != 0);
 
     return frames;
 }

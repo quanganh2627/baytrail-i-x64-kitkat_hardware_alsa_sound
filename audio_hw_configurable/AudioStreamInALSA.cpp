@@ -108,20 +108,35 @@ void AudioStreamInALSA::releaseBuffer(AudioBufferProvider::Buffer __UNUSED * buf
 
 ssize_t AudioStreamInALSA::readHwFrames(void *buffer, size_t frames)
 {
-    int ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
+    int ret;
+    uint32_t uiRetryCount = 0;
 
-    if (ret) {
+    do {
+        ret = pcm_read(mHandle, (char *)buffer, mHwSampleSpec.convertFramesToBytes(frames));
 
-        //
-        // @todo: Shall we try some recover procedure???
-        //
-        ALOGE("%s: read error: requested %d (bytes=%d)frames %s",
-              __FUNCTION__,
-              frames,
-              mHwSampleSpec.convertFramesToBytes(frames),
-              pcm_get_error(mHandle));
-        return ret;
-    }
+        ALOGV("%s %d %d", __FUNCTION__, ret, pcm_frames_to_bytes(mHandle, frames));
+
+        if (ret != 0) {
+            ALOGE("%s: read error: requested %d (bytes=%d) frames %s",
+                  __FUNCTION__,
+                  frames,
+                  mHwSampleSpec.convertFramesToBytes(frames),
+                  pcm_get_error(mHandle));
+            LOG_ALWAYS_FATAL_IF(++uiRetryCount >= MAX_READ_WRITE_RETRIES,
+                                    "Hardware not responding, restarting media server");
+
+            // Get the number of microseconds to sleep, inferred from the number of
+            // frames to write.
+            size_t sSleepUSecs = mHwSampleSpec.convertFramesToUsec(frames);
+
+            // Go sleeping before trying I/O operation again.
+            if (!safeSleep(sSleepUSecs)) {
+                // If some error arises when trying to sleep, try I/O operation anyway.
+                // Error counter will provoke the restart of mediaserver.
+                ALOGE("%s:  Error while calling nanosleep interface", __FUNCTION__);
+            }
+        }
+    } while (ret != 0);
 
     return frames;
 }

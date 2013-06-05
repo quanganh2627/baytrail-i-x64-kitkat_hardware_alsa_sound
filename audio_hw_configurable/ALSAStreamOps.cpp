@@ -462,4 +462,18 @@ void ALSAStreamOps::setStarted(bool bIsStarted)
     mStandby = !bIsStarted;
 }
 
+bool ALSAStreamOps::safeSleep(uint32_t uiSleepTimeUs)
+{
+    struct timespec tim, tim2;
+
+    if (uiSleepTimeUs > MAX_SLEEP_TIME) {
+        uiSleepTimeUs = MAX_SLEEP_TIME;
+    }
+
+    tim.tv_sec = 0;
+    tim.tv_nsec = uiSleepTimeUs * NSEC_PER_USEC;
+
+    return nanosleep(&tim, &tim2) > 0;
+}
+
 }       // namespace android
