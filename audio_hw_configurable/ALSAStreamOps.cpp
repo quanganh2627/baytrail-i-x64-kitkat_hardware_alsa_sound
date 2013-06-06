@@ -56,10 +56,6 @@ namespace android_audio_legacy
 
 const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
 
-static const char* heasetPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Headset//pmdown_time";
-static const char* speakerPmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Speaker//pmdown_time";
-static const char* voicePmDownDelaySysFile = "//sys//devices//ipc//msic_audio//Medfield Voice//pmdown_time";
-
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
     mParent(parent),
     mHandle(NULL),
@@ -305,88 +301,6 @@ status_t ALSAStreamOps::detachRoute()
     mCurrentDevices = 0;
 
     return NO_ERROR;
-}
-
-int ALSAStreamOps::readSysEntry(const char* filePath)
-{
-    int fd;
-    if ((fd = ::open(filePath, O_RDONLY)) < 0)
-    {
-        ALOGE("Could not open file %s", filePath);
-        return 0;
-    }
-    char buff[STR_FORMAT_LENGTH];
-    int val = 0;
-    int32_t count = ::read(fd, buff, sizeof(buff) - 1);
-    if (count < 1)
-    {
-        ALOGE("Could not read file error %s", strerror(errno));
-    }
-    else
-    {
-        // Zero terminate string
-        buff[count] = '\0';
-        ALOGD("read %d bytes = %s", count, buff);
-        val = strtol(buff, NULL, 0);
-    }
-
-    ::close(fd);
-    return val;
-}
-
-void ALSAStreamOps::writeSysEntry(const char* filePath, int value)
-{
-    int fd;
-
-    if ((fd = ::open(filePath, O_WRONLY)) < 0)
-    {
-        ALOGE("Could not open file %s", filePath);
-        return ;
-    }
-    char buff[STR_FORMAT_LENGTH + 1];
-    snprintf(buff, sizeof(buff), "%d", value);
-    uint32_t count = ::write(fd, buff, strlen(buff));
-    if (count != strlen(buff)) {
-
-        ALOGE("could not write ret=%d", count);
-    } else {
-
-        ALOGD("written %d bytes = %s", count, buff);
-    }
-    ::close(fd);
-}
-
-void ALSAStreamOps::storeAndResetPmDownDelay()
-{
-    if (mIsReset) {
-
-        return ;
-    }
-
-    LOGD("storeAndResetPmDownDelay not resetted");
-    headsetPmDownDelay = readSysEntry(heasetPmDownDelaySysFile);
-    speakerPmDownDelay = readSysEntry(speakerPmDownDelaySysFile);
-    voicePmDownDelay = readSysEntry(voicePmDownDelaySysFile);
-
-    writeSysEntry(heasetPmDownDelaySysFile, 0);
-    writeSysEntry(speakerPmDownDelaySysFile, 0);
-    writeSysEntry(voicePmDownDelaySysFile, 0);
-
-    mIsReset = true;
-}
-
-void ALSAStreamOps::restorePmDownDelay()
-{
-    if (!mIsReset) {
-
-        return ;
-    }
-    ALOGD("restorePmDownDelay restoring");
-    writeSysEntry(heasetPmDownDelaySysFile, headsetPmDownDelay);
-    writeSysEntry(speakerPmDownDelaySysFile, speakerPmDownDelay);
-    writeSysEntry(voicePmDownDelaySysFile, voicePmDownDelay);
-
-    mIsReset = false;
 }
 
 status_t ALSAStreamOps::configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)

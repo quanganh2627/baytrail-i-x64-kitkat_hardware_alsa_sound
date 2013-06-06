@@ -97,12 +97,6 @@ protected:
     CSampleSpec             mHwSampleSpec;
 
 private:
-    void        storeAndResetPmDownDelay();
-    void        restorePmDownDelay();
-
-    void        writeSysEntry(const char* filePath, int value);
-    int         readSysEntry(const char* filePath);
-
     // Configure the audio conversion chain
     android::status_t configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
 
