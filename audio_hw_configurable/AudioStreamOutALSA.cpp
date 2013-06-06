@@ -42,7 +42,7 @@ namespace android_audio_legacy
 const uint32_t AudioStreamOutALSA::MAX_AGAIN_RETRY = 2;
 const uint32_t AudioStreamOutALSA::WAIT_TIME_MS = 20;
 const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
-const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 2;
+const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
 const uint32_t AudioStreamOutALSA::USEC_PER_MSEC = 1000;
 const uint32_t AudioStreamOutALSA::DEEP_PLAYBACK_PERIOD_TIME_US = 96000;
 const uint32_t AudioStreamOutALSA::PLAYBACK_PERIOD_TIME_US = 48000;
