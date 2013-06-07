@@ -72,12 +72,14 @@ public:
 
     virtual void log(bool bIsWarning, const string& strLog)
     {
+        const static char format[] = "parameter-framework: %s";
+
         if (bIsWarning) {
 
-            ALOGW("%s", strLog.c_str());
+            ALOGW(format, strLog.c_str());
         } else {
 
-            ALOGD("%s", strLog.c_str());
+            ALOGD(format, strLog.c_str());
         }
     }
 };
@@ -1502,20 +1504,6 @@ void CAudioRouteManager::executeConfigureStage()
     configureRoutes(CUtils::EOutput);
     configureRoutes(CUtils::EInput);
 
-#ifdef OPEN_ROUTES_BEFORE_CONFIG
-    // LPE centric arch requires to enable the route (from stream point of view, ie
-    // opening the audio device) before configuring the LPE
-    enableRoutes(CUtils::EOutput);
-    enableRoutes(CUtils::EInput);
-#else
-    if (!_bRoutingLocked) {
-        // LPE centric arch requires to enable the route (from stream point of view, ie
-        // opening the audio device) before configuring the LPE
-        enableRoutes(CUtils::EOutput);
-        enableRoutes(CUtils::EInput);
-    }
-#endif
-
     // Change here the devices, the mode, ... all the criteria required for the routing
     _apSelectedCriteria[ESelectedMode]->setCriterionState(
                 _pPlatformState->getHwMode());
@@ -1580,25 +1568,13 @@ void CAudioRouteManager::executeDisableStage()
     prepareDisableRoutes(CUtils::EInput);
     prepareDisableRoutes(CUtils::EOutput);
 
-#ifndef OPEN_ROUTES_BEFORE_CONFIG
-    if (_bRoutingLocked) {
-
-        doDisableRoutes(CUtils::EInput);
-        doDisableRoutes(CUtils::EOutput);
-    }
-#endif
+    doDisableRoutes(CUtils::EInput);
+    doDisableRoutes(CUtils::EOutput);
 
     _pParameterMgrPlatformConnector->applyConfigurations();
 
-#ifndef OPEN_ROUTES_BEFORE_CONFIG
-    if (!_bRoutingLocked) {
-#endif
-
-        doDisableRoutes(CUtils::EInput);
-        doDisableRoutes(CUtils::EOutput);
-#ifndef OPEN_ROUTES_BEFORE_CONFIG
-    }
-#endif
+    doPostDisableRoutes<CUtils::EInput>();
+    doPostDisableRoutes<CUtils::EOutput>();
 }
 
 void CAudioRouteManager::prepareDisableRoutes(bool bIsOut)
@@ -1624,7 +1600,7 @@ void CAudioRouteManager::prepareDisableRoutes(bool bIsOut)
     selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
 }
 
-void CAudioRouteManager::doDisableRoutes(bool bIsOut)
+void CAudioRouteManager::doDisableRoutes(bool bIsOut, bool bIsPostDisable)
 {
     RouteListIterator it;
 
@@ -1639,7 +1615,8 @@ void CAudioRouteManager::doDisableRoutes(bool bIsOut)
         // Disable Routes that were opened before reconsidering the routing
         // and will be closed after.
         //
-        if (pRoute->currentlyUsed(bIsOut) && !pRoute->willBeUsed(bIsOut)) {
+        if ((bIsPostDisable == pRoute->isPostDisableRequired()) &&
+                pRoute->currentlyUsed(bIsOut) && !pRoute->willBeUsed(bIsOut)) {
 
             pRoute->unroute(bIsOut);
         }
@@ -1653,19 +1630,17 @@ void CAudioRouteManager::executeEnableStage()
     // Warn PFW
     _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EPath|EConfigure);
 
-        _pParameterMgrPlatformConnector->applyConfigurations();
+    doPreEnableRoutes<CUtils::EOutput>();
+    doPreEnableRoutes<CUtils::EInput>();
 
-#ifndef OPEN_ROUTES_BEFORE_CONFIG
-    if (_bRoutingLocked) {
+    _pParameterMgrPlatformConnector->applyConfigurations();
 
-        // Connect all streams that need to be connected (starting from output streams)
-        enableRoutes(CUtils::EOutput);
-        enableRoutes(CUtils::EInput);
-    }
-#endif
+    // Connect all streams that need to be connected (starting from output streams)
+    doEnableRoutes(CUtils::EOutput);
+    doEnableRoutes(CUtils::EInput);
 }
 
-void CAudioRouteManager::enableRoutes(bool bIsOut)
+void CAudioRouteManager::doEnableRoutes(bool bIsOut, bool bIsPreEnable)
 {
     ALOGV("%s for %s:", __FUNCTION__,
           bIsOut ? "output" : "input");
@@ -1685,7 +1660,8 @@ void CAudioRouteManager::enableRoutes(bool bIsOut)
         CAudioRoute* pRoute = *it;
 
         // If the route is external and was set busy -> it needs to be routed
-        if (!pRoute->currentlyUsed(bIsOut) && pRoute->willBeUsed(bIsOut)) {
+        if ((bIsPreEnable == pRoute->isPreEnableRequired()) &&
+                !pRoute->currentlyUsed(bIsOut) && pRoute->willBeUsed(bIsOut)) {
 
             if (pRoute->route(bIsOut) != NO_ERROR) {
 

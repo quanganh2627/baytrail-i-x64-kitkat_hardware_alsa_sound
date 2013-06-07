@@ -18,25 +18,56 @@
 
 #include <tinyalsa/asoundlib.h>
 
-#define VOICE_PERIOD_TIME_MS            ((int)20)
+/**
+ *  24 ms makes a PCM frames count of 1152 which is aligned on a 16-frames
+ *  boundary. This is the best optimized size for a buffer in the LPE.
+ */
+#define PLAYBACK_PERIOD_TIME_MS         ((int)24)
+/**
+ * 20 ms makes a PCM frames count of 960 which is aligned on a 16-frames
+ * boundary. Also 20 ms is optimized for Audioflinger's minimal buffer size.
+ */
+#define CAPTURE_PERIOD_TIME_MS          ((int)20)
 #define SEC_PER_MSEC                    ((int)1000)
 
-/**< May add a new route, include header here */
-#define SAMPLE_RATE_16000               (16000) /**< 16K sample rate is used for VoIP */
-#define SAMPLE_RATE_48000               (48000)
-/**< This is 32ms @ 16k */
-#define VOICE_16000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_16000 / SEC_PER_MSEC)
-#define PLAYBACK_48000_PERIOD_SIZE      (6000) /**< (24000*2 * 48000 / USEC_PER_SEC) */
-#define CAPTURE_48000_PERIOD_SIZE       (1152) /**< (CAPTURE_48000_PERIOD_SIZE * 48000 / USEC_PER_SEC) */
+#define SAMPLE_RATE_16000               (16000)  /**< 16Khz sample rate is used for VoIP */
+#define SAMPLE_RATE_48000               (48000)  /**< 48Khz sample rate is used for Media */
+/**
+ * Voice downlink period size of 384 frames
+ */
+#define VOICE_DL_16000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_16000 / SEC_PER_MSEC)
+/**
+ * Voice uplink period size of 320 frames
+ */
+#define VOICE_UL_16000_PERIOD_SIZE      ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_16000 / SEC_PER_MSEC)
+/**
+ * Media playback period size of 1152 frames
+ */
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+/**
+ * Media capture period size of 960 frames
+ */
+#define CAPTURE_48000_PERIOD_SIZE       ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
-#define NB_RING_BUFFER_NORMAL           (2) /**< Use of 2 period sized buffers for media */
+/**
+ * Use of 2 period sized buffers for media in latency calculation
+ */
+#define NB_RING_BUFFER_NORMAL           (2)
+/**
+ * Use of 4 period sized buffers for VoIP in latency calculation
+ */
 #define NB_RING_BUFFER_INCALL           (4)
 
+/**
+ * Audio card for Media streams
+ */
 #define MEDIA_CARD_NAME                 ("lm49453audio")
 #define MEDIA_PLAYBACK_DEVICE_ID        (0)
 #define MEDIA_CAPTURE_DEVICE_ID         (0)
 
-/**< Audio card for VoIP calls */
+/**
+ * Audio card for VoIP calls
+ */
 #define VOICE_CARD_NAME                 ("lm49453audio")
 #define VOICE_DOWNLINK_DEVICE_ID        (2)
 #define VOICE_UPLINK_DEVICE_ID          (2)
@@ -77,25 +108,25 @@ const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback =
 static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
     rate            : SAMPLE_RATE_16000,
-    period_size     : VOICE_16000_PERIOD_SIZE,
+    period_size     : VOICE_DL_16000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_INCALL,
     format          : PCM_FORMAT_S16_LE,
-    start_threshold : VOICE_16000_PERIOD_SIZE,
-    stop_threshold  : VOICE_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    start_threshold : VOICE_DL_16000_PERIOD_SIZE,
+    stop_threshold  : VOICE_DL_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
     silence_threshold : 0,
-    avail_min       : VOICE_16000_PERIOD_SIZE,
+    avail_min       : VOICE_DL_16000_PERIOD_SIZE,
 };
 
 static const pcm_config pcm_config_voice_uplink = {
     channels        : 2,
     rate            : SAMPLE_RATE_16000,
-    period_size     : VOICE_16000_PERIOD_SIZE,
+    period_size     : VOICE_UL_16000_PERIOD_SIZE,
     period_count    : NB_RING_BUFFER_INCALL,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : VOICE_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold  : VOICE_UL_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
     silence_threshold : 0,
-    avail_min       : VOICE_16000_PERIOD_SIZE,
+    avail_min       : VOICE_UL_16000_PERIOD_SIZE,
 };
 
 const char* const CAudioPlatformHardware::_acPorts[] = {
@@ -517,6 +548,11 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
+
+    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    {
+        return false;
+    }
 };
 
 class CAudioExternalRouteHwCodec1IA : public CAudioExternalRoute
@@ -551,6 +587,11 @@ public:
             }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+    }
+
+    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    {
+        return false;
     }
 };
 
@@ -605,6 +646,11 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
+
+    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    {
+        return false;
+    }
 };
 
 class CAudioExternalRouteFMIA : public CAudioExternalRoute
@@ -626,6 +672,18 @@ public:
                               uint32_t __UNUSED uiFlags = 0) const {
         return !bIsOut && _pPlatformState->isContextAwarenessEnabled();
     }
+};
+
+class CAudioLPECentricStreamRoute : public CAudioStreamRoute
+{
+public:
+    CAudioLPECentricStreamRoute(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+    }
+
+    virtual bool isPreEnableRequired() { return true; }
+
+    virtual bool isPostDisableRequired() { return true; }
 };
 
 //
@@ -660,11 +718,11 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     } else if (strName == "Media") {
 
-        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "Voice") {
 
-        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "CompressedMedia") {
 

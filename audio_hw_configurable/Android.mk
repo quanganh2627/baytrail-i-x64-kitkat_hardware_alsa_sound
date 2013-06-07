@@ -130,11 +130,6 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := $(audio_hw_configurable_src_files)
 LOCAL_CFLAGS := $(audio_hw_configurable_cflags)
 
-
-ifeq ($(TARGET_DEVICE),saltbay)
-    LOCAL_CFLAGS += -DOPEN_ROUTES_BEFORE_CONFIG
-endif
-
 ifeq ($(ENABLE_AUDIO_DUMP),true)
   LOCAL_CFLAGS += -DENABLE_AUDIO_DUMP
   LOCAL_SRC_FILES += AudioDumpInterface.cpp
@@ -156,7 +151,6 @@ LOCAL_SHARED_LIBRARIES := \
     libmedia \
     libhardware \
     libhardware_legacy \
-    libxmlserializer \
     libparameter \
     libstlport \
     libicuuc \
