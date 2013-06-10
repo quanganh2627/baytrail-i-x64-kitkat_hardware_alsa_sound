@@ -374,6 +374,7 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                  ( device == AudioSystem::DEVICE_OUT_ANLG_DOCK_HEADSET) ||
                  ( device == AudioSystem::DEVICE_OUT_DGTL_DOCK_HEADSET) ||
                  ( device == AudioSystem::DEVICE_OUT_WIDI)              ||
+                 ( device == AUDIO_DEVICE_OUT_REMOTE_SUBMIX)            ||
                  ( device == AUDIO_DEVICE_OUT_USB_ACCESSORY)            ||
                  ( device == AUDIO_DEVICE_OUT_USB_DEVICE) ) {
                 uint32_t forceUseInComm =  getForceUse(AudioSystem::FOR_COMMUNICATION);
