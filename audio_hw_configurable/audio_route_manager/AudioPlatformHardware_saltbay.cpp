@@ -15,8 +15,11 @@
  */
 
 #include "AudioPlatformHardware.h"
+#include "Property.h"
 
 #include <tinyalsa/asoundlib.h>
+#include <sstream>
+#include <fstream>
 
 /**
  *  24 ms makes a PCM frames count of 1152 which is aligned on a 16-frames
@@ -61,14 +64,12 @@
 /**
  * Audio card for Media streams
  */
-#define MEDIA_CARD_NAME                 ("lm49453audio")
 #define MEDIA_PLAYBACK_DEVICE_ID        (0)
 #define MEDIA_CAPTURE_DEVICE_ID         (0)
 
 /**
  * Audio card for VoIP calls
  */
-#define VOICE_CARD_NAME                 ("lm49453audio")
 #define VOICE_DOWNLINK_DEVICE_ID        (2)
 #define VOICE_UPLINK_DEVICE_ID          (2)
 
@@ -129,12 +130,84 @@ static const pcm_config pcm_config_voice_uplink = {
     avail_min       : VOICE_UL_16000_PERIOD_SIZE,
 };
 
+// Location of the file containing the name of the card
+const char* const cardsPath = "/proc/asound/cards";
+
+// Name of the card (boomer)
+const char* lm49453audioCardName = "lm49453audio";
+
+// Name of the card (wm8958)
+const char* wm8958audioCardName = "wm8958audio";
+
+// Name of the card (unknown)
+const char* unknownAudioCardName = "unknown-audio-codec";
+
+// Retrieve the name of the current card
+const char* const mediaCardName = getCodecName();
+const char* const voiceCardName = getCodecName();
+
+// Defines the name of the Android property describing the name of the PFW configuration file
+const char* const gPfwConfFilePropName = "AudioComms.PFW.ConfPath";
+
+const char* const gPfwConfFileBoomerName =
+        "/etc/parameter-framework/ParameterFrameworkConfiguration-boomer.xml";
+
+const char* const gPfwConfFileWm8958Name =
+        "/etc/parameter-framework/ParameterFrameworkConfiguration-wm8958.xml";
+
 const char* const CAudioPlatformHardware::_acPorts[] = {
 };
 
 // Port Group and associated port
 const char* const CAudioPlatformHardware::_acPortGroups[] = {
 };
+
+// Read the name of the card from the file /proc/asound/cards
+const char* getCodecName()
+{
+    ifstream istrCards(cardsPath);
+
+    if (!istrCards.is_open()) {
+
+        ALOGE("Error opening file %s", cardsPath);
+
+        return unknownAudioCardName;
+    }
+
+    stringstream strmBuffer;
+    strmBuffer << istrCards.rdbuf();
+
+    if (istrCards.fail()) {
+
+        ALOGE("Error reading file %s", cardsPath);
+
+        return unknownAudioCardName;
+    }
+
+    string strCards(strmBuffer.str());
+    istrCards.close();
+
+    const char* card_name;
+    if (strCards.find(lm49453audioCardName) != string::npos) {
+
+        // boomer
+        card_name = lm49453audioCardName;
+        TProperty<string>(gPfwConfFilePropName).setValue(gPfwConfFileBoomerName);
+
+    } else if (strCards.find(wm8958audioCardName) != string::npos) {
+
+        // wm8958
+        card_name = wm8958audioCardName;
+        TProperty<string>(gPfwConfFilePropName).setValue(gPfwConfFileWm8958Name);
+
+    } else {
+
+        // not found
+        card_name = unknownAudioCardName;
+    }
+
+    return card_name;
+}
 
 //
 // Route description structure
@@ -173,7 +246,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             NOT_APPLICABLE
         },
-        MEDIA_CARD_NAME,
+        mediaCardName,
         {
             MEDIA_CAPTURE_DEVICE_ID,
             MEDIA_PLAYBACK_DEVICE_ID
@@ -211,7 +284,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             NOT_APPLICABLE
         },
-        VOICE_CARD_NAME,
+        voiceCardName,
         {
             VOICE_UPLINK_DEVICE_ID,
             VOICE_DOWNLINK_DEVICE_ID,
@@ -509,7 +582,6 @@ const uint32_t CAudioPlatformHardware::_uiNbPorts = sizeof(CAudioPlatformHardwar
 
 const uint32_t CAudioPlatformHardware::_uiNbRoutes = sizeof(CAudioPlatformHardware::_astAudioRoutes) /
         sizeof(CAudioPlatformHardware::_astAudioRoutes[0]);
-
 
 class CAudioExternalRouteHwCodec0IA : public CAudioExternalRoute
 {

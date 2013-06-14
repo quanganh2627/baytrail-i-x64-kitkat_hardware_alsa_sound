@@ -67,6 +67,15 @@ static const pcm_config pcm_config_not_applicable = {
    avail_min            : 0,
 };
 
+/**
+ * Returns the name of the audio codec. It can be used when the same build shall support multiple
+ * codecs. The coded name is extracted from the file /proc/asound/cards.
+ *
+ * @return A pointer to char containing the name of the audio codec. If the file /proc/asound/cards
+ * cannot be parsed, the default codec name is "unknown-audio-codec".
+ */
+const char* getCodecName();
+
 class CAudioPlatformHardware {
 
 public:
