@@ -294,8 +294,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_downlink,
         },
         {
-            channel_policy_not_applicable,
-            channel_policy_not_applicable
+            { CSampleSpec::ECopy, CSampleSpec::EIgnore },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
         },
         ""
     },
