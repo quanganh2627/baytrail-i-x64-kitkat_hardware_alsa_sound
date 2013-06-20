@@ -127,8 +127,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
         return ret;
     }
-    ALOGV("%s: returns %lu", __FUNCTION__, CAudioUtils::convertFramesToBytes(
-              CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec), mSampleSpec));
+    ALOGV("%s: returns %u", __FUNCTION__, mSampleSpec.convertFramesToBytes(
+              CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec)));
 
     return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret,
                                                                                  mHwSampleSpec,
