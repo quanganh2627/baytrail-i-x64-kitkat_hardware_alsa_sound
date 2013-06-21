@@ -65,9 +65,9 @@ size_t AudioUtils::convertSrcToDstInFrames(size_t frames,
     return dstFrames;
 }
 
-int AudioUtils::convertTinyToHalFormat(pcm_format format)
+audio_format_t AudioUtils::convertTinyToHalFormat(pcm_format format)
 {
-    int convFormat;
+    audio_format_t convFormat;
 
     switch(format) {
 
@@ -85,7 +85,7 @@ int AudioUtils::convertTinyToHalFormat(pcm_format format)
     return convFormat;
 }
 
-pcm_format AudioUtils::convertHalToTinyFormat(int format)
+pcm_format AudioUtils::convertHalToTinyFormat(audio_format_t format)
 {
     pcm_format convFormat;
 

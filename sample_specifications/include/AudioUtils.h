@@ -80,7 +80,7 @@ public:
      *              PCM_FORMAT_S32_LE of Audio HAL.
      *              It returns AUDIO_FORMAT_INVALID in case of unsupported Tiny format.
      */
-    static int convertTinyToHalFormat(pcm_format format);
+    static audio_format_t convertTinyToHalFormat(pcm_format format);
 
     /**
      * Converts a format from HAL to Tiny alsa domains.
@@ -91,7 +91,7 @@ public:
      *              PCM_FORMAT_S32_LE of Tiny alsa. It returns PCM_FORMAT_S16_LE format in case of
      *              unrecognized tiny alsa format.
      */
-    static pcm_format convertHalToTinyFormat(int format);
+    static pcm_format convertHalToTinyFormat(audio_format_t format);
 
     /**
      * Converts a card name into its index.
