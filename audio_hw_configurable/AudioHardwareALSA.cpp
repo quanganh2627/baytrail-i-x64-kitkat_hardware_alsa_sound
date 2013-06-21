@@ -30,10 +30,6 @@
 #include <utils/Log.h>
 #include <utils/String8.h>
 
-#ifdef USE_FRAMEWORK_GTI
-#include "gtiservice/GtiService.h"
-#endif
-
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
 #include "Property.h"
@@ -86,10 +82,6 @@ AudioHardwareInterface *AudioHardwareALSA::create() {
 AudioHardwareALSA::AudioHardwareALSA() :
     mRouteMgr(new CAudioRouteManager(this))
 {
-#ifdef USE_FRAMEWORK_GTI
-    GtiService::Start();
-#endif
-
     // Start the route manager service
     if (mRouteMgr->start() != NO_ERROR) {
 

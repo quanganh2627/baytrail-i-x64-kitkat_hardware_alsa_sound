@@ -489,7 +489,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Media"
+        "ModemIA,Voice,Media"
     },
     //
     // FM route
@@ -620,11 +620,6 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
-
-    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
-    {
-        return false;
-    }
 };
 
 class CAudioExternalRouteHwCodec1IA : public CAudioExternalRoute
@@ -659,11 +654,6 @@ public:
             }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
-    }
-
-    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
-    {
-        return false;
     }
 };
 
