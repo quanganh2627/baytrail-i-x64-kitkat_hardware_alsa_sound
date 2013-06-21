@@ -16,7 +16,9 @@
 
 #include "AudioPlatformHardware.h"
 #include "Property.h"
-
+#include <audio_effects/effect_aec.h>
+#include <audio_effects/effect_agc.h>
+#include <audio_effects/effect_ns.h>
 #include <tinyalsa/asoundlib.h>
 #include <sstream>
 #include <fstream>
@@ -773,6 +775,17 @@ public:
     }
 };
 
+class CAudioVoiceLPECentricStreamRoute : public CAudioLPECentricStreamRoute
+{
+public:
+    CAudioVoiceLPECentricStreamRoute(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState) {
+
+        _pEffectSupported.push_back(FX_IID_AGC);
+        _pEffectSupported.push_back(FX_IID_AEC);
+        _pEffectSupported.push_back(FX_IID_NS);
+    }
+};
 
 //
 // Once all deriavated class exception has been removed
@@ -810,7 +823,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     } else if (strName == "Voice") {
 
-        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioVoiceLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "CompressedMedia") {
 
