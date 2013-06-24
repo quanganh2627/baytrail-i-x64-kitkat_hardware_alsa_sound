@@ -20,33 +20,52 @@ LOCAL_PATH := $(call my-dir)
 # Common variables
 ##################
 
-hal_dump_exported_includes_folder := hal_audio_dump
-hal_dump_exported_includes_files := HALAudioDump.h
-
 hal_dump_src_files := HALAudioDump.cpp
 
-# Build for target
-##################
-include $(CLEAR_VARS)
+hal_dump_cflags := -DDEBUG -Wall -Werror
 
-LOCAL_COPY_HEADERS_TO := $(hal_dump_exported_includes_folder)
-LOCAL_COPY_HEADERS := $(hal_dump_exported_includes_files)
+hal_dump_includes_common := \
+    $(LOCAL_PATH)/include
 
-LOCAL_CFLAGS := -DDEBUG -Wall -Werror
+hal_dump_includes_dir_host := \
+    bionic/libc/kernel/common
 
-LOCAL_SRC_FILES := $(hal_dump_src_files)
-
-LOCAL_C_INCLUDES += \
+hal_dump_includes_dir_target := \
     external/stlport/stlport \
     bionic
 
-LOCAL_SHARED_LIBRARIES := \
+hal_dump_shared_lib_target := \
         libstlport \
         libutils \
         libcutils
 
+#######################################################################
+# Build for libhalaudiodump for host and target
 
+# Compile macro
+define make_hal_dump_lib
+$( \
+    $(eval LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include) \
+    $(eval LOCAL_C_INCLUDES := $(hal_dump_includes_common)) \
+    $(eval LOCAL_C_INCLUDES += $(hal_dump_includes_dir_$(1))) \
+    $(eval LOCAL_SRC_FILES := $(hal_dump_src_files)) \
+    $(eval LOCAL_CFLAGS := $(hal_dump_cflags)) \
+    $(eval LOCAL_SHARED_LIBRARIES := $(hal_dump_shared_lib_$(1))) \
+    $(eval LOCAL_MODULE_TAGS := optional) \
+)
+endef
+
+# Build for target
+##################
+include $(CLEAR_VARS)
 LOCAL_MODULE := libhalaudiodump
-LOCAL_MODULE_TAGS := optional
+$(call make_hal_dump_lib,target)
+include $(BUILD_STATIC_LIBRARY)
 
-include $(BUILD_SHARED_LIBRARY)
+
+# Build for host
+################
+include $(CLEAR_VARS)
+LOCAL_MODULE := libhalaudiodump_host
+$(call make_hal_dump_lib,host)
+include $(BUILD_HOST_STATIC_LIBRARY)

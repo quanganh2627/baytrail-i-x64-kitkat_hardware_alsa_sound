@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <string.h>
 #include <utils/Errors.h>
 
 using namespace android;
