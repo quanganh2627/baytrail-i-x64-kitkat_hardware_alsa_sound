@@ -603,6 +603,14 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
              _pPlatformState->isContextAwarenessEnabled() ? "true" : "false",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(
+                CAudioPlatformState::EAlwaysListeningStateChange),
+             "%s:          -Platform Always Listening = %s %s",
+             __FUNCTION__,
+             _pPlatformState->isAlwaysListeningEnabled() ? "true" : "false",
+             _pPlatformState->hasPlatformStateChanged(
+                CAudioPlatformState::EAlwaysListeningStateChange) ? "[has changed]" : ""
+            );
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmStateChange),
              "%s:          -Platform FM State = %s %s", __FUNCTION__,
              _pPlatformState->isFmStateOn()? "On" : "Off",
@@ -856,6 +864,9 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Search context awareness parameter
     doSetContextAwarenessParameters(param);
 
+    // Search always listening parameter
+    doSetAlwaysListeningParameters(param);
+
     if (param.size()) {
 
         ALOGW("%s: Unhandled argument.", __FUNCTION__);
@@ -886,6 +897,20 @@ void CAudioRouteManager::doSetContextAwarenessParameters(AudioParameter &param)
 
         _pPlatformState->setContextAwarenessStatus(
                     strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_ON);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetAlwaysListeningParameters(AudioParameter &param)
+{
+    String8 alwaysListeningStatus;
+    String8 key(AUDIO_PARAMETER_KEY_ALWAYS_LISTENING_STATUS);
+
+    // Search always listening parameter
+    if (param.get(key, alwaysListeningStatus) == NO_ERROR) {
+
+        _pPlatformState->setAlwaysListeningStatus(
+            alwaysListeningStatus == AUDIO_PARAMETER_VALUE_ALWAYS_LISTENING_ON);
         param.remove(key);
     }
 }

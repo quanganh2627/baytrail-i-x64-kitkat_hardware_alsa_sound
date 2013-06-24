@@ -503,6 +503,15 @@ private:
      */
     void doSetContextAwarenessParameters(AudioParameter &param);
 
+    /**
+     * Do "Always Listening"-specific parameters pop & set.
+     * Pop all LPAL specific parameters provided in the key/value and set those which are handled.
+     * Always Listening key value pair will be removed if found.
+     *
+     * @param[in,out] param: reference of parameters helper object.
+     */
+    void doSetAlwaysListeningParameters(AudioParameter &param);
+
     void createsRoutes();
 
     void createAudioHardwarePlatform();

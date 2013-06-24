@@ -380,7 +380,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia"
+        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening"
     },
     //
     // HWCODEC 1 route
@@ -418,7 +418,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,CompressedMedia"
+        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening"
     },
     //
     // ModemIA route
@@ -577,6 +577,43 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         ""
     },
+    // Always Listening
+    //
+    {
+        "AlwaysListening",
+        CAudioRoute::EExternalRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            pcm_config_not_applicable,
+            pcm_config_not_applicable
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
 };
 
 const uint32_t CAudioPlatformHardware::_uiNbPortGroups = sizeof(CAudioPlatformHardware::_acPortGroups) /
@@ -598,6 +635,16 @@ public:
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
         if (!bIsOut && _pPlatformState->isContextAwarenessEnabled()) {
             //this route is always applicable in capture/context awareness mode
+            return true;
+        }
+
+        if (!bIsOut
+            && _pPlatformState->isAlwaysListeningEnabled()
+            && ((_pPlatformState->getDevices(CUtils::EOutput)
+                 & AudioSystem::DEVICE_OUT_WIRED_HEADSET) == 0)) {
+            // This route is always applicable in "Always Listening" mode
+            // unless the headset is available (in which case we should use it
+            // and elect the HwCodec1IA route)
             return true;
         }
 
@@ -635,6 +682,15 @@ public:
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiFlags = 0) const {
+
+        if (!bIsOut
+            && _pPlatformState->isAlwaysListeningEnabled()
+            && ((_pPlatformState->getDevices(CUtils::EOutput)
+                 & AudioSystem::DEVICE_OUT_WIRED_HEADSET) != 0)) {
+            // This route is always applicable in "Always Listening" mode if
+            // the wired headset is available
+            return true;
+        }
 
         if (iMode == AudioSystem::MODE_IN_CALL) {
 
@@ -738,6 +794,23 @@ public:
     virtual bool isApplicable(uint32_t __UNUSED uidevices, int __UNUSED iMode, bool bIsOut,
                               uint32_t __UNUSED uiFlags = 0) const {
         return !bIsOut && _pPlatformState->isContextAwarenessEnabled();
+    }
+};
+
+class CAudioVirtualRouteAlwaysListening : public CAudioExternalRoute
+{
+public:
+    CAudioVirtualRouteAlwaysListening(uint32_t routeIndex, CAudioPlatformState *platformState) :
+        CAudioExternalRoute(routeIndex, platformState) {
+    }
+
+    virtual bool isApplicable(uint32_t devices, int mode, bool isOut,
+                              uint32_t __UNUSED flags = 0) const {
+        return !isOut
+               && _pPlatformState->isAlwaysListeningEnabled()
+               && (devices == 0) // Do not activate LPAL if there is any input device...
+               && !(mode == AudioSystem::MODE_IN_CALL  // ... or if we are in (CSV or VoIP) call.
+                    || mode == AudioSystem::MODE_IN_COMMUNICATION);
     }
 };
 
@@ -845,6 +918,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "ContextAwareness") {
 
         return new CAudioVirtualRouteContextAwareness(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "AlwaysListening") {
+
+        return new CAudioVirtualRouteAlwaysListening(uiRouteIndex, pPlatformState);
 
     }
     ALOGE("%s: wrong route index=%d", __FUNCTION__, uiRouteIndex);

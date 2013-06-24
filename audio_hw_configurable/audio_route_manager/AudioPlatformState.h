@@ -88,6 +88,7 @@ public:
         StreamEvent,
         ScreenStateChange,
         ContextAwarenessStateChange,
+        AlwaysListeningStateChange,
         FmStateChange,
 
         NbEvents
@@ -113,6 +114,7 @@ public:
         ADD_EVENT(StreamEvent),
         ADD_EVENT(ScreenStateChange),
         ADD_EVENT(ContextAwarenessStateChange),
+        ADD_EVENT(AlwaysListeningStateChange),
         ADD_EVENT(FmStateChange)
     };
 
@@ -222,6 +224,20 @@ public:
     bool isContextAwarenessEnabled() const { return _bIsContextAwarenessEnabled; }
 
     /**
+     * Set "Always Listening" status
+     *
+     * @param[in] bEnabled if true, enables the "always listening" feature
+     */
+    void setAlwaysListeningStatus(bool enabled);
+
+    /**
+     * Get "Always Listening" status
+     *
+     * @return true if the "always listening" feature is enabled
+     */
+    bool isAlwaysListeningEnabled() const { return _isAlwaysListeningEnabled; }
+
+    /**
      * Get FM State.
      *
      * @return true if FM module is powered on by FM stack.
@@ -321,6 +337,8 @@ private:
 
     //Context Awareness status
     bool _bIsContextAwarenessEnabled;
+    // Always Listening status
+    bool _isAlwaysListeningEnabled;
 
     uint32_t _uiPlatformEventChanged;
 

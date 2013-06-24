@@ -46,6 +46,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bIsSharedI2SGlitchSafe(false),
     _bScreenOn(true),
     _bIsContextAwarenessEnabled(false),
+    _isAlwaysListeningEnabled(false),
     _uiPlatformEventChanged(false),
     _pAudioRouteManager(pAudioRouteManager)
 {
@@ -279,6 +280,18 @@ void CAudioPlatformState::setContextAwarenessStatus(bool bEnabled)
 
     _bIsContextAwarenessEnabled = bEnabled;
     setPlatformStateEvent(EContextAwarenessStateChange);
+}
+
+// set always listening status
+void CAudioPlatformState::setAlwaysListeningStatus(bool enabled)
+{
+    if (_isAlwaysListeningEnabled == enabled) {
+        // the status does not change -> returning
+        return;
+    }
+
+    _isAlwaysListeningEnabled = enabled;
+    setPlatformStateEvent(EAlwaysListeningStateChange);
 }
 
 void CAudioPlatformState::updateHwMode()
