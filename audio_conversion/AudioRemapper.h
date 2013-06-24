@@ -49,9 +49,22 @@ private:
     virtual android::status_t configure(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
     /**
-     * Remap from stereo to mono in S16.
-     * Convert a stereo source into a mono destination in S16 format.
+     * Configure the remapper.
+     * Selects the appropriate remap operation to use according to the source
+     * and destination sample specifications.
      *
+     * @tparam type Audio data format from S16 to S32.
+     *
+     * @return error code.
+     */
+    template<typename type>
+    android::status_t configure();
+
+    /**
+     * Remap from stereo to mono in typed format.
+     * Convert a stereo source into a mono destination in typed format.
+     *
+     * @tparam type Audio data format from S16 to S32, no other type allowed.
      * @param[in] src the source buffer.
      * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
@@ -60,15 +73,17 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertStereoToMonoInS16(const void *src,
-                                               void *dst,
-                                               const uint32_t inFrames,
-                                               uint32_t *outFrames);
+    template<typename type>
+    android::status_t convertStereoToMono(const void *src,
+                                          void *dst,
+                                          const uint32_t inFrames,
+                                          uint32_t *outFrames);
 
     /**
-     * Remap from mono to stereo in S16.
-     * Convert a mono source into a stereo destination in S16 format.
+     * Remap from mono to stereo in typed format.
+     * Convert a mono source into a stereo destination in typed format
      *
+     * @tparam type Audio data format from S16 to S32, no other type allowed.
      * @param[in] src the source buffer.
      * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
@@ -77,16 +92,18 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertMonoToStereoInS16(const void *src,
-                                               void *dst,
-                                               const uint32_t inFrames,
-                                               uint32_t *outFrames);
+    template<typename type>
+    android::status_t convertMonoToStereo(const void *src,
+                                          void *dst,
+                                          const uint32_t inFrames,
+                                          uint32_t *outFrames);
 
     /**
-     * Remap channels policy in S16.
-     * Convert a stereo source into a stereo destination in S16 format
+     * Remap channels policy in typed format.
+     * Convert a stereo source into a stereo destination in typed format
      * with different channels policy.
      *
+     * @tparam type Audio data format from S16 to S32, no other type allowed.
      * @param[in] src the source buffer.
      * @param[out] dst the destination buffer, caller to ensure the destination
      *             is large enough.
@@ -95,108 +112,46 @@ private:
      *
      * @return error code.
      */
-    android::status_t convertChannelsPolicyInStereoS16(const void *src,
-                                                       void *dst,
-                                                       const uint32_t inFrames,
-                                                       uint32_t *outFrames);
+    template<typename type>
+    android::status_t convertChannelsPolicyInStereo(const void *src,
+                                                    void *dst,
+                                                    const uint32_t inFrames,
+                                                    uint32_t *outFrames);
 
     /**
-     * Remap from stereo to mono in S24 over 32.
-     * Convert a stereo source into a mono destination in S24 over 32 format.
-     *
-     * @param[in] src the source buffer.
-     * @param[out] dst the destination buffer, caller to ensure the destination
-     *             is large enough.
-     * @param[in] inFrames number of input frames.
-     * @param[out] outFrames output frames processed.
-     *
-     * @return error code.
-     */
-    android::status_t convertStereoToMonoInS24o32(const void *src,
-                                                  void *dst,
-                                                  const uint32_t inFrames,
-                                                  uint32_t *outFrames);
-
-    /**
-     * Remap from mono to stereo in S24 over 32.
-     * Convert a mono source into a stereo destination in S24 over 32 format.
-     *
-     * @param[in] src the source buffer.
-     * @param[out] dst the destination buffer., caller to ensure the destination
-     *             is large enough.
-     * @param[in] inFrames number of input frames.
-     * @param[out] outFrames output frames processed.
-     *
-     * @return error code.
-     */
-    android::status_t convertMonoToStereoInS24o32(const void *src,
-                                                  void *dst,
-                                                  const uint32_t inFrames,
-                                                  uint32_t *outFrames);
-
-    /**
-     * Remap channels policy in S24 over 32.
-     * Gets on destination channel from the source frame according to the destination
-     * channel policy in S24 over 32 format.
-     *
-     * @param[in] src the source buffer.
-     * @param[out] dst the destination buffer, caller to ensure the destination
-     *             is large enough.
-     * @param[in] iinFrames number of input frames.
-     * @param[out] outFrames output frames processed.
-     *
-     * @return error code.
-     */
-    android::status_t convertChannelsPolicyInStereoS24o32(const void *src,
-                                                          void *dst,
-                                                          const uint32_t inFrames,
-                                                          uint32_t *outFrames);
-
-    /**
-     * Convert a source sample in S16.
+     * Convert a source sample in typed format.
      * Gets destination channel from the source sample according to the destination
      * channel policy.
      *
-     * @param[in] src16 the address of the source frame.
+     * @tparam type Audio data format from S16 to S32, no other type allowed.
+     * @param[in] src16 the source frame.
      * @param[in] channel the channel of the destination.
      *
      * @return destination channel sample.
      */
-    int16_t convertSampleInS16(const int16_t *src, Channel channel) const;
+    template<typename type>
+    type convertSample(const type *src, Channel channel) const;
 
     /**
-     * Convert a source sample in S24 over 32.
-     * Gets destination channel from the source sample according to the destination
-     * channel policy.
-     *
-     * @param[in] src32 the address of the source frame.
-     * @param[in] channel the channel of the destination.
-     *
-     * @return destination channel sample.
-     */
-    int32_t convertSampleInS32(const uint32_t *src32, Channel channel) const;
-
-    /**
-     * Average source frame in S24 over 32.
+     * Average source frame in typed format.
      * Gets an averaged value of the source audio frame taking into
      * account the policy of the source channels.
      *
-     * @param[in] src32 the address of the source frame.
+     * @tparam type Audio data format from S16 to S32, no other type allowed.
+     * @param[in] src16 the source frame.
      *
      * @return destination channel sample.
      */
-    int32_t getAveragedSrcSampleInS32(const uint32_t *src32) const;
+    template<typename type>
+    type getAveragedSrcFrame(const type *src16) const;
 
     /**
-     * Average source frame in S16.
-     * Gets an averaged value of the source audio frame taking into
-     * account the policy of the source channels.
+     * provide a compile time error if no specialization is provided for a given type
      *
-     * @param[in] src16 the address of the source frame.
-     *
-     * @return destination channel sample.
+     * @tparam T: type of the audio data.
      */
-    int16_t getAveragedSrcFrameInS16(const int16_t *src16) const;
+    template<typename T>
+    struct formatSupported;
 };
 
 }; // namespace android
