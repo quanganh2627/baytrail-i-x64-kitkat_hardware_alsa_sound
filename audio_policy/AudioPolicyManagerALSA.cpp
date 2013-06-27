@@ -264,7 +264,9 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
 {
 
     //check that stream is not negative to avoid out of bounds index
-    if (stream == AudioSystem::DEFAULT) {
+    if (!isStreamValid(stream)) {
+        ALOGE("setStreamVolumeIndex() invalid stream of type %d,at volume index %d on device %#04x",
+              stream, index, device);
         return BAD_VALUE;
     }
 
