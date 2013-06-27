@@ -285,22 +285,43 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
     ALOGV("setStreamVolumeIndex() stream %d, device %04x, index %d",
           stream, device, index);
 
-    bool forceSetVolume = false;
-
     // if device is AUDIO_DEVICE_OUT_DEFAULT set default value and
     // clear all device specific values
     if (device == AUDIO_DEVICE_OUT_DEFAULT) {
         mStreams[stream].mIndexCur.clear();
-
-        // force volume setting at media server starting
-        // (i.e. when device == AUDIO_DEVICE_OUT_DEFAULT)
-        //
-        // If the volume is not set at media server starting then it is applied at
-        // next applyStreamVolumes() call, for example during media playback,
-        // which can lead to performance issue.
-        forceSetVolume = true;
     }
     mStreams[stream].mIndexCur.add(device, index);
+
+    // compute and apply stream volume on all outputs according to connected device
+    status_t status = applyVolumeOnStream(stream, device);
+
+    if (status != OK) {
+        return status;
+    }
+
+    // if the voice volume is set before the mix, slave the media volume to the voice volume
+    if (isInCall() &&
+        (stream == AudioSystem::VOICE_CALL) &&
+        !isVoiceVolumeSetAfterMix()) {
+        status = applyVolumeOnStream(AudioSystem::MUSIC, device);
+    }
+
+    return status;
+}
+
+status_t AudioPolicyManagerALSA::applyVolumeOnStream(AudioSystem::stream_type stream,
+                                                     audio_devices_t device)
+{
+
+    // force volume setting at media server starting
+    // (i.e. when device == AUDIO_DEVICE_OUT_DEFAULT)
+    //
+    // If the volume is not set at media server starting then it is applied at
+    // next applyStreamVolumes() call, for example during media playback,
+    // which can lead to performance issue.
+    bool forceSetVolume = (device == AUDIO_DEVICE_OUT_DEFAULT);
+
+    int index = mStreams[stream].getVolumeIndex(device);
 
     // compute and apply stream volume on all outputs according to connected device
     status_t status = NO_ERROR;
@@ -316,6 +337,32 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
         }
     }
     return status;
+}
+
+bool AudioPolicyManagerALSA::isVoiceVolumeSetAfterMix() const
+{
+    LOG_ALWAYS_FATAL_IF(mPhoneState != AudioSystem::MODE_IN_CALL &&
+                        mPhoneState != AudioSystem::MODE_IN_COMMUNICATION);
+
+    // Current method is semantically const and actually does not modify the object's
+    // contents as getDeviceForStrategy is called with (fromCache = true)
+    audio_devices_t voiceCallDevice =
+        const_cast<AudioPolicyManagerALSA*>(this)->getDeviceForStrategy(STRATEGY_PHONE, true);
+
+    if (voiceCallDevice & AUDIO_DEVICE_OUT_ALL_SCO) {
+        // Bluetooth devices apply volume at last stage, which means after mix
+        return true;
+    }
+
+    return mPhoneState == AudioSystem::MODE_IN_CALL ?
+               mVoiceVolumeAppliedAfterMixInCall : mVoiceVolumeAppliedAfterMixInComm;
+}
+
+float AudioPolicyManagerALSA::getRawVolumeLevel(AudioSystem::stream_type stream,
+                                                audio_devices_t device) const
+{
+    return static_cast<float>(mStreams[stream].getVolumeIndex(device) - mStreams[stream].mIndexMin)
+               / (mStreams[stream].mIndexMax - mStreams[stream].mIndexMin);
 }
 
 float AudioPolicyManagerALSA::computeVolume(int stream,
@@ -336,13 +383,7 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
          stream == AudioSystem::DTMF ||
         (stream == AudioSystem::SYSTEM && index != mStreams[stream].mIndexMin))) {
 
-        LOG_ALWAYS_FATAL_IF((mPhoneState != AudioSystem::MODE_IN_COMMUNICATION) &&
-                            (mPhoneState != AudioSystem::MODE_IN_CALL));
-
-        bool mVoiceVolumeAppliedAfterMix = (mPhoneState == AudioSystem::MODE_IN_COMMUNICATION) ?
-                    mVoiceVolumeAppliedAfterMixInComm : mVoiceVolumeAppliedAfterMixInCall;
-
-        if (mVoiceVolumeAppliedAfterMix) {
+        if (isVoiceVolumeSetAfterMix()) {
 
             // Set the VOICE_CALL/DTMF/SYSTEM volume to 1.0 to avoid double attenuation
             // when the voice volume will be applied after mix VOICE_CALL/DTMF/SYSTEM and voice
@@ -353,8 +394,18 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
     // Compute SW attenuation
     float volume = baseClass::computeVolume(stream, index, device);
 
-    // Reduce music volume in voice call
     if (isInCall() && stream == AudioSystem::MUSIC) {
+
+        // Slave media volume to the voice volume when this last one is applied before
+        // mixing both streams and when both streams are output to the same device
+
+        audio_devices_t voiceCallDevice = getDeviceForStrategy(STRATEGY_PHONE, true);
+
+        if (!isVoiceVolumeSetAfterMix() && voiceCallDevice == device) {
+            volume *= getRawVolumeLevel(AudioSystem::VOICE_CALL, voiceCallDevice);
+        }
+
+        // Perform fixed background media volume attenuation
         volume *= pow(10.0, -mInCallMusicAttenuation_dB / 10.0);
     }
 
