@@ -22,10 +22,10 @@
 #include <audio_effects/effect_agc.h>
 #include <audio_effects/effect_ns.h>
 
-
-#define PLABACK_PERIOD_TIME_MS  ((int)24)
-#define CAPTURE_PERIOD_TIME_MS  ((int)24)
-#define VOICE_PERIOD_TIME_MS    ((int)20)
+#define DEEP_PLAYBACK_PERIOD_TIME_MS ((int)96)
+#define PLAYBACK_PERIOD_TIME_MS      ((int)24)
+#define CAPTURE_PERIOD_TIME_MS       ((int)24)
+#define VOICE_PERIOD_TIME_MS         ((int)20)
 
 #define NB_RING_BUFFER_NORMAL   ((int)2)
 #define NB_RING_BUFFER_INCALL   ((int)4)
@@ -34,28 +34,30 @@
 #define MSEC_PER_SEC            ((int)1000)
 
 /// May add a new route, include header here...
-#define SAMPLE_RATE_16000               (16000)
-#define SAMPLE_RATE_48000               (48000)
+#define SAMPLE_RATE_16000               ((int)16000)
+#define SAMPLE_RATE_48000               ((int)48000)
 
 #define VOICE_16000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_16000 / MSEC_PER_SEC)
 #define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / MSEC_PER_SEC)
 
-#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLABACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
+#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
 #define CAPTURE_48000_PERIOD_SIZE       ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
 
 
 static const char* MEDIA_CARD_NAME = "cloverviewaudio";
-#define MEDIA_PLAYBACK_DEVICE_ID        (0)
-#define MEDIA_CAPTURE_DEVICE_ID         (0)
+#define DEEP_MEDIA_PLAYBACK_DEVICE_ID   ((int)0)
+#define MEDIA_PLAYBACK_DEVICE_ID        ((int)0)
+#define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 
 static const char* VOICE_MIXING_CARD_NAME = MEDIA_CARD_NAME;
-#define VOICE_MIXING_DEVICE_ID          (8)
-#define VOICE_RECORD_DEVICE_ID          (8)
+#define VOICE_MIXING_DEVICE_ID          ((int)8)
+#define VOICE_RECORD_DEVICE_ID          ((int)8)
 
 static const char* VOICE_CARD_NAME = MEDIA_CARD_NAME;
-#define VOICE_DOWNLINK_DEVICE_ID    (7)
-#define VOICE_UPLINK_DEVICE_ID      (7)
+#define VOICE_DOWNLINK_DEVICE_ID    ((int)7)
+#define VOICE_UPLINK_DEVICE_ID      ((int)7)
 
 using namespace std;
 
@@ -65,6 +67,18 @@ namespace android_audio_legacy
 // first period is full.
 // For recording, configure ALSA to start the transfer on the
 // first frame.
+const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback = {
+   channels          : 2,
+   rate              : SAMPLE_RATE_48000,
+   period_size       : DEEP_PLAYBACK_48000_PERIOD_SIZE,
+   period_count      : NB_RING_BUFFER_NORMAL,
+   format            : PCM_FORMAT_S16_LE,
+   start_threshold   : (DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL) - 1,
+   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   silence_threshold : 0,
+   avail_min         : DEEP_PLAYBACK_48000_PERIOD_SIZE,
+};
+
 const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
     channels            : 2,
     rate                : SAMPLE_RATE_48000,
@@ -88,9 +102,6 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     silence_threshold   : 0,
     avail_min           : CAPTURE_48000_PERIOD_SIZE,
 };
-
-const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback =
-                CAudioPlatformHardware::pcm_config_media_playback;
 
 static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
@@ -203,6 +214,44 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             CAudioPlatformHardware::pcm_config_media_capture,
             CAudioPlatformHardware::pcm_config_media_playback
+        },
+        {
+            { CSampleSpec::ECopy, CSampleSpec::ECopy },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
+        ""
+    },
+    //
+    // Deep Media Route
+    //
+    {
+        "DeepMedia",
+        CAudioRoute::EStreamRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            DEVICE_OUT_MM_ALL
+        },
+        {
+            NOT_APPLICABLE,
+            AUDIO_OUTPUT_FLAG_DEEP_BUFFER
+        },
+        {
+            NOT_APPLICABLE,
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        MEDIA_CARD_NAME,
+        {
+            NOT_APPLICABLE,
+            DEEP_MEDIA_PLAYBACK_DEVICE_ID
+        },
+        {
+            pcm_config_not_applicable,
+            CAudioPlatformHardware::pcm_config_deep_media_playback
         },
         {
             { CSampleSpec::ECopy, CSampleSpec::ECopy },
@@ -372,7 +421,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "CompressedMedia,Media"
+        "CompressedMedia,Media,DeepMedia"
     },
     //
     // CSV external route (on any output device)
@@ -764,6 +813,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     const string strName = getRouteName(uiRouteIndex);
 
     if (strName == "Media") {
+
+        return new CAudioStreamRouteMedia(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "DeepMedia") {
 
         return new CAudioStreamRouteMedia(uiRouteIndex, pPlatformState);
 
