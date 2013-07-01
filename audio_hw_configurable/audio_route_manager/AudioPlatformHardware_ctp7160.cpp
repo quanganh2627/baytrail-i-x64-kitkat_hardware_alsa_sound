@@ -48,8 +48,8 @@ static const char* MEDIA_CARD_NAME = "cloverviewaudio";
 
 
 static const char* VOICE_MIXING_CARD_NAME = "cloverviewaudio";
-#define VOICE_MIXING_DEVICE_ID          ((int)5)
-#define VOICE_RECORD_DEVICE_ID          ((int)5)
+#define VOICE_MIXING_DEVICE_ID          ((int)8)
+#define VOICE_RECORD_DEVICE_ID          ((int)8)
 
 static const char* VOICE_CARD_NAME = "cloverviewaudio";
 #define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)4)
