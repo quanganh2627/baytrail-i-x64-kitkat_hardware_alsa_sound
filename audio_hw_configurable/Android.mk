@@ -40,11 +40,8 @@ audio_hw_configurable_src_files +=  \
 audio_hw_configurable_includes_dir := \
     $(LOCAL_PATH)/audio_route_manager \
     $(TARGET_OUT_HEADERS)/libaudioresample \
-    $(TARGET_OUT_HEADERS)/event-listener \
     $(TARGET_OUT_HEADERS)/mamgr-interface \
     $(TARGET_OUT_HEADERS)/mamgr-core \
-    $(TARGET_OUT_HEADERS)/interface-provider \
-    $(TARGET_OUT_HEADERS)/interface-provider-lib \
     $(TARGET_OUT_HEADERS)/audiocomms-include \
     $(TARGET_OUT_HEADERS)/audio_hal_utils \
     $(TARGET_OUT_HEADERS)/hw \
@@ -55,12 +52,10 @@ audio_hw_configurable_includes_dir := \
     system/media/audio_effects/include
 
 audio_hw_configurable_includes_dir_host := \
-    $(audio_hw_configurable_includes_dir) \
-    $(HOST_OUT_HEADERS)/property
+    $(audio_hw_configurable_includes_dir)
 
 audio_hw_configurable_includes_dir_target := \
     $(audio_hw_configurable_includes_dir) \
-    $(TARGET_OUT_HEADERS)/property \
     external/stlport/stlport \
     bionic
 
@@ -117,7 +112,6 @@ include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += \
     $(audio_hw_configurable_includes_dir) \
-    $(TARGET_OUT_HEADERS)/property \
     external/stlport/stlport \
     bionic
 
@@ -163,7 +157,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 # gcov build
 ifeq ($($(LOCAL_MODULE).gcov),true)
-  LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/gcov_flush_with_prop
   LOCAL_CFLAGS += -O0 -fprofile-arcs -ftest-coverage -include GcovFlushWithProp.h
   LOCAL_LDFLAGS += -fprofile-arcs -lgcov
   LOCAL_STATIC_LIBRARIES += gcov_flush_with_prop
@@ -199,6 +192,10 @@ LOCAL_C_INCLUDES += $(audio_hw_configurable_includes_dir_host)
 $(call make_audio_hw_configurable_test_lib)
 $(call add_gcov_audio_hw_configurable_test_lib)
 LOCAL_MODULE := libaudio_hw_configurable_static_gcov_host
+LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_STATIC_LIBRARIES := \
+        libevent-listener_static_host \
+        libinterface-provider-lib_static_host \
+        libproperty_static_host
 include $(BUILD_HOST_STATIC_LIBRARY)
 
 endif
@@ -211,6 +208,10 @@ LOCAL_C_INCLUDES += $(audio_hw_configurable_includes_dir_target)
 $(call make_audio_hw_configurable_test_lib)
 $(call add_gcov_audio_hw_configurable_test_lib)
 LOCAL_MODULE := libaudio_hw_configurable_static_gcov
+LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_STATIC_LIBRARIES := \
+        libevent-listener_static \
+        libinterface-provider-lib_static \
+        libproperty_static
 include $(BUILD_STATIC_LIBRARY)
 
 endif
@@ -222,6 +223,10 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += $(audio_hw_configurable_includes_dir_host)
 $(call make_audio_hw_configurable_test_lib)
 LOCAL_MODULE := libaudio_hw_configurable_static_host
+LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_STATIC_LIBRARIES := \
+        libevent-listener_static_host \
+        libinterface-provider-lib_static_host \
+        libproperty_static_host
 include $(BUILD_HOST_STATIC_LIBRARY)
 
 endif
@@ -233,6 +238,10 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += $(audio_hw_configurable_includes_dir_target)
 LOCAL_MODULE := libaudio_hw_configurable_static
 $(call make_audio_hw_configurable_test_lib)
+LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_STATIC_LIBRARIES := \
+        libevent-listener_static \
+        libinterface-provider-lib_static \
+        libproperty_static
 include $(BUILD_STATIC_LIBRARY)
 
 endif

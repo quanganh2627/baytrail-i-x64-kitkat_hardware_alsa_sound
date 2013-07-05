@@ -27,13 +27,14 @@
 #define CAPTURE_PERIOD_TIME_MS       ((int)24)
 #define VOICE_PERIOD_TIME_MS         ((int)20)
 
-#define NB_RING_BUFFER_NORMAL   ((int)2)
-#define NB_RING_BUFFER_INCALL   ((int)4)
-
 #define LONG_PERIOD_FACTOR      ((int)2)
 #define MSEC_PER_SEC            ((int)1000)
 
 /// May add a new route, include header here...
+#define NB_RING_BUFFER_NORMAL           ((int)2)
+#define NB_RING_BUFFER_NORMAL_PLAYBACK  ((int)4) /**< Period count for media playback only */
+#define NB_RING_BUFFER_INCALL           ((int)4)
+
 #define SAMPLE_RATE_16000               ((int)16000)
 #define SAMPLE_RATE_48000               ((int)48000)
 
@@ -41,7 +42,7 @@
 #define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / MSEC_PER_SEC)
 
 #define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
-#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / MSEC_PER_SEC)
 #define CAPTURE_48000_PERIOD_SIZE       ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_48000 * LONG_PERIOD_FACTOR / MSEC_PER_SEC)
 
 
@@ -83,10 +84,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
     channels            : 2,
     rate                : SAMPLE_RATE_48000,
     period_size         : PLAYBACK_48000_PERIOD_SIZE,
-    period_count        : NB_RING_BUFFER_NORMAL,
+    period_count        : NB_RING_BUFFER_NORMAL_PLAYBACK,
     format              : PCM_FORMAT_S16_LE,
-    start_threshold     : (PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL) - 1,
-    stop_threshold      : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    start_threshold     : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL_PLAYBACK - 1,
+    stop_threshold      : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL_PLAYBACK,
     silence_threshold   : 0,
     avail_min           : PLAYBACK_48000_PERIOD_SIZE,
 };

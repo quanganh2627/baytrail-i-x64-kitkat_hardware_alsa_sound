@@ -49,10 +49,8 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/modem-mgr-wrapper \
     $(TARGET_OUT_HEADERS)/at-manager \
     $(TARGET_OUT_HEADERS)/libaudioresample \
-    $(TARGET_OUT_HEADERS)/event-listener \
     $(TARGET_OUT_HEADERS)/modem-audio-manager \
-    $(TARGET_OUT_HEADERS)/audio-at-manager \
-    $(TARGET_OUT_HEADERS)/property
+    $(TARGET_OUT_HEADERS)/audio-at-manager
 
 # for testing with dummy-stmd daemon, comment previous include
 # path and uncomment the following one
@@ -119,6 +117,9 @@ LOCAL_SHARED_LIBRARIES := \
     libaudioutils \
     libmodem-audio-manager \
     libproperty
+
+LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_SHARED_LIBRARIES := \
+    libevent-listener
 
 # Private audiocomms components
 LOCAL_SHARED_LIBRARIES += \
