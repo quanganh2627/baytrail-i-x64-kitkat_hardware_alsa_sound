@@ -300,6 +300,7 @@ status_t ALSAStreamOps::detachRoute()
     // Clear current route pointer
     mCurrentRoute = NULL;
     mCurrentDevices = 0;
+    mHandle = NULL;
 
     return NO_ERROR;
 }
