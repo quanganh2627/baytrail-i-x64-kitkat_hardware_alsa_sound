@@ -2092,6 +2092,12 @@ status_t CAudioRouteManager::setVoiceVolume(float gain)
     AutoR lock(_lock);
     string strError;
 
+    if (!_pPlatformState->isModemEmbedded()) {
+
+        ALOGD("%s: platform does NOT embed a Modem chip", __FUNCTION__);
+        return NO_ERROR;
+    }
+
     if (gain < 0.0 || gain > 1.0) {
 
         ALOGW("%s(%f) out of range [0.0 .. 1.0]", __FUNCTION__, gain);
