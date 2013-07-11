@@ -52,8 +52,8 @@ static const char* VOICE_MIXING_CARD_NAME = "cloverviewaudio";
 #define VOICE_RECORD_DEVICE_ID          ((int)8)
 
 static const char* VOICE_CARD_NAME = "cloverviewaudio";
-#define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)4)
-#define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)4)
+#define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)7)
+#define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)7)
 #define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
 #define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
 
