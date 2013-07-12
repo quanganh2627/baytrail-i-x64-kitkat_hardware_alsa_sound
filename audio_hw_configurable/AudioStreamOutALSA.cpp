@@ -233,6 +233,14 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
 status_t AudioStreamOutALSA::flush()
 {
     CAudioAutoRoutingLock lock(mParent);
+
+    // Check if there is an available audio route to flush
+    if (!isRouteAvailable()) {
+
+        ALOGW("%s: No route available. There is no pcm to flush.", __FUNCTION__);
+        return NO_ERROR;
+    }
+
     LOG_ALWAYS_FATAL_IF(mHandle == NULL);
 
     status_t status = pcm_stop(mHandle);

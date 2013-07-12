@@ -226,13 +226,16 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         CAudioRoute::EStreamRoute,
         "",
         {
-            DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL,
+            DEVICE_IN_BUILTIN_ALL | DEVICE_IN_BLUETOOTH_SCO_ALL |
+            AudioSystem::DEVICE_IN_VOICE_CALL,
             DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         // When VoIP will use direct output, add AUDIO_SOURCE_IN_COMMUNICATION
         {
-          (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_CAMCORDER) |
-          (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
+            (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
+            (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_DEFAULT) |
+            (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_CAMCORDER) |
+            (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         // When VoIP will use direct output, add MODE_IN_COMMUNICATION
@@ -748,6 +751,29 @@ public:
     virtual bool isPostDisableRequired() { return true; }
 };
 
+class CAudioMediaLPECentricStreamRoute : public CAudioLPECentricStreamRoute
+{
+public:
+    CAudioMediaLPECentricStreamRoute(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
+        CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState) {
+    }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode,
+                              bool bIsOut, uint32_t uiFlags) const {
+
+        // Prevent from recording Voice Call if telephony mode is not In Call
+        if ((!bIsOut) &&
+                (uidevices & AudioSystem::DEVICE_IN_VOICE_CALL) &&
+                (iMode != AudioSystem::MODE_IN_CALL)) {
+
+            return false;
+        }
+
+        return CAudioLPECentricStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
+    }
+};
+
+
 //
 // Once all deriavated class exception has been removed
 // replace this function by a generic route creator according to the route type
@@ -780,7 +806,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 
     } else if (strName == "Media") {
 
-        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioMediaLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "Voice") {
 

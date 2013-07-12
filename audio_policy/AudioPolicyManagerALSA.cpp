@@ -254,6 +254,7 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
     mpClientInterface->setParameters(input, param.toString());
 
     inputDesc->mRefCount = 1;
+    inputDesc->mHasStarted = true;
     return NO_ERROR;
 }
 
@@ -263,7 +264,9 @@ status_t AudioPolicyManagerALSA::setStreamVolumeIndex(AudioSystem::stream_type s
 {
 
     //check that stream is not negative to avoid out of bounds index
-    if (stream == AudioSystem::DEFAULT) {
+    if (!isStreamValid(stream)) {
+        ALOGE("setStreamVolumeIndex() invalid stream of type %d,at volume index %d on device %#04x",
+              stream, index, device);
         return BAD_VALUE;
     }
 
@@ -461,17 +464,26 @@ void AudioPolicyManagerALSA::releaseInput(audio_io_handle_t input)
     int mInputsSize = mInputs.size();
     ALOGD("%s(input %d) mInputs.size() = %d", __FUNCTION__, input, mInputsSize);
 
-    //We will check if it is necessary to reroute latest stopped input stream. This stream
-    //is stored at the end of array.
-    //In order to ensure that only one input stream is active, we will check the status
-    //of currently active input.
+    // Reroute the input only when these conditions are met:
+    // - there are still registered inputs
+    // - there is no currently active input
+    // - there is a previously stopped input
+    // In this case the input source will be given back to the latest stopped input
     if ((mInputsSize > 0) && (getActiveInput() == 0)) {
-        AudioInputDescriptor *inputDesc = mInputs.valueAt(mInputsSize - 1);
-        inputDesc->mRefCount = 1;
-        AudioParameter param;
-        param.addInt(String8(AudioParameter::keyRouting), (int)inputDesc->mDevice);
-        param.addInt(String8(AudioParameter::keyInputSource), (int)inputDesc->mInputSource);
-        mpClientInterface->setParameters(mInputs.keyAt(mInputsSize - 1), param.toString());
+        int iRemainingInputs = mInputsSize;
+        bool bValidInput = false;
+        while (!bValidInput && iRemainingInputs > 0) {
+            AudioInputDescriptor *inputDesc = mInputs.valueAt(iRemainingInputs - 1);
+            if (inputDesc->mHasStarted) {
+                inputDesc->mRefCount = 1;
+                AudioParameter param;
+                param.addInt(String8(AudioParameter::keyRouting), (int)inputDesc->mDevice);
+                param.addInt(String8(AudioParameter::keyInputSource), (int)inputDesc->mInputSource);
+                mpClientInterface->setParameters(mInputs.keyAt(iRemainingInputs - 1), param.toString());
+                bValidInput = true;
+            }
+            iRemainingInputs--;
+        }
     }
 }
 
