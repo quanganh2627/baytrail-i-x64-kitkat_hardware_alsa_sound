@@ -14,9 +14,11 @@
  ** limitations under the License.
  */
 
+#define LOG_TAG "RouteManager/AudioPlatformHardware_redhookbay"
 #include "AudioPlatformHardware.h"
 #include "Property.h"
 
+#include <utils/Log.h>
 #include <tinyalsa/asoundlib.h>
 #include <audio_effects/effect_aec.h>
 #include <audio_effects/effect_agc.h>
@@ -60,6 +62,7 @@ static const char* VOICE_CARD_NAME = "cloverviewaudio";
 #define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)4)
 #define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
 #define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
+
 
 using namespace std;
 
@@ -713,7 +716,9 @@ public:
 
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
-        if (!_pPlatformState->isSharedI2SBusAvailable() || !_pPlatformState->isBtEnabled()) {
+        // and it should be the one and only one available device as it does not have the priority
+        if (!_pPlatformState->isSharedI2SBusAvailable() || !_pPlatformState->isBtEnabled() ||
+                ((uidevices != 0) && (AudioSystem::popCount(uidevices) != 1))) {
 
             return false;
         }
@@ -726,18 +731,82 @@ class CAudioStreamRouteModemMix : public CAudioStreamRoute
 public:
     CAudioStreamRouteModemMix(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
+        _needRerouting[CUtils::EInput] = false;
+        _needRerouting[CUtils::EOutput] = false;
     }
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const {
-
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         if (!_pPlatformState->isModemAudioAvailable()) {
-
             return false;
         }
+
         return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
+
+    virtual bool needReconfiguration(bool isOut) const
+    {
+        // Reconfiguration is needed if:
+        //      -SSP FIFO needs to be flushed.
+        //      -It's base class decision.
+        return needFlushModemMixSspFifo(isOut) || CAudioStreamRoute::needReconfiguration(isOut);
+    }
+
+    void configure(bool isOut)
+    {
+        if (_needRerouting[isOut]) {
+            // Before flushing SSP FIFO (for input or output streams) be
+            // sure stream is still the same.
+            if (_stStreams[isOut].pCurrent == _stStreams[isOut].pNew) {
+                ALOGD("%s Workaround: force rerouting", __FUNCTION__);
+
+                // Do rerouting in order to flush SSP FIFO
+                unroute(isOut);
+                route(isOut);
+            }
+            _needRerouting[isOut] = false;
+        }
+        CAudioStreamRoute::configure(isOut);
+    }
+
+private:
+    bool needFlushModemMixSspFifo(bool isOut) const
+    {
+        /**
+         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
+         * considering reconfiguration of an input stream:
+         *
+         * 1) The stream was active before rerouting and will remain active after rerouting.
+         * 2) Output device has changed
+         * 3) Changed output device is earpiece or speaker
+         *
+         * Outside these conditions, no rerouting can take place.
+         *
+         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
+         * considering reconfiguration of an output stream:
+         *
+         * 1) The stream was active before rerouting and will remain active after rerouting.
+         * 2) Output device has changed
+         * 3) Changed output device is earpiece or headset
+         *
+         * Outside these conditions, no rerouting can take place.
+         */
+        _needRerouting[isOut] =
+              CAudioRoute::needReconfiguration(isOut) &&
+              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) &&
+              (isOut ?
+                     (_pPlatformState->getDevices(CUtils::EOutput) &
+                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_WIRED_HEADSET)) :
+                     (_pPlatformState->getDevices(CUtils::EOutput) &
+                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER)));
+
+        return _needRerouting[isOut];
+    }
+
+    /** Used to track the need to flush SSP FIFO, for both directions.  */
+    mutable bool _needRerouting[CUtils::ENbDirections];
+
 };
 
 
@@ -753,7 +822,6 @@ public:
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         if (!_pPlatformState->isModemAudioAvailable()) {
-
             return false;
         }
         if (!bIsOut) {

@@ -52,8 +52,8 @@ static const char* VOICE_MIXING_CARD_NAME = "cloverviewaudio";
 #define VOICE_RECORD_DEVICE_ID          ((int)8)
 
 static const char* VOICE_CARD_NAME = "cloverviewaudio";
-#define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)4)
-#define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)4)
+#define VOICE_HWCODEC_DOWNLINK_DEVICE_ID    ((int)7)
+#define VOICE_HWCODEC_UPLINK_DEVICE_ID      ((int)7)
 #define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
 #define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
 
@@ -700,7 +700,9 @@ public:
 
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
-        if (!_pPlatformState->isSharedI2SBusAvailable() || !_pPlatformState->isBtEnabled()) {
+        // and it should be the one and only one available device as it does not have the priority
+        if (!_pPlatformState->isSharedI2SBusAvailable() || !_pPlatformState->isBtEnabled() ||
+                ((uidevices != 0) && (AudioSystem::popCount(uidevices) != 1))) {
 
             return false;
         }
