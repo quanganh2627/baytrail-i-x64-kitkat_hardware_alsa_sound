@@ -455,24 +455,6 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
                 }
             }
             break;
-        case STRATEGY_MEDIA:
-            // We want to supersede the default policy when we are in call, so that we can change the volume
-            // settings for MEDIA streams when in call, on BT SCO, SPEAKER or EARPIECE.
-            if (isInCall()) {
-                // Retrieve the device in use for the call
-                AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
-                uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
-                if (((currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
-                    || (currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET)
-                    || (currentDevice == AudioSystem::DEVICE_OUT_BLUETOOTH_SCO)
-                    || (currentDevice == AudioSystem::DEVICE_OUT_SPEAKER)
-                    || (currentDevice == AudioSystem::DEVICE_OUT_EARPIECE))
-                    && ((device != AUDIO_DEVICE_OUT_REMOTE_BGM_SINK))) {
-                    ALOGD("%s- superseding STRATEGY_MEDIA policy while in call from device 0x%x to 0x%x", __FUNCTION__, device, currentDevice);
-                    device = currentDevice;
-                }
-            }
-            break;
         case STRATEGY_ENFORCED_AUDIBLE:
                 // During call, if an enforced audible stream is played, output it on the
                 // speaker + current device used for speech
@@ -499,7 +481,10 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
             }
             break;
 
-       default:
+        case STRATEGY_MEDIA:
+            break;
+
+        default:
          // do nothing
          break;
     }
