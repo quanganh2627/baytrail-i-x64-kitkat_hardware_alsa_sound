@@ -1728,7 +1728,7 @@ void CAudioRouteManager::startModemAudioManager()
     // Modem band
     _pPlatformState->setBandType(_pModemAudioManagerInterface->getAudioBand(), AudioSystem::MODE_IN_CALL);
 
-    ALOGE("%s: success", __FUNCTION__);
+    ALOGD("%s: success", __FUNCTION__);
 }
 
 //
