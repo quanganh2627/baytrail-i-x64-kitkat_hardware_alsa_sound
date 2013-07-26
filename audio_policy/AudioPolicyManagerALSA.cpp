@@ -481,7 +481,11 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
             }
             break;
 
+        // for all remaining strategies, follow behavior defined by baseClass
         case STRATEGY_MEDIA:
+        case STRATEGY_SONIFICATION:
+        case STRATEGY_SONIFICATION_RESPECTFUL:
+        case STRATEGY_DTMF:
             break;
 
         default:
