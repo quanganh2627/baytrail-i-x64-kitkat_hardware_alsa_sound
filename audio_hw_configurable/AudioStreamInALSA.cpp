@@ -128,6 +128,17 @@ ssize_t AudioStreamInALSA::readHwFrames(void *buffer, size_t frames)
         return ret;
     }
 
+    // Dump audio input before eventual conversions
+    // FOR DEBUG PURPOSE ONLY
+    if (getDumpObjectBeforeConv() != NULL) {
+        getDumpObjectBeforeConv()->dumpAudioSamples(buffer,
+                                                    mHwSampleSpec.convertFramesToBytes(frames),
+                                                    isOut(),
+                                                    mHwSampleSpec.getSampleRate(),
+                                                    mHwSampleSpec.getChannelCount(),
+                                                    "before_conversion");
+    }
+
     return frames;
 }
 
@@ -149,6 +160,18 @@ ssize_t AudioStreamInALSA::readFrames(void *buffer, size_t frames)
 
         return status;
     }
+
+    // Dump audio input after eventual conversions
+    // FOR DEBUG PURPOSE ONLY
+    if (getDumpObjectAfterConv() != NULL) {
+        getDumpObjectAfterConv()->dumpAudioSamples(buffer,
+                                                   mSampleSpec.convertFramesToBytes(frames),
+                                                   isOut(),
+                                                   mSampleSpec.getSampleRate(),
+                                                   mSampleSpec.getChannelCount(),
+                                                   "after_conversion");
+    }
+
     return frames;
 }
 

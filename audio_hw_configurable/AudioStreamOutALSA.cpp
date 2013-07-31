@@ -102,6 +102,17 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     char *dstBuf = NULL;
     status_t status;
 
+    // Dump audio output before any conversion.
+    // FOR DEBUG PURPOSE ONLY
+    if (getDumpObjectBeforeConv() != NULL) {
+        getDumpObjectBeforeConv()->dumpAudioSamples(buffer,
+                                                    bytes,
+                                                    isOut(),
+                                                    mSampleSpec.getSampleRate(),
+                                                    mSampleSpec.getChannelCount(),
+                                                    "before_conversion");
+    }
+
     pushEchoReference(buffer, srcFrames);
 
     status = applyAudioConversion(buffer, (void**)&dstBuf, srcFrames, &dstFrames);
@@ -129,6 +140,17 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     }
     ALOGV("%s: returns %u", __FUNCTION__, mSampleSpec.convertFramesToBytes(
               CAudioUtils::convertSrcToDstInFrames(ret, mHwSampleSpec, mSampleSpec)));
+
+    // Dump audio output after eventual conversions
+    // FOR DEBUG PURPOSE ONLY
+    if (getDumpObjectAfterConv() != NULL) {
+      getDumpObjectAfterConv()->dumpAudioSamples((const void*)dstBuf,
+                                                 mHwSampleSpec.convertFramesToBytes(dstFrames),
+                                                 isOut(),
+                                                 mHwSampleSpec.getSampleRate(),
+                                                 mHwSampleSpec.getChannelCount(),
+                                                 "after_conversion");
+    }
 
     return mSampleSpec.convertFramesToBytes(CAudioUtils::convertSrcToDstInFrames(ret,
                                                                                  mHwSampleSpec,

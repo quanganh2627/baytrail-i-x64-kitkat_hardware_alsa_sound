@@ -46,9 +46,9 @@
 #include "AudioRemapper.h"
 #include "AudioConversion.h"
 #include "AudioHardwareALSA.h"
+#include "Property.h"
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
-
 
 using namespace android;
 
@@ -57,11 +57,24 @@ namespace android_audio_legacy
 
 const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
 
+
+/**
+ * Audio dump properties management (set with setprop)
+ */
+const std::string ALSAStreamOps::dumpBeforeConvProps[CUtils::ENbDirections] = \
+    { "Audiocomms.dump_input.befconv", "Audiocomms.dump_output.befconv" };
+
+const std::string ALSAStreamOps::dumpAfterConvProps[CUtils::ENbDirections] = \
+    { "Audiocomms.dump_input.aftconv", "Audiocomms.dump_output.aftconv" };
+
+
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
     mParent(parent),
     mHandle(NULL),
     mStandby(true),
     mDevices(0),
+    dumpBeforeConv(NULL),
+    dumpAfterConv(NULL),
     mIsReset(false),
     mCurrentRoute(NULL),
     mNewRoute(NULL),
@@ -82,6 +95,9 @@ ALSAStreamOps::~ALSAStreamOps()
     setStandby(true);
 
     delete mAudioConversion;
+
+    delete dumpAfterConv;
+    delete dumpBeforeConv;
 }
 
 status_t ALSAStreamOps::set(int      *format,
@@ -364,9 +380,51 @@ bool ALSAStreamOps::isStarted()
 //
 // Called from locked context
 //
-void ALSAStreamOps::setStarted(bool bIsStarted)
+void ALSAStreamOps::setStarted(bool isStarted)
 {
-    mStandby = !bIsStarted;
+    mStandby = !isStarted;
+
+    initAudioDump();
 }
 
-}       // namespace android
+void ALSAStreamOps::initAudioDump()
+{
+    /**
+     * Read the dump properties when a new output/input stream is started.
+     * False in second argument is the default value. If the property is true
+     * then the dump object is created if it doesn't exist. Otherwise if it
+     * is set to false, the dump object will be deleted to stop the dump.
+     */
+    if (TProperty<bool>(dumpBeforeConvProps[isOut()], false)) {
+        if (!dumpBeforeConv) {
+            LOGI("Debug: create dump object for audio before conversion");
+            dumpBeforeConv = new CHALAudioDump();
+        }
+    }
+    else if (dumpBeforeConv) {
+        delete dumpBeforeConv;
+        dumpBeforeConv = NULL;
+    }
+    if (TProperty<bool>(dumpAfterConvProps[isOut()], false)) {
+        if (!dumpAfterConv) {
+            LOGI("Debug: create dump object for audio after conversion");
+            dumpAfterConv = new CHALAudioDump();
+        }
+    }
+    else if (dumpAfterConv) {
+        delete dumpAfterConv;
+        dumpAfterConv = NULL;
+    }
+}
+
+CHALAudioDump *ALSAStreamOps::getDumpObjectBeforeConv() const
+{
+    return dumpBeforeConv;
+}
+
+CHALAudioDump *ALSAStreamOps::getDumpObjectAfterConv() const
+{
+    return dumpAfterConv;
+}
+
+}    // namespace android

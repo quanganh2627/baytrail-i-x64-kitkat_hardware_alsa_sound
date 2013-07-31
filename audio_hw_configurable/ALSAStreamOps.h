@@ -22,6 +22,11 @@
 #include <utils/String8.h>
 #include "Utils.h"
 
+/**
+ * For debug purposes only, property-driven (dynamic)
+ */
+#include "HALAudioDump.h"
+
 namespace android_audio_legacy
 {
 
@@ -75,15 +80,41 @@ public:
     void                setCurrentDevices(uint32_t uiCurrentDevices);
     CAudioStreamRoute*  getCurrentRoute() const { return mCurrentRoute; }
 
-    // Get the current stream state (true=playing, false=standby|stopped)
+    /**
+     * Get the current stream state
+     *
+     * @return boolean indicating the stream state (true=playing, false=standby|stopped)
+     */
     bool                isStarted();
-    void                setStarted(bool bIsStarted);
 
-    /* Applicability mask.
+    /**
+     * Set the current stream state
+     *
+     * @param[in] isStarted boolean used to set the stream state
+     *            (true=playing, false=standby|stopped)
+     */
+    void                setStarted(bool isStarted);
+
+    /** Applicability mask.
      * It depends on the direction of the stream.
      * @return applicability Mask
      */
     virtual uint32_t    getApplicabilityMask() const = 0;
+
+    /**
+     * Get audio dump object before conversion for debug purposes
+     *
+     * @return a CHALAudioDump object before conversion
+     */
+    CHALAudioDump *getDumpObjectBeforeConv() const;
+
+
+    /**
+     * Get audio dump objects after conversion for debug purposes
+     *
+     * @return a CHALAudioDump object after conversion
+     */
+    CHALAudioDump *getDumpObjectAfterConv() const;
 
 protected:
     ALSAStreamOps(AudioHardwareALSA* parent, const char* pcLockTag);
@@ -97,6 +128,12 @@ protected:
     uint32_t            latency() const;
     void                updateLatency(uint32_t uiFlags = 0);
 
+    /**
+     * Init audio dump if dump properties are activated to create the dump object(s).
+     * Triggered when the stream is started.
+     */
+    void                initAudioDump();
+
     AudioHardwareALSA*      mParent;
     pcm*                    mHandle;
 
@@ -104,6 +141,18 @@ protected:
     uint32_t                mDevices;
     CSampleSpec             mSampleSpec;
     CSampleSpec             mHwSampleSpec;
+
+    /**
+     * Audio dump object used if one of the dump property before
+     * conversion is true (check init.rc file)
+     */
+    CHALAudioDump         *dumpBeforeConv;
+
+    /**
+     * Audio dump object used if one of the dump property after
+     * conversion is true (check init.rc file)
+     */
+    CHALAudioDump         *dumpAfterConv;
 
 private:
     // Configure the audio conversion chain
@@ -129,6 +178,17 @@ private:
     CAudioConversion* mAudioConversion;
 
     static const uint32_t STR_FORMAT_LENGTH;
+
+    /**
+     * Array of property names before conversion
+     */
+    static const std::string dumpBeforeConvProps[CUtils::ENbDirections];
+
+
+    /**
+     * Array of property names after conversion
+     */
+    static const std::string dumpAfterConvProps[CUtils::ENbDirections];
 };
 
 };        // namespace android
