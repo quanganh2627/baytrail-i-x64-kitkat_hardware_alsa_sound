@@ -751,6 +751,19 @@ public:
     virtual bool isPreEnableRequired() { return true; }
 
     virtual bool isPostDisableRequired() { return true; }
+
+    virtual bool isApplicable(uint32_t uidevices, int iMode,
+                              bool bIsOut, uint32_t uiFlags) const {
+        // Prevent using media or voice route if BT device is selected
+        // and bt chip is disabled. Silence will be generated to avoid
+        // audioflinger timeout of blocking read/write (due to LPE off).
+        // Note that this change is notably applicable to LPE centric archs
+        if (uidevices & DEVICE_BLUETOOTH_SCO_ALL(bIsOut) &&
+            (!_pPlatformState->isBtEnabled())) {
+            return false;
+        }
+        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiFlags);
+    }
 };
 
 class CAudioMediaLPECentricStreamRoute : public CAudioLPECentricStreamRoute
