@@ -219,7 +219,7 @@ status_t AudioHardwareALSA::getMicMute(bool *state)
 {
     if (state != NULL) {
 
-        ALOGD("Get MUTE %s", *state? "true" : "false");
+        ALOGD("Get MUTE %s", mMicMuteState ? "true" : "false");
         *state = mMicMuteState;
     }
 
