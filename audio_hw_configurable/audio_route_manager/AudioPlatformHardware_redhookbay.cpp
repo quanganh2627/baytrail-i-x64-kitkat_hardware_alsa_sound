@@ -658,6 +658,9 @@ public:
         _pEffectSupported.push_back(FX_IID_AGC);
         _pEffectSupported.push_back(FX_IID_AEC);
         _pEffectSupported.push_back(FX_IID_NS);
+
+        _needRerouting[CUtils::EInput] = false;
+        _needRerouting[CUtils::EOutput] = false;
     }
 
     virtual bool needReconfiguration(bool bIsOut) const
@@ -666,12 +669,13 @@ public:
         //      - still used by the same stream
         //      - HAC mode has not changed
         //      - TTY direction has not changed
+        //      - SSP FIFO does not need to be flushed.
         if ((CAudioRoute::needReconfiguration(bIsOut) &&
-                    _pPlatformState->hasPlatformStateChanged(
-                        CAudioPlatformState::EHacModeChange |
-                        CAudioPlatformState::ETtyDirectionChange)) ||
-                 CAudioStreamRoute::needReconfiguration(bIsOut)) {
-
+                _pPlatformState->hasPlatformStateChanged(
+                    CAudioPlatformState::EHacModeChange |
+                    CAudioPlatformState::ETtyDirectionChange)) ||
+                 CAudioStreamRoute::needReconfiguration(bIsOut) ||
+                 needFlushInCommSspFifo(bIsOut)) {
             return true;
         }
         return false;
@@ -685,6 +689,60 @@ public:
         }
         return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
+
+    void configure(bool isOut)
+    {
+        if (_needRerouting[isOut]) {
+            // Before flushing SSP FIFO (for input or output streams) be
+            // sure stream is still the same.
+            if (_stStreams[isOut].pCurrent == _stStreams[isOut].pNew) {
+                ALOGD("%s  Workaround: force rerouting", __FUNCTION__);
+
+                // Do rerouting in order to flush SSP FIFO
+                unroute(isOut);
+                route(isOut);
+            }
+            _needRerouting[isOut] = false;
+        }
+        CAudioStreamRoute::configure(isOut);
+    }
+
+private:
+    bool needFlushInCommSspFifo(bool isOut) const
+    {
+        /**
+         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
+         * considering reconfiguration of an input stream:
+         *
+         * 1) The stream was active before rerouting and will remain active after rerouting.
+         * 2) Output device has changed
+         * 3) Changed output device is earpiece or speaker
+         *
+         * Outside these conditions, no rerouting can take place.
+         *
+         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
+         * considering reconfiguration of an output stream:
+         *
+         * 1) The stream was active before rerouting and will remain active after rerouting.
+         * 2) Output device has changed
+         * 3) Changed output device is earpiece or headset
+         *
+         * Outside these conditions, no rerouting can take place.
+         */
+        _needRerouting[isOut] =
+              CAudioRoute::needReconfiguration(isOut) &&
+              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) &&
+              (isOut ?
+                     (_pPlatformState->getDevices(CUtils::EOutput) &
+                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_WIRED_HEADSET)) :
+                     (_pPlatformState->getDevices(CUtils::EOutput) &
+                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER)));
+        return _needRerouting[isOut];
+    }
+
+    /** Used to track the need to flush SSP FIFO, for both directions.  */
+    mutable bool _needRerouting[CUtils::ENbDirections];
+
 };
 
 class CAudioStreamRouteBtComm : public CAudioStreamRoute
