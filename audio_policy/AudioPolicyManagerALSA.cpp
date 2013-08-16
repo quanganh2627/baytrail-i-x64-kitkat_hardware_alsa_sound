@@ -415,11 +415,13 @@ float AudioPolicyManagerALSA::computeVolume(int stream,
 audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy strategy, bool fromCache)
 {
     uint32_t device = 0;
+    uint32_t currentDevice = 0;
 
     device = baseClass::getDeviceForStrategy(strategy, fromCache);
-
     AudioOutputDescriptor *hwOutputDesc = mOutputs.valueFor(mPrimaryOutput);
-    uint32_t currentDevice = (uint32_t)hwOutputDesc->device();
+    LOG_ALWAYS_FATAL_IF(hwOutputDesc == NULL,
+                        "Invalid primary audio output device or no audio output device found");
+    currentDevice = static_cast<uint32_t>(hwOutputDesc->device());
 
     switch (strategy) {
         case STRATEGY_PHONE:
