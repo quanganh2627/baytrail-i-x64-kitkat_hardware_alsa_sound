@@ -986,7 +986,6 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
     //
     // Search BT WBS parameter
     //
-    static const char * AUDIO_PARAMETER_KEY_BT_WBS = "bt_headset_wbs";
 
     key = String8(AUDIO_PARAMETER_KEY_BT_WBS);
 
