@@ -175,7 +175,7 @@ AudioStreamIn* AudioHardwareALSA::openInputStream(uint32_t devices,
 
     mMicMuteState = false;
 
-    if (!audio_is_input_device(devices)) {
+    if (!CAudioUtils::isAudioInputDevice(devices)) {
 
         err = BAD_VALUE;
         return NULL;

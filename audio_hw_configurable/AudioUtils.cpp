@@ -23,6 +23,14 @@
 #include <system/audio.h>
 #include <limits.h>
 #include <cerrno>
+#include "AudioPlatformHardware.h"
+#include "SampleSpec.h"
+#include "AudioUtils.h"
+
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "AudioUtils"
 
 using namespace android;
 using namespace std;
@@ -119,6 +127,11 @@ uint32_t CAudioUtils::convertUsecToMsec(uint32_t uiTimeUsec)
 {
     // Round up to the nearest Msec
     return ((uiTimeUsec + 999) / 1000);
+}
+
+bool CAudioUtils::isAudioInputDevice(uint32_t uiDevices)
+{
+    return (popcount(uiDevices) == 1) && ((uiDevices & ~AudioSystem::DEVICE_IN_ALL) == 0);
 }
 
 }; // namespace android

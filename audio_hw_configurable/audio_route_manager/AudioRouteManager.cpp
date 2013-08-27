@@ -122,14 +122,14 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::M
 
 // Selected Input Device type
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::INPUT_DEVICE_VALUE_PAIRS[] = {
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_COMMUNICATION),         "Communication" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_AMBIENT),               "Ambient" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BUILTIN_MIC),           "Main" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET), "SCO_Headset" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_WIRED_HEADSET),         "Headset" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_AUX_DIGITAL),           "AuxDigital" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_VOICE_CALL),            "VoiceCall" },
-    { REMOVE_32_BITS_MSB(AudioSystem::DEVICE_IN_BACK_MIC),              "Back" }
+    { AudioSystem::DEVICE_IN_COMMUNICATION,         "Communication" },
+    { AudioSystem::DEVICE_IN_AMBIENT,               "Ambient" },
+    { AudioSystem::DEVICE_IN_BUILTIN_MIC,           "Main" },
+    { AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET, "SCO_Headset" },
+    { AudioSystem::DEVICE_IN_WIRED_HEADSET,         "Headset" },
+    { AudioSystem::DEVICE_IN_AUX_DIGITAL,           "AuxDigital" },
+    { AudioSystem::DEVICE_IN_VOICE_CALL,            "VoiceCall" },
+    { AudioSystem::DEVICE_IN_BACK_MIC,              "Back" }
 };
 
 // Selected Output Device type
@@ -1054,12 +1054,14 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 {
     AutoW lock(_lock);
 
-    bool bIsOut = pStream->isOut();
+    ALOGD("%s: 0x%X", __FUNCTION__, devices);
+    if ((devices & AUDIO_DEVICE_BIT_IN) != 0) {
 
-    if (!bIsOut) {
-
-        devices = REMOVE_32_BITS_MSB(devices);
+        devices &= ~AUDIO_DEVICE_BIT_IN;
     }
+    ALOGD("%s: 0x%X", __FUNCTION__, devices);
+
+    bool bIsOut = pStream->isOut();
 
     // Update Platform state: in/out devices
     _pPlatformState->setDevices(devices, bIsOut);
