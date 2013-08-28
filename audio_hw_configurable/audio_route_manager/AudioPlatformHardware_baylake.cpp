@@ -132,10 +132,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         MEDIA_CARD_NAME,
         {
             MEDIA_CAPTURE_DEVICE_ID,
@@ -168,10 +164,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         MEDIA_CARD_NAME,
         {
             NOT_APPLICABLE,
@@ -203,10 +195,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {
@@ -246,10 +234,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {

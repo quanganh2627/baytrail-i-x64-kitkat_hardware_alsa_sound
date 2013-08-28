@@ -259,9 +259,6 @@ private:
         uint32_t uiApplicableMask[CUtils::ENbDirections];
         /**< Bit field list of applicable modes per direction: 0 : EInput, 1 : EOutput */
         uint32_t uiApplicableModes[CUtils::ENbDirections];
-        /**< Bit field list of applicable states (e.g. EBtHeadsetNrEcChange)
-           per direction: 0 : EInput, 1 : EOutput */
-        uint32_t uiApplicableStates[CUtils::ENbDirections];
         /**< Audio card name used by the route */
         const char* pcCardName;
         /**< Device ID used by the route */

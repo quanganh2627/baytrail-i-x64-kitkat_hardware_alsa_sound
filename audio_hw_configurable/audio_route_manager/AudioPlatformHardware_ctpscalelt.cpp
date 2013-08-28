@@ -223,10 +223,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         MEDIA_CARD_NAME,
         {
             MEDIA_CAPTURE_DEVICE_ID,
@@ -258,10 +254,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         MEDIA_CARD_NAME,
         {
             NOT_APPLICABLE,
@@ -292,10 +284,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {
@@ -331,10 +319,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_IN_CALL),
             (1 << AudioSystem::MODE_IN_CALL)
         },
-        {
-            CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
-            CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
-        },
         VOICE_MIXING_CARD_NAME,
         {
             VOICE_RECORD_DEVICE_ID,
@@ -366,10 +350,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState
-        },
         VOICE_CARD_NAME,
         {
             VOICE_HWCODEC_UPLINK_DEVICE_ID,
@@ -400,10 +380,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
-        },
-        {
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
         },
         VOICE_CARD_NAME,
         {
@@ -441,10 +417,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -475,10 +447,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_IN_CALL)
-        },
-        {
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus,
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus
         },
         NOT_APPLICABLE,
         {
@@ -511,10 +479,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_IN_CALL)
         },
-        {
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus,
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -546,10 +510,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL),
             (1 << AudioSystem::MODE_NORMAL)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -569,10 +529,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "VirtualASP",
         CAudioRoute::EExternalRoute,
         "",
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
