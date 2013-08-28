@@ -293,8 +293,8 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
     if (!isRouteAvailable()) {
 
         lock.unlock();
-        ALOGD("%s(buffer=%p, bytes=%ld) No route available. Generating silence.",
-            __FUNCTION__, buffer, static_cast<long int>(bytes));
+        ALOGW("%s(buffer=%p, bytes=%ld) No route available. Generating silence for device 0x%x.",
+              __FUNCTION__, buffer, static_cast<long int>(bytes), getCurrentDevices());
         return generateSilence(buffer, bytes);
     }
 
