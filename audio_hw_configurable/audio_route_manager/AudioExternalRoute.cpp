@@ -21,18 +21,15 @@
 
 namespace android_audio_legacy
 {
-//
-// Basic needReconfiguration fonction
-// A route is set to be reconfigured if all these conditions are true:
-//      -it is currently used
-//      -it will be used after reconsider routing
-//      -routing conditions changed
-// To be implemented by derivated classes if different
-// route policy
-//
-bool CAudioExternalRoute::needReconfiguration(bool bIsOut) const
+
+bool CAudioExternalRoute::needReconfiguration(bool isOut) const
 {
-   return CAudioRoute::needReconfiguration(bIsOut) && _pPlatformState->hasPlatformStateChanged();
+   return CAudioRoute::needReconfiguration(isOut) &&
+           _pPlatformState->hasPlatformStateChanged((isOut ?
+                                                        CAudioPlatformState::EOutputDevicesChange :
+                                                        CAudioPlatformState::EInputDevicesChange |
+                                                        CAudioPlatformState::EInputSourceChange)
+                                                    );
 }
 
 }       // namespace android

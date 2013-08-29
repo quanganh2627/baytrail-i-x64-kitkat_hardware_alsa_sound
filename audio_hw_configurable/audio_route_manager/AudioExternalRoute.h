@@ -29,8 +29,21 @@ public:
 
     virtual RouteType getRouteType() const { return CAudioRoute::EExternalRoute; }
 
-    // Filters the unroute/route
-    virtual bool needReconfiguration(bool bIsOut) const;
+    /**
+     * Filters the unroute/route
+     * External route class provides a basic rectricted needReconfiguration implementation
+     * that may be overriden to cover specific needs.
+     * A route is set to be reconfigured if all these conditions are true:
+     *      -it is currently used
+     *      -it will be used after reconsider routing
+     *      -output or input devices changed (matching the direction of the route)
+     *      -input source changed (input direction only).
+     *
+     * @param[in] isOut: direction of the audio external route.
+     *
+     * @return true if route needs to be reconfigured, false otherwise.
+     */
+    virtual bool needReconfiguration(bool isOut) const;
 };
 };        // namespace android
 

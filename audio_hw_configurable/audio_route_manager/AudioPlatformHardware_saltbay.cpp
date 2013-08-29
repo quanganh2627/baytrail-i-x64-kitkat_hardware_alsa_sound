@@ -672,6 +672,17 @@ public:
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
+
+    virtual bool needReconfiguration(bool isOut) const
+    {
+        return (CAudioRoute::needReconfiguration(isOut) &&
+                _pPlatformState->hasPlatformStateChanged(
+                    CAudioPlatformState::EHacModeChange |
+                    CAudioPlatformState::ETtyDirectionChange |
+                    CAudioPlatformState::EBandTypeChange |
+                    CAudioPlatformState::HwModeChange)) ||
+                CAudioExternalRoute::needReconfiguration(isOut);
+    }
 };
 
 class CAudioExternalRouteHwCodec1IA : public CAudioExternalRoute
@@ -715,6 +726,17 @@ public:
             }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
+    }
+
+    virtual bool needReconfiguration(bool isOut) const
+    {
+        return (CAudioRoute::needReconfiguration(isOut) &&
+                _pPlatformState->hasPlatformStateChanged(
+                    CAudioPlatformState::EHacModeChange |
+                    CAudioPlatformState::ETtyDirectionChange |
+                    CAudioPlatformState::EBandTypeChange |
+                    CAudioPlatformState::HwModeChange)) ||
+                CAudioExternalRoute::needReconfiguration(isOut);
     }
 };
 
