@@ -206,8 +206,12 @@ public:
     // Get input source
     uint32_t getInputSource() const { return _uiInputSource; }
 
-    // Set devices
-    void setInputSource(uint32_t inputSource);
+    /**
+     * Set input source mask
+     *
+     * @param[in] inputSource the stream input source mask.
+     */
+    void setInputSourceMask(uint32_t inputSource);
 
     /**
      * Set Context Awareness status

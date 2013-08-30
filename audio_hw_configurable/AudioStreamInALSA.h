@@ -22,6 +22,10 @@
 #include "AudioBufferProvider.h"
 #include <Mutex.hpp>
 
+/**
+ * This macro converts a bit index into a bitfield mask
+ */
+#define INDEX_TO_MASK(x) (1 << (x))
 
 namespace android_audio_legacy
 {
@@ -158,15 +162,21 @@ public:
     virtual android::status_t getNextBuffer(android::AudioBufferProvider::Buffer* buffer, int64_t pts = kInvalidPTS);
     virtual void releaseBuffer(android::AudioBufferProvider::Buffer* buffer);
 
-    int                 getInputSource() const { return mInputSource; }
-    void                setInputSource(int iInputSource);
+    /**
+     * The input source is carrying also the mask to be able to identify
+     * between routed and unrouted input source streams.
+     *
+     * @param[in] the input source.
+     */
+    inline void setInputSourceMask(uint32_t inputSource) { _inputSourceMask = inputSource; };
 
     /**
      * Applicability mask.
-     * For an input stream, applicability mask is the ID of the input source
-     * @return ID of input source
+     * For an input stream, applicability mask is the input source mask
+     *
+     * @return input source mask
      */
-    virtual uint32_t    getApplicabilityMask() const { return 1 << getInputSource(); }
+    virtual uint32_t    getApplicabilityMask() const { return _inputSourceMask; }
 
 private:
     class AudioEffectHandle
@@ -230,7 +240,11 @@ private:
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;
 
-    uint32_t            mInputSource;
+    /**
+     * This variable represents the audio input source mask. This was introduced to
+     * be able to differentiate between routed and unrouted input source streams.
+     */
+    uint32_t            _inputSourceMask;
 
     ssize_t mFramesIn;
 

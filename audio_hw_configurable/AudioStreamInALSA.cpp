@@ -51,7 +51,7 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
     base(parent, "AudioInLock"),
     mFramesLost(0),
     mAcoustics(audio_acoustics),
-    mInputSource(0),
+    _inputSourceMask(0),
     mFramesIn(0),
     mProcessingFramesIn(0),
     mProcessingBuffer(NULL),
@@ -452,16 +452,11 @@ status_t AudioStreamInALSA::detachRoute()
     return base::detachRoute();
 }
 
-void AudioStreamInALSA::setInputSource(int inputSource)
-{
-    mInputSource = inputSource;
-}
-
 size_t AudioStreamInALSA::bufferSize() const
 {
     uint32_t uiDivider = HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
 
-    if (mInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+    if (_inputSourceMask == INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION)) {
 
         uiDivider = LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
     }

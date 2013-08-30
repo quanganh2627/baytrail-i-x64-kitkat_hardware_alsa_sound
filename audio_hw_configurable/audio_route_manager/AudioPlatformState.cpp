@@ -213,7 +213,7 @@ void CAudioPlatformState::setDevices(uint32_t devices, bool bIsOut)
 }
 
 // Set devices
-void CAudioPlatformState::setInputSource(uint32_t inputSource)
+void CAudioPlatformState::setInputSourceMask(uint32_t inputSource)
 {
     if (_uiInputSource == inputSource) {
 

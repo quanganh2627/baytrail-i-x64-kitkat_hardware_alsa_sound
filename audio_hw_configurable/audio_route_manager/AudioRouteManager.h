@@ -263,7 +263,13 @@ private:
 
     void setDevices(ALSAStreamOps* pStream, uint32_t devices);
 
-    void setInputSource(AudioStreamInALSA* pStreamIn, int iInputSource);
+    /**
+     * Update the active input source. Only one active input source at the time.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] inputSource the stream input source mask.
+     */
+    void setInputSourceMask(AudioStreamInALSA* pStreamIn, uint32_t inputSource);
 
     void setOutputFlags(AudioStreamOutALSA* pStreamOut, uint32_t uiFlags);
 

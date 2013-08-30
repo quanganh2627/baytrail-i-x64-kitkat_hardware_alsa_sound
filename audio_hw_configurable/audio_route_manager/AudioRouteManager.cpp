@@ -166,14 +166,15 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::R
 
 // Audio Source
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS[] = {
-    { AUDIO_SOURCE_DEFAULT,             "Default" },
-    { AUDIO_SOURCE_MIC,                 "Mic" },
-    { AUDIO_SOURCE_VOICE_UPLINK,        "VoiceUplink" },
-    { AUDIO_SOURCE_VOICE_DOWNLINK,      "VoiceDownlink" },
-    { AUDIO_SOURCE_VOICE_CALL,          "VoiceCall" },
-    { AUDIO_SOURCE_CAMCORDER,           "Camcorder" },
-    { AUDIO_SOURCE_VOICE_RECOGNITION,   "VoiceRecognition" },
-    { AUDIO_SOURCE_VOICE_COMMUNICATION, "VoiceCommunication" }
+    { 0,                                               "None" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_DEFAULT),             "Default" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_MIC),                 "Mic" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_UPLINK),        "VoiceUplink" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_DOWNLINK),      "VoiceDownlink" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_CALL),          "VoiceCall" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_CAMCORDER),           "Camcorder" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_RECOGNITION),   "VoiceRecognition" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION), "VoiceCommunication" }
 };
 
 // Voice Codec Band
@@ -718,13 +719,13 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
                 param.remove(key);
 
                 // Found the input source
-                setInputSource(pStreamIn, inputSource);
+                setInputSourceMask(pStreamIn, INDEX_TO_MASK(inputSource));
             }
             if (devices == 0) {
 
                 // When this function is called with a null device, considers it as
-                // an unrouting request, restore source to default within route manager
-                setInputSource(pStreamIn, AUDIO_SOURCE_DEFAULT);
+                // an unrouting request, restore source to None (0) within route manager
+                setInputSourceMask(pStreamIn, 0);
             }
         } else {
 
@@ -1105,15 +1106,15 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 // Assumption: only one active input source at one time.
 // @todo: Does it make sense to keep it in the platform state???
 //
-void CAudioRouteManager::setInputSource(AudioStreamInALSA* pStreamIn, int iInputSource)
+void CAudioRouteManager::setInputSourceMask(AudioStreamInALSA* pStreamIn, uint32_t inputSource)
 {
-    pStreamIn->setInputSource(iInputSource);
+    pStreamIn->setInputSourceMask(inputSource);
 
     ALOGD("%s: inputSource = %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(iInputSource).c_str());
-    _pPlatformState->setInputSource(iInputSource);
+          _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(inputSource).c_str());
+    _pPlatformState->setInputSourceMask(inputSource);
 
-    if (iInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+    if (inputSource == INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION)) {
 
         CAudioBand::Type eBand = CAudioBand::EWide;
         if (pStreamIn->sampleRate() == VOIP_RATE_FOR_NARROW_BAND_PROCESSING) {
