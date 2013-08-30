@@ -38,6 +38,7 @@
 
 
 using namespace std;
+using audio_comms::utilities::Mutex;
 
 namespace android_audio_legacy
 {
@@ -65,8 +66,13 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
 
 AudioStreamInALSA::~AudioStreamInALSA()
 {
-    // Note that memory allocated will
-    // be freed upon doClose callback from route manager
+    /**
+     * Note that memory allocated will
+     * be freed upon doClose callback from route manager
+     * Effects are managed by AudioFlinger in a different thread than Capture thread.
+     * Deleting the input stream may happen while trying to remove / add an effect.
+     */
+    Mutex::Locker Locker(_streamLock);
     close();
 }
 
@@ -465,6 +471,7 @@ size_t AudioStreamInALSA::bufferSize() const
 status_t AudioStreamInALSA::addAudioEffect(effect_handle_t effect)
 {
     ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    Mutex::Locker Locker(_streamLock);
 
     // Called from different context than the stream,
     // so Routing Lock must be held, so request the parent to perform the action.
@@ -474,6 +481,7 @@ status_t AudioStreamInALSA::addAudioEffect(effect_handle_t effect)
 status_t AudioStreamInALSA::removeAudioEffect(effect_handle_t effect)
 {
     ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    Mutex::Locker Locker(_streamLock);
 
     // Called from different context than the stream,
     // so Routing Lock must be held, so request the parent to perform the action.

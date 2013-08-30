@@ -20,6 +20,7 @@
 #include "AudioHardwareALSA.h"
 #include "ALSAStreamOps.h"
 #include "AudioBufferProvider.h"
+#include <Mutex.hpp>
 
 
 namespace android_audio_legacy
@@ -82,6 +83,9 @@ public:
      * the audio_effect.conf file.
      * Limited to Echo Cancellation, Noise Suppression and Automatic Gain Control.
      *
+     * Effects are managed by AudioFlinger in a different thread than Capture thread.
+     * Deleting the input stream may happen while trying to remove / add an effect.
+     *
      * @param[in] structure of the effect to add.
      *
      * @return status_t OK upon succes, error code otherwise.
@@ -92,6 +96,9 @@ public:
      * Allows Flinger to request to remove an effect from the stream.
      * Removes an audio effect on the input stream chain.
      * Limited to Echo Cancellation, Noise Suppression and Automatic Gain Control.
+     *
+     * Effects are managed by AudioFlinger in a different thread than Capture thread.
+     * Deleting the input stream may happen while trying to remove / add an effect.
      *
      * @param[in] structure of the effect to remove.
      *
@@ -269,6 +276,12 @@ private:
 
     static const uint32_t HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
+
+    /**
+     * Effects are handled in a separated thread, need to lock to protect concurrent
+     * access to the input stream.
+     */
+    audio_comms::utilities::Mutex _streamLock;
 };
 
 };        // namespace android
