@@ -44,6 +44,7 @@ audio_hw_configurable_includes_dir := \
     $(TARGET_OUT_HEADERS)/mamgr-core \
     $(TARGET_OUT_HEADERS)/audiocomms-include \
     $(TARGET_OUT_HEADERS)/audio_hal_utils \
+    $(TARGET_OUT_HEADERS)/hal_audio_dump \
     $(TARGET_OUT_HEADERS)/hw \
     $(TARGET_OUT_HEADERS)/parameter \
     frameworks/av/include/media \
@@ -101,7 +102,8 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := \
     audio.primary.$(TARGET_DEVICE) \
     audio_policy.$(TARGET_DEVICE) \
-    libaudiohalutils
+    libaudiohalutils \
+    libhalaudiodump
 
 include $(BUILD_PHONY_PACKAGE)
 
@@ -153,7 +155,8 @@ LOCAL_SHARED_LIBRARIES := \
     libaudioutils \
     libproperty \
     libaudiohalutils \
-    libinterface-provider-lib
+    libinterface-provider-lib \
+    libhalaudiodump
 
 # gcov build
 ifeq ($($(LOCAL_MODULE).gcov),true)
