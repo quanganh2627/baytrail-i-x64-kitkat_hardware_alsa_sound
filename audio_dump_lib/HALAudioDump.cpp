@@ -29,12 +29,19 @@ using namespace android;
 using namespace std;
 
 const char *CHALAudioDump::streamDirections[] = { "in", "out" };
-
+const char *CHALAudioDump::dumpDirPath = "/logs/audio_dumps";
 const uint32_t CHALAudioDump::MAX_NUMBER_OF_FILES = 4;
 
 CHALAudioDump::CHALAudioDump()
     : dumpFile(0), fileCount(0)
 {
+    uint32_t status;
+
+    status = mkdir(dumpDirPath, S_IRWXU | S_IRGRP | S_IROTH);
+
+    if ((status != EEXIST) && (status != NO_ERROR)) {
+      LOGE("Error in creating the audio dumps directory at %s.", dumpDirPath);
+    }
 }
 
 CHALAudioDump::~CHALAudioDump()
@@ -60,7 +67,8 @@ void CHALAudioDump::dumpAudioSamples(const void *buffer,
          * A new dump file is created for each stream relevant to the dump needs
          */
         asprintf(&audio_file_name,
-                 "/data/audio_%s_%dKhz_%dch_%s_%d.pcm",
+                 "%s/audio_%s_%dKhz_%dch_%s_%d.pcm",
+                 dumpDirPath,
                  streamDirectionStr(isOutput),
                  sRate,
                  chNb,
@@ -108,7 +116,8 @@ void CHALAudioDump::dumpAudioSamples(const void *buffer,
         char *fileToRemove;
 
         asprintf(&fileToRemove,
-                 "/data/audio_%s_%dKhz_%dch_%s_%d.pcm",
+                 "%s/audio_%s_%dKhz_%dch_%s_%d.pcm",
+                 dumpDirPath,
                  streamDirectionStr(isOutput),
                  sRate,
                  chNb,
