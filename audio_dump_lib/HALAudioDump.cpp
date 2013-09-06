@@ -67,20 +67,24 @@ void CHALAudioDump::dumpAudioSamples(const void *buffer,
                  nameContext.c_str(),
                  ++fileCount);
 
+        if (!audio_file_name) {
+            return;
+        }
+
         dumpFile = fopen(audio_file_name, "wb");
 
         if (dumpFile == NULL) {
             ALOGE("Cannot open dump file %s, errno %d, reason: %s",
-                 audio_file_name,
-                 errno,
-                 strerror(errno));
+                  audio_file_name,
+                  errno,
+                  strerror(errno));
             free(audio_file_name);
             return;
         }
 
         ALOGI("Audio %put stream dump file %s, fh %p opened.", streamDirectionStr(isOutput),
-             audio_file_name,
-             dumpFile);
+              audio_file_name,
+              dumpFile);
         free(audio_file_name);
     }
 
@@ -110,6 +114,10 @@ void CHALAudioDump::dumpAudioSamples(const void *buffer,
                  chNb,
                  nameContext.c_str(),
                  fileCount);
+
+        if (!fileToRemove) {
+            return;
+        }
 
         fileCount--;
 

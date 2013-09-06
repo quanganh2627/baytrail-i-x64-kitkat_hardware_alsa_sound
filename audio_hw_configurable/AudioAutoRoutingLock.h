@@ -28,6 +28,10 @@ class CAudioAutoRoutingLock
 public:
     CAudioAutoRoutingLock(AudioHardwareALSA* pParent);
     ~CAudioAutoRoutingLock();
+    /**
+      * This function unlocks the managed mutex.
+      */
+    void unlock();
 
 private:
     AudioHardwareALSA* _pParent;

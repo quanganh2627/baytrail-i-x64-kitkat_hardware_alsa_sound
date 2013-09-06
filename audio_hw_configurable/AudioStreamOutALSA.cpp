@@ -90,7 +90,8 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
     // Check if the audio route is available for this stream
     if (!isRouteAvailable()) {
 
-        ALOGD("%s(buffer=%p, bytes=%d) No route available. Generating silence to alsa device (0x%x).",
+        lock.unlock();
+        ALOGW("%s(buffer=%p, bytes=%d) No route available. Generating silence to alsa device (0x%x).",
             __FUNCTION__, buffer, bytes, getCurrentDevices());
         return generateSilence(bytes);
     }
@@ -131,7 +132,7 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 
             // Returns asap to catch up the broken pipe error else, trash the audio data
             // and sleep the time the driver may use to consume it.
-            ALOGD("%s(buffer=%p, bytes=%d) Broken pipe. Generating silence to alsa device (0x%x).",
+            ALOGW("%s(buffer=%p, bytes=%d) Broken pipe. Generating silence to alsa device (0x%x).",
                 __FUNCTION__, buffer, bytes, getCurrentDevices());
             generateSilence(bytes);
         }

@@ -33,4 +33,8 @@ CAudioAutoRoutingLock::~CAudioAutoRoutingLock()
     _pParent->unlockRouting();
 }
 
+void CAudioAutoRoutingLock::unlock()
+{
+    _pParent->unlockRouting();
+}
 }       // namespace android
