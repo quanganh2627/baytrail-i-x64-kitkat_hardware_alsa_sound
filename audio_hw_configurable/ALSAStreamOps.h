@@ -47,7 +47,17 @@ public:
     android::String8    getParameters(const android::String8& keys);
 
     inline uint32_t     sampleRate() const { return mSampleSpec.getSampleRate(); }
-    size_t              getBufferSize(uint32_t iDivider) const;
+
+    /**
+     * Get the buffer size to help upper layer to calibrate the transfer with Audio HAL.
+     * Number of bytes returned takes stream sample rate into account
+     * Ensure also the buffer is a multiple of 16 frames (AudioFlinger requirement).
+     *
+     * @param[in] flags: outputFlags for output stream, inputSource for input stream.
+     *
+     * @return size of a period in bytes.
+     */
+    size_t              getBufferSize(uint32_t flags = 0) const;
     inline int          format() const { return mSampleSpec.getFormat(); }
     inline uint32_t     channelCount() const { return mSampleSpec.getChannelCount(); }
     inline uint32_t     channels() const { return mSampleSpec.getChannelMask(); }

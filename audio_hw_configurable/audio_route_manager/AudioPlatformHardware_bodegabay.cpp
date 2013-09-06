@@ -26,20 +26,17 @@
 #define LONG_PERIOD_FACTOR              ((int)2)
 #define SEC_PER_MSEC                    ((int)1000)
 
-/// May add a new route, include header here...
-#define NB_RING_BUFFER_NORMAL           ((int)2)
-#define NB_RING_BUFFER_INCALL           ((int)4)
+#define NB_RING_BUFFER                  ((int)4)
+#define NB_RING_BUFFER_DEEP             ((int)2)
 
 #define SAMPLE_RATE_8000                ((int)8000)
 #define SAMPLE_RATE_48000               ((int)48000)
 
-#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)  // 20ms @ 8k
-#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(96 * 2 * 48000 / USEC_PER_SEC)
-#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(24 *2 * 48000 / USEC_PER_SEC)
-#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(20 *2 * 48000 / USEC_PER_SEC)
-#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)  //(20 * 48000 / USEC_PER_SEC)
-
-
+#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)
+#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
 static const char* MEDIA_CARD_NAME = "merrprhcs42l73";
 #define DEEP_MEDIA_PLAYBACK_DEVICE_ID   ((int)0)
@@ -67,10 +64,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback = {
    channels          : 2,
    rate              : SAMPLE_RATE_48000,
    period_size       : DEEP_PLAYBACK_48000_PERIOD_SIZE,
-   period_count      : NB_RING_BUFFER_NORMAL,
+   period_count      : NB_RING_BUFFER_DEEP,
    format            : PCM_FORMAT_S16_LE,
-   start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL - 1,
-   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_DEEP - 1,
+   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_DEEP,
    silence_threshold : 0,
    avail_min         : DEEP_PLAYBACK_48000_PERIOD_SIZE,
 };
@@ -79,10 +76,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
    channels          : 2,
    rate              : SAMPLE_RATE_48000,
    period_size       : PLAYBACK_48000_PERIOD_SIZE,
-   period_count      : NB_RING_BUFFER_NORMAL,
+   period_count      : NB_RING_BUFFER,
    format            : PCM_FORMAT_S16_LE,
-   start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL - 1,
-   stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+   start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER - 1,
+   stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER,
    silence_threshold : 0,
    avail_min         : PLAYBACK_48000_PERIOD_SIZE,
 };
@@ -91,10 +88,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : CAPTURE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_NORMAL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold    : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : CAPTURE_48000_PERIOD_SIZE,
 };
@@ -103,10 +100,10 @@ static const pcm_config pcm_config_voice_downlink = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_48000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         :  VOICE_48000_PERIOD_SIZE,
 };
@@ -115,10 +112,10 @@ static const pcm_config pcm_config_voice_uplink = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -127,10 +124,10 @@ static const pcm_config pcm_config_voice_mixing_playback = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_48000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -140,7 +137,7 @@ static const pcm_config pcm_config_voice_mixing_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 0,
     stop_threshold    : 0,

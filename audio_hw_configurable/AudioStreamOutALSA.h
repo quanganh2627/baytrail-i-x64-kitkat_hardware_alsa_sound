@@ -102,7 +102,13 @@ public:
 
     virtual status_t    flush();
 
-    uint32_t            getFlags() const { return mFlags; }
+    /**
+     * Get the output stream flags.
+     * OutputFlags is an additionnal information to identify the type of stream.
+     *
+     * @return output flags associated with this output stream.
+     */
+    uint32_t            getFlags() const { return _flags; }
     void                setFlags(uint32_t uiFlags);
 
     /**
@@ -122,7 +128,7 @@ private:
 
     uint32_t            mFrameCount;
 
-    uint32_t            mFlags;
+    uint32_t            _flags;
 
     void                pushEchoReference(const void *buffer, ssize_t frames);
 
@@ -133,7 +139,6 @@ private:
     static const uint32_t MAX_AGAIN_RETRY;
     static const uint32_t WAIT_TIME_MS;
     static const uint32_t WAIT_BEFORE_RETRY_US;
-    static const uint32_t LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t USEC_PER_MSEC;
 };
 

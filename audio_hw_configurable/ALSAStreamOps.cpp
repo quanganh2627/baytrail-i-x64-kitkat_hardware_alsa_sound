@@ -225,23 +225,21 @@ String8 ALSAStreamOps::getParameters(const String8& keys)
     return param.toString();
 }
 
-//
-// Return the number of bytes (not frames)
-// number of bytes returned takes sample rate into account
-//
-// @params: uiDivider: dividing factor of the latency of ringbuffer
-//
-size_t ALSAStreamOps::getBufferSize(uint32_t uiDivider) const
+size_t ALSAStreamOps::getBufferSize(uint32_t flags) const
 {
-    ALOGD("%s: latency = %d divider = %d", __FUNCTION__, mLatencyUs, uiDivider);
+    pcm_config pcmConf = mParent->getDefaultPcmConfig(isOut(), flags);
+    /**
+     * Pcm config might not be in the same sample specification of the stream. So, need first
+     * translate it into time domain, before switch back to frames and bytes.
+     */
+    uint64_t bufferSizeUs = (uint64_t)CAudioUtils::USEC_TO_SEC * pcmConf.period_size  /
+                                                                                   pcmConf.rate;
+    LOG_ALWAYS_FATAL_IF(bufferSizeUs > std::numeric_limits<uint32_t>::max());
 
-    size_t size = mSampleSpec.convertUsecToframes(mLatencyUs) / uiDivider;
+    uint32_t bufferSizeInFrames = mSampleSpec.convertUsecToframes(bufferSizeUs);
+    size_t bytes = mSampleSpec.convertFramesToBytes(CAudioUtils::alignOn16(bufferSizeInFrames));
 
-    size = CAudioUtils::alignOn16(size);
-
-    size_t bytes = mSampleSpec.convertFramesToBytes(size);
     ALOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
-
     return bytes;
 }
 

@@ -43,9 +43,6 @@ using audio_comms::utilities::Mutex;
 namespace android_audio_legacy
 {
 
-const uint32_t AudioStreamInALSA::HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO = 1;
-const uint32_t AudioStreamInALSA::LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
-
 AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
                                      AudioSystem::audio_in_acoustics audio_acoustics) :
     base(parent, "AudioInLock"),
@@ -454,13 +451,7 @@ status_t AudioStreamInALSA::detachRoute()
 
 size_t AudioStreamInALSA::bufferSize() const
 {
-    uint32_t uiDivider = HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
-
-    if (_inputSourceMask == INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION)) {
-
-        uiDivider = LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
-    }
-    return getBufferSize(uiDivider);
+    return getBufferSize(_inputSourceMask);
 }
 
 status_t AudioStreamInALSA::addAudioEffect(effect_handle_t effect)

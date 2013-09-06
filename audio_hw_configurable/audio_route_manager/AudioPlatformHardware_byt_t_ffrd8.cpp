@@ -26,23 +26,17 @@
 #define LONG_PERIOD_FACTOR              ((int)2)
 #define SEC_PER_MSEC                    ((int)1000)
 
-/// May add a new route, include header here...
-#define NB_RING_BUFFER_NORMAL           ((int)2)
-#define NB_RING_BUFFER_NORMAL_PLAYBACK  ((int)4) /**< Period count for media playback only */ 
-#define NB_RING_BUFFER_INCALL           ((int)4)
+#define NB_RING_BUFFER                  ((int)4)
+#define NB_RING_BUFFER_DEEP             ((int)2)
 
 #define SAMPLE_RATE_8000                ((int)8000)
 #define SAMPLE_RATE_48000               ((int)48000)
 
-#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)  // 20ms @ 8k
-#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(96 * 2 * 48000 / USEC_PER_SEC)
-/**
- * Media playback period size of 1152 frames 
- */
-#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(24 * 48000 / USEC_PER_SEC)
-#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(20 *2 * 48000 / USEC_PER_SEC)
-#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)  //(20 * 48000 / USEC_PER_SEC)
-
+#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)
+#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
 static const char* MEDIA_CARD_NAME = "baytrailaudio";
 #define DEEP_MEDIA_PLAYBACK_DEVICE_ID   ((int)0)
@@ -66,37 +60,37 @@ namespace android_audio_legacy
 // For recording, configure ALSA to start the transfer on the
 // first frame.
 const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback = {
-   channels          : 2,
-   rate              : SAMPLE_RATE_48000,
-   period_size       : DEEP_PLAYBACK_48000_PERIOD_SIZE,
-   period_count      : NB_RING_BUFFER_NORMAL,
-   format            : PCM_FORMAT_S16_LE,
-   start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL - 1,
-   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
-   silence_threshold : 0,
-   avail_min         : DEEP_PLAYBACK_48000_PERIOD_SIZE,
+    channels          : 2,
+    rate              : SAMPLE_RATE_48000,
+    period_size       : DEEP_PLAYBACK_48000_PERIOD_SIZE,
+    period_count      : NB_RING_BUFFER_DEEP,
+    format            : PCM_FORMAT_S16_LE,
+    start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_DEEP - 1,
+    stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_DEEP,
+    silence_threshold : 0,
+    avail_min         : DEEP_PLAYBACK_48000_PERIOD_SIZE,
 };
 
 const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
-   channels          : 2,
-   rate              : SAMPLE_RATE_48000,
-   period_size       : PLAYBACK_48000_PERIOD_SIZE,
-   period_count      : NB_RING_BUFFER_NORMAL_PLAYBACK,
-   format            : PCM_FORMAT_S16_LE,
-   start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL_PLAYBACK - 1,
-   stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL_PLAYBACK,
-   silence_threshold : 0,
-   avail_min         : NB_RING_BUFFER_NORMAL_PLAYBACK,
+    channels          : 2,
+    rate              : SAMPLE_RATE_48000,
+    period_size       : PLAYBACK_48000_PERIOD_SIZE,
+    period_count      : NB_RING_BUFFER,
+    format            : PCM_FORMAT_S16_LE,
+    start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER - 1,
+    stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER,
+    silence_threshold : 0,
+    avail_min         : PLAYBACK_48000_PERIOD_SIZE,
 };
 
 const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -105,10 +99,10 @@ static const pcm_config pcm_config_voice_bt_downlink = {
     channels          : 1,
     rate              : SAMPLE_RATE_8000,
     period_size       : VOICE_8000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_8000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_8000_PERIOD_SIZE,
 };
@@ -117,10 +111,10 @@ static const pcm_config pcm_config_voice_bt_uplink = {
     channels          : 1,
     rate              : SAMPLE_RATE_8000,
     period_size       : VOICE_8000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_8000_PERIOD_SIZE,
 };
@@ -129,10 +123,10 @@ static const pcm_config pcm_config_voice_mixing_playback = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_48000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -142,10 +136,10 @@ static const pcm_config pcm_config_voice_mixing_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -189,8 +183,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+                        | (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+                        | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
         {
             NOT_APPLICABLE, // @todo to be removed in separated patch
@@ -329,7 +325,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             DEVICE_OUT_BLUETOOTH_SCO_ALL
         },
         {
-            (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC) | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION)| (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
+            (1 << AUDIO_SOURCE_DEFAULT) | (1 << AUDIO_SOURCE_MIC)
+                   | (1 << AUDIO_SOURCE_VOICE_COMMUNICATION)| (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {
@@ -373,8 +370,10 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE
         },
         {
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+                        | (1 << AudioSystem::MODE_IN_COMMUNICATION),
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+                        | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
         {
             NOT_APPLICABLE, // @todo remove
@@ -487,7 +486,8 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode,
+                              bool bIsOut, uint32_t uiMask = 0) const {
 
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
@@ -508,7 +508,8 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode,
+                              bool bIsOut, uint32_t uiMask = 0) const {
 
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
@@ -528,7 +529,8 @@ public:
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask = 0 ) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
+                              uint32_t __UNUSED uiMask = 0 ) const {
 
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
@@ -565,7 +567,8 @@ public:
         CAudioExternalRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t __UNUSED uiMask = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode,
+                              bool bIsOut, uint32_t __UNUSED uiMask = 0) const {
 
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
@@ -591,7 +594,7 @@ public:
                                                          CAudioPlatformState::EHacModeChange | // @todo: checks if codec requires reconfig when HAC, TTY, Band change
                                                          CAudioPlatformState::ETtyDirectionChange |
                                                          CAudioPlatformState::EBandTypeChange |
-                                                         CAudioPlatformState::EInputDevicesChange); 
+                                                         CAudioPlatformState::EInputDevicesChange);
     }
 };
 
@@ -608,18 +611,17 @@ public:
     {
         // The route needs reconfiguration except if:
         //      - output devices did not change //@todo to be updated
- 		// @todo: as media route is used for VoIP, does it need to be reconfigured when TTY, HAC, BandType is selected while in call?
-       if (bIsOut) {
+        // @todo: as media route is used for VoIP, does it need to be reconfigured when TTY, HAC, BandType is selected while in call?
+        if (bIsOut) {
 
             return CAudioRoute::needReconfiguration(bIsOut) &&
-                    (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange ||
-                                                                CAudioPlatformState::EHwModeChange));
+               (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange |
+                                                         CAudioPlatformState::EHwModeChange));
         }
         return CAudioRoute::needReconfiguration(bIsOut) &&
-                (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange ||
-															 CAudioPlatformState::EInputSourceChange) ||
-															 CAudioPlatformState::EHwModeChange);
-															 
+                (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange |
+                                                          CAudioPlatformState::EInputSourceChange) |
+                                                          CAudioPlatformState::EHwModeChange);
     }
 };
 
@@ -628,7 +630,8 @@ public:
 // Once all deriavated class exception has been removed
 // replace this function by a generic route creator according to the route type
 //
-CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAudioPlatformState* pPlatformState)
+CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex,
+                                                      CAudioPlatformState* pPlatformState)
 {
     LOG_ALWAYS_FATAL_IF(pPlatformState == NULL);
 
@@ -671,4 +674,3 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
 }
 
 }        // namespace android
-

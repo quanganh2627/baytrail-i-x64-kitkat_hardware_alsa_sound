@@ -55,13 +55,9 @@
 #define CAPTURE_48000_PERIOD_SIZE       ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
 /**
- * Use of 2 period sized buffers for media in latency calculation
+ * Use of 4 periods ring buffer
  */
-#define NB_RING_BUFFER_NORMAL           (2)
-/**
- * Use of 4 period sized buffers for VoIP in latency calculation
- */
-#define NB_RING_BUFFER_INCALL           (4)
+#define NB_RING_BUFFER                  (4)
 
 /**
  * Audio card for Media streams
@@ -85,10 +81,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
     period_size     : PLAYBACK_48000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_NORMAL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : PLAYBACK_48000_PERIOD_SIZE - 1,
-    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : PLAYBACK_48000_PERIOD_SIZE,
 };
@@ -97,10 +93,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
     period_size     : CAPTURE_48000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_NORMAL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold  : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : CAPTURE_48000_PERIOD_SIZE,
 };
@@ -112,10 +108,10 @@ static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
     rate            : SAMPLE_RATE_16000,
     period_size     : VOICE_DL_16000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_INCALL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : VOICE_DL_16000_PERIOD_SIZE,
-    stop_threshold  : VOICE_DL_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold  : VOICE_DL_16000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : VOICE_DL_16000_PERIOD_SIZE,
 };
@@ -124,10 +120,10 @@ static const pcm_config pcm_config_voice_uplink = {
     channels        : 2,
     rate            : SAMPLE_RATE_16000,
     period_size     : VOICE_UL_16000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_INCALL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : VOICE_UL_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold  : VOICE_UL_16000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : VOICE_UL_16000_PERIOD_SIZE,
 };
