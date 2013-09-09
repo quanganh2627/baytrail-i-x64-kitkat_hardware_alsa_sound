@@ -62,10 +62,10 @@ const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
  * Audio dump properties management (set with setprop)
  */
 const std::string ALSAStreamOps::dumpBeforeConvProps[CUtils::ENbDirections] = \
-    { "Audiocomms.dump_input.befconv", "Audiocomms.dump_output.befconv" };
+    { "media.dump_input.befconv", "media.dump_output.befconv" };
 
 const std::string ALSAStreamOps::dumpAfterConvProps[CUtils::ENbDirections] = \
-    { "Audiocomms.dump_input.aftconv", "Audiocomms.dump_output.aftconv" };
+    { "media.dump_input.aftconv", "media.dump_output.aftconv" };
 
 
 ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
