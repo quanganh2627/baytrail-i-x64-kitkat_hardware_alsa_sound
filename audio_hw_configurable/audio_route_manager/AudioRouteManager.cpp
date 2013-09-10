@@ -1426,6 +1426,8 @@ void CAudioRouteManager::prepareRoute(CAudioRoute* pRoute, bool bIsOut)
 
             // Add route to enabled route bit field
             _stRoutes[bIsOut].uiEnabled |= pRoute->getRouteId();
+
+            pRoute->checkAndSetNeedRerouting(bIsOut);
         }
     }
 
@@ -1574,10 +1576,11 @@ void CAudioRouteManager::configureRoutes(bool bIsOut)
     RouteListIterator it;
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
-        CAudioRoute* pRoute = *it;
+        CAudioRoute *route = *it;
 
-        if (pRoute->getRouteId() & _stRoutes[bIsOut].uiNeedReconfig) {
-            pRoute->configure(bIsOut);
+        if (!route->needRerouting(bIsOut) &&
+            ( route->getRouteId() & _stRoutes[bIsOut].uiNeedReconfig)) {
+            route->configure(bIsOut);
         }
     }
     //
@@ -1646,16 +1649,16 @@ void CAudioRouteManager::doDisableRoutes(bool bIsOut, bool bIsPostDisable)
     //
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
-        CAudioRoute* pRoute = *it;
+        CAudioRoute *route = *it;
 
         //
         // Disable Routes that were opened before reconsidering the routing
         // and will be closed after.
         //
-        if ((bIsPostDisable == pRoute->isPostDisableRequired()) &&
-                pRoute->currentlyUsed(bIsOut) && !pRoute->willBeUsed(bIsOut)) {
-
-            pRoute->unroute(bIsOut);
+        if ((bIsPostDisable == route->isPostDisableRequired()) &&
+                ((route->currentlyUsed(bIsOut) && !route->willBeUsed(bIsOut)) ||
+                route->needRerouting(bIsOut))){
+            route->unroute(bIsOut);
         }
     }
 }
@@ -1694,16 +1697,16 @@ void CAudioRouteManager::doEnableRoutes(bool bIsOut, bool bIsPreEnable)
 
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
-        CAudioRoute* pRoute = *it;
+        CAudioRoute* route = *it;
 
         // If the route is external and was set busy -> it needs to be routed
-        if ((bIsPreEnable == pRoute->isPreEnableRequired()) &&
-                !pRoute->currentlyUsed(bIsOut) && pRoute->willBeUsed(bIsOut)) {
+        if ((bIsPreEnable == route->isPreEnableRequired()) &&
+                ((!route->currentlyUsed(bIsOut) && route->willBeUsed(bIsOut)) ||
+                route->needRerouting(bIsOut))){
 
-            if (pRoute->route(bIsOut) != NO_ERROR) {
-
+            if (route->route(bIsOut) != NO_ERROR) {
                 // Just logging
-                ALOGE("\t error while routing %s", pRoute->getName().c_str());
+                ALOGE("\t error while routing %s", route->getName().c_str());
             }
         }
     }
