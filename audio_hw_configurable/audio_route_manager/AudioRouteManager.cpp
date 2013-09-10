@@ -94,7 +94,7 @@ const char* const CAudioRouteManager::LINE_IN_TO_EAR_SPEAKER_LINE_VOLUME =
 
 const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_INTERFACE[CAudioRouteManager::ENbCriteria] = {
     {"Mode",                    CAudioRouteManager::EModeCriteriaType},
-    {"FmMode",                  CAudioRouteManager::EFmModeCriteriaType},
+    {"FmMode",                  CAudioRouteManager::EOffOnCriteriaType},
     {"TTYDirection",            CAudioRouteManager::ETtyDirectionCriteriaType},
     {"RoutageState",            CAudioRouteManager::ERoutingStageCriteriaType},
     {"ClosingCaptureRoutes",    CAudioRouteManager::ERouteCriteriaType},
@@ -106,10 +106,11 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"AudioSource",             CAudioRouteManager::EInputSourceCriteriaType},
     {"BandRinging",             CAudioRouteManager::EBandRingingCriteriaType},
     {"BandType",                CAudioRouteManager::EBandCriteriaType},
-    {"BtHeadsetNrEc",           CAudioRouteManager::EBtHeadsetNrEcCriteriaType},
+    {"BtHeadsetNrEc",           CAudioRouteManager::EBooleanCriteriaType},
     {"BtHeadsetBandType",       CAudioRouteManager::EBandCriteriaType},
-    {"HAC",                     CAudioRouteManager::EHacModeCriteriaType},
-    {"ScreenState",             CAudioRouteManager::EScreenStateCriteriaType},
+    {"HAC",                     CAudioRouteManager::EOffOnCriteriaType},
+    {"ScreenState",             CAudioRouteManager::EOffOnCriteriaType},
+    {"BypassNonLinearPp",       CAudioRouteManager::EOffOnCriteriaType},
 };
 
 // Mode type
@@ -192,32 +193,18 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::T
     { 2 , "Uplink" },
 };
 
-// FM Mode
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::FM_MODE_VALUE_PAIRS[] = {
-    { 0 , "Off" },
-    { 1 , "On" }
-};
-
 // Band ringing
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::BAND_RINGING_VALUE_PAIRS[] = {
     { 1 , "NetworkGenerated" },
     { 2 , "PhoneGenerated" }
 };
 
-// BT Headset NrEc
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::BT_HEADSET_NREC_VALUE_PAIRS[] = {
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::BOOLEAN_VALUE_PAIRS[] = {
     { 0 , "False" },
     { 1 , "True" }
 };
 
-// HAC Mode
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::HAC_MODE_VALUE_PAIRS[] = {
-    { 0 , "Off" },
-    { 1 , "On" }
-};
-
-// Screen Mode
-const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS[] = {
+const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::OFF_ON_VALUE_PAIRS[] = {
     { 0 , "Off" },
     { 1 , "On" }
 };
@@ -227,28 +214,32 @@ const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::A
     {
         CAudioRouteManager::EModeCriteriaType,
         CAudioRouteManager::MODE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::MODE_VALUE_PAIRS)/sizeof(CAudioRouteManager::MODE_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::MODE_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::MODE_VALUE_PAIRS[0]),
         false
     },
-    // FM Mode
+    // Boolean
     {
-        CAudioRouteManager::EFmModeCriteriaType,
-        CAudioRouteManager::FM_MODE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::FM_MODE_VALUE_PAIRS)/sizeof(CAudioRouteManager::FM_MODE_VALUE_PAIRS[0]),
+        CAudioRouteManager::EBooleanCriteriaType,
+        CAudioRouteManager::BOOLEAN_VALUE_PAIRS,
+        sizeof(CAudioRouteManager::BOOLEAN_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::BOOLEAN_VALUE_PAIRS[0]),
         false
     },
     // TTY Direction
     {
         CAudioRouteManager::ETtyDirectionCriteriaType,
         CAudioRouteManager::TTY_DIRECTION_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::TTY_DIRECTION_VALUE_PAIRS)/sizeof(CAudioRouteManager::TTY_DIRECTION_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::TTY_DIRECTION_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::TTY_DIRECTION_VALUE_PAIRS[0]),
         true
     },
     // Routing Stage
     {
         CAudioRouteManager::ERoutingStageCriteriaType,
         CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS)/sizeof(CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::ROUTING_STAGE_VALUE_PAIRS[0]),
         true
     },
     // Route
@@ -262,58 +253,50 @@ const CAudioRouteManager::SSelectionCriterionTypeInterface CAudioRouteManager::A
     {
         CAudioRouteManager::EInputDeviceCriteriaType,
         CAudioRouteManager::INPUT_DEVICE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::INPUT_DEVICE_VALUE_PAIRS)/sizeof(CAudioRouteManager::INPUT_DEVICE_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::INPUT_DEVICE_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::INPUT_DEVICE_VALUE_PAIRS[0]),
         true
     },
     // OutputDevice
     {
         CAudioRouteManager::EOutputDeviceCriteriaType,
         CAudioRouteManager::OUTPUT_DEVICE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::OUTPUT_DEVICE_VALUE_PAIRS)/sizeof(CAudioRouteManager::OUTPUT_DEVICE_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::OUTPUT_DEVICE_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::OUTPUT_DEVICE_VALUE_PAIRS[0]),
         true
     },
     // Input Source
     {
         CAudioRouteManager::EInputSourceCriteriaType,
         CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS)/sizeof(CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS[0]),
         false
     },
     // Band Ringing
     {
         CAudioRouteManager::EBandRingingCriteriaType,
         CAudioRouteManager::BAND_RINGING_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::BAND_RINGING_VALUE_PAIRS)/sizeof(CAudioRouteManager::BAND_RINGING_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::BAND_RINGING_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::BAND_RINGING_VALUE_PAIRS[0]),
         false
     },
     // Band Type
     {
         CAudioRouteManager::EBandCriteriaType,
         CAudioRouteManager::BAND_TYPE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::BAND_TYPE_VALUE_PAIRS)/sizeof(CAudioRouteManager::BAND_TYPE_VALUE_PAIRS[0]),
+        sizeof(CAudioRouteManager::BAND_TYPE_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::BAND_TYPE_VALUE_PAIRS[0]),
         false
     },
-    // BT HEADSET NrEc
+    // Off/On
     {
-        CAudioRouteManager::EBtHeadsetNrEcCriteriaType,
-        CAudioRouteManager::BT_HEADSET_NREC_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::BT_HEADSET_NREC_VALUE_PAIRS)/sizeof(CAudioRouteManager::BT_HEADSET_NREC_VALUE_PAIRS[0]),
+        CAudioRouteManager::EOffOnCriteriaType,
+        CAudioRouteManager::OFF_ON_VALUE_PAIRS,
+        sizeof(CAudioRouteManager::OFF_ON_VALUE_PAIRS) /
+            sizeof(CAudioRouteManager::OFF_ON_VALUE_PAIRS[0]),
         false
     },
-    // HAC mode
-    {
-        CAudioRouteManager::EHacModeCriteriaType,
-        CAudioRouteManager::HAC_MODE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::HAC_MODE_VALUE_PAIRS)/sizeof(CAudioRouteManager::HAC_MODE_VALUE_PAIRS[0]),
-        false
-    },
-    // Screen State
-    {
-        CAudioRouteManager::EScreenStateCriteriaType,
-        CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS,
-        sizeof(CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS)/sizeof(CAudioRouteManager::SCREEN_STATE_VALUE_PAIRS[0]),
-        false
-    }
 };
 
 // MAMGR library name property
@@ -603,11 +586,11 @@ void CAudioRouteManager::doReconsiderRouting()
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::ETtyDirectionChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange),
              "%s:          -Platform HAC Mode = %s %s", __FUNCTION__,
-             _apCriteriaTypeInterface[EHacModeCriteriaType]->getFormattedState(_pPlatformState->isHacEnabled()).c_str(),
+             _apCriteriaTypeInterface[EOffOnCriteriaType]->getFormattedState(_pPlatformState->isHacEnabled()).c_str(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EHacModeChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange),
              "%s:          -Platform Screen State = %s %s", __FUNCTION__,
-             _apCriteriaTypeInterface[EScreenStateCriteriaType]->getFormattedState(_pPlatformState->isScreenOn()).c_str(),
+             _apCriteriaTypeInterface[EOffOnCriteriaType]->getFormattedState(_pPlatformState->isScreenOn()).c_str(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScreenStateChange) ? "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange),
              "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
@@ -625,6 +608,12 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -Platform FM State = %s %s", __FUNCTION__,
              _pPlatformState->isFmStateOn()? "On" : "Off",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmStateChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBypassNonLinearPpStateChange),
+             "%s:          -Platform Bypass Non Linear PP State = %s %s", __FUNCTION__,
+             _pPlatformState->bypassedNonLinearPp()? "On" : "Off",
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBypassNonLinearPpStateChange) ?
+                                                      "[has changed]" : "");
 
     if (bRoutesWillChange) {
 
@@ -877,6 +866,9 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Search always listening parameter
     doSetAlwaysListeningParameters(param);
 
+    // Search bypass linear PP parameter
+    doBypassNonLinearPpParameters(param);
+
     if (param.size()) {
 
         ALOGW("%s: Unhandled argument.", __FUNCTION__);
@@ -994,6 +986,20 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
 
             LOGD("HFP not supported: ignore %s=%s", key.string(), value.string());
         }
+    }
+}
+
+void CAudioRouteManager::doBypassNonLinearPpParameters(AudioParameter &param)
+{
+    String8 strBypassNonLinearPpSetting;
+    String8 key = String8(AUDIO_PARAMETER_KEY_BYPASS_NON_LINEAR_POSTPROCESSING_SETTING);
+
+    // Search bypass non linear PP setting key
+    if (param.get(key, strBypassNonLinearPpSetting) == NO_ERROR) {
+
+        _pPlatformState->bypassNonLinearPp(
+            strBypassNonLinearPpSetting == AUDIO_PARAMETER_VALUE_BYPASS_NON_LINEAR_PP_ON);
+        param.remove(key);
     }
 }
 
@@ -1564,6 +1570,9 @@ void CAudioRouteManager::executeConfigureStage()
 
     _apSelectedCriteria[ESelectedScreenState]->setCriterionState(
                 _pPlatformState->isScreenOn());
+
+    _apSelectedCriteria[ESelectedBypassNonLinearPp]->setCriterionState(
+                _pPlatformState->bypassedNonLinearPp());
 
     _pParameterMgrPlatformConnector->applyConfigurations();
 }

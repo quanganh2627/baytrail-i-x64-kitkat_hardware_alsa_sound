@@ -63,7 +63,7 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
     // Criteria Types
     enum CriteriaType {
         EModeCriteriaType = 0,
-        EFmModeCriteriaType,
+        EBooleanCriteriaType,
         ETtyDirectionCriteriaType,
         ERoutingStageCriteriaType,
         ERouteCriteriaType,
@@ -72,9 +72,7 @@ class CAudioRouteManager : private IModemAudioManagerObserver, public IEventList
         EInputSourceCriteriaType,
         EBandRingingCriteriaType,
         EBandCriteriaType,
-        EBtHeadsetNrEcCriteriaType,
-        EHacModeCriteriaType,
-        EScreenStateCriteriaType,
+        EOffOnCriteriaType,
 
         ENbCriteriaTypes
     };
@@ -470,6 +468,13 @@ private:
     void doSetTtyParameters(AudioParameter &param);
 
     /**
+     * Do bypass non linear post processing parameter pop & set.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doBypassNonLinearPpParameters(AudioParameter &param);
+
+    /**
      * Do HAC specific parameters pop & set.
      * Pop all HAC specific parameters provided in the key/value and set those which are handled.
      * HAC key value pair will be removed if found.
@@ -565,8 +570,6 @@ private:
     static const SSelectionCriterionTypeValuePair MODE_VALUE_PAIRS[];
     // Band type
     static const SSelectionCriterionTypeValuePair BAND_TYPE_VALUE_PAIRS[];
-    // FM Mode type
-    static const SSelectionCriterionTypeValuePair FM_MODE_VALUE_PAIRS[];
     // TTY Mode
     static const SSelectionCriterionTypeValuePair TTY_DIRECTION_VALUE_PAIRS[];
     // Band Ringing
@@ -575,17 +578,15 @@ private:
     static const SSelectionCriterionTypeValuePair ROUTING_STAGE_VALUE_PAIRS[];
     // Audio Source
     static const SSelectionCriterionTypeValuePair AUDIO_SOURCE_VALUE_PAIRS[];
-    // BT Headset NrEc
-    static const SSelectionCriterionTypeValuePair BT_HEADSET_NREC_VALUE_PAIRS[];
-    // HAC mode
-    static const SSelectionCriterionTypeValuePair HAC_MODE_VALUE_PAIRS[];
-    // Screen State
-    static const SSelectionCriterionTypeValuePair SCREEN_STATE_VALUE_PAIRS[];
+    // Boolean
+    static const SSelectionCriterionTypeValuePair BOOLEAN_VALUE_PAIRS[];
     // Route
     // Selected Input Device type
     static const SSelectionCriterionTypeValuePair INPUT_DEVICE_VALUE_PAIRS[];
     // Selected Output Device type
     static const SSelectionCriterionTypeValuePair OUTPUT_DEVICE_VALUE_PAIRS[];
+    // Off/On
+    static const SSelectionCriterionTypeValuePair OFF_ON_VALUE_PAIRS[];
 
     struct SSelectionCriterionTypeInterface
     {
@@ -618,7 +619,7 @@ private:
         ESelectedBtHeadsetBand,
         ESelectedHacMode,
         ESelectedScreenState,
-
+        ESelectedBypassNonLinearPp,
         ENbCriteria
     };
     struct CriteriaInterface {
