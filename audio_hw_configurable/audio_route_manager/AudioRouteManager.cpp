@@ -451,6 +451,14 @@ CAudioRouteManager::~CAudioRouteManager()
     delete _pPlatformState;
 }
 
+void CAudioRouteManager::initRouting()
+{
+    muteRoutes(CUtils::EInput);
+    muteRoutes(CUtils::EOutput);
+    _apSelectedCriteria[ESelectedRoutingStage]->setCriterionState(EConfigure|EPath|EFlow);
+    _pParameterMgrPlatformConnector->applyConfigurations();
+}
+
 status_t CAudioRouteManager::start()
 {
     AutoW lock(_lock);
@@ -473,6 +481,7 @@ status_t CAudioRouteManager::start()
         _pEventThread->stop();
         return NO_INIT;
     }
+    initRouting();
     ALOGI("parameter-framework successfully started!");
 
     return NO_ERROR;

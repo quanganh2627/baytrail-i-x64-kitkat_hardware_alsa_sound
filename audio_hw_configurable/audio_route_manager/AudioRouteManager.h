@@ -148,6 +148,12 @@ public:
     // Start route manager service
     status_t start();
 
+   /**
+    * Apply a mute configuration to fasten the first routing.
+    * So all default configurations are applied by the PFW at start-up.
+    */
+    void initRouting();
+
     bool isStarted() const;
 
     void lock();
