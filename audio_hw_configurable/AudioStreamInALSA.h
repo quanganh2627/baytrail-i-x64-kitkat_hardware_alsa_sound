@@ -20,7 +20,12 @@
 #include "AudioHardwareALSA.h"
 #include "ALSAStreamOps.h"
 #include "AudioBufferProvider.h"
+#include <Mutex.hpp>
 
+/**
+ * This macro converts a bit index into a bitfield mask
+ */
+#define INDEX_TO_MASK(x) (1 << (x))
 
 namespace android_audio_legacy
 {
@@ -82,6 +87,9 @@ public:
      * the audio_effect.conf file.
      * Limited to Echo Cancellation, Noise Suppression and Automatic Gain Control.
      *
+     * Effects are managed by AudioFlinger in a different thread than Capture thread.
+     * Deleting the input stream may happen while trying to remove / add an effect.
+     *
      * @param[in] structure of the effect to add.
      *
      * @return status_t OK upon succes, error code otherwise.
@@ -92,6 +100,9 @@ public:
      * Allows Flinger to request to remove an effect from the stream.
      * Removes an audio effect on the input stream chain.
      * Limited to Echo Cancellation, Noise Suppression and Automatic Gain Control.
+     *
+     * Effects are managed by AudioFlinger in a different thread than Capture thread.
+     * Deleting the input stream may happen while trying to remove / add an effect.
      *
      * @param[in] structure of the effect to remove.
      *
@@ -151,15 +162,21 @@ public:
     virtual android::status_t getNextBuffer(android::AudioBufferProvider::Buffer* buffer, int64_t pts = kInvalidPTS);
     virtual void releaseBuffer(android::AudioBufferProvider::Buffer* buffer);
 
-    int                 getInputSource() const { return mInputSource; }
-    void                setInputSource(int iInputSource);
+    /**
+     * The input source is carrying also the mask to be able to identify
+     * between routed and unrouted input source streams.
+     *
+     * @param[in] the input source.
+     */
+    inline void setInputSourceMask(uint32_t inputSource) { _inputSourceMask = inputSource; };
 
     /**
      * Applicability mask.
-     * For an input stream, applicability mask is the ID of the input source
-     * @return ID of input source
+     * For an input stream, applicability mask is the input source mask
+     *
+     * @return input source mask
      */
-    virtual uint32_t    getApplicabilityMask() const { return 1 << getInputSource(); }
+    virtual uint32_t    getApplicabilityMask() const { return _inputSourceMask; }
 
 private:
     class AudioEffectHandle
@@ -223,7 +240,11 @@ private:
     unsigned int        mFramesLost;
     AudioSystem::audio_in_acoustics mAcoustics;
 
-    uint32_t            mInputSource;
+    /**
+     * This variable represents the audio input source mask. This was introduced to
+     * be able to differentiate between routed and unrouted input source streams.
+     */
+    uint32_t            _inputSourceMask;
 
     ssize_t mFramesIn;
 
@@ -269,6 +290,12 @@ private:
 
     static const uint32_t HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
     static const uint32_t LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
+
+    /**
+     * Effects are handled in a separated thread, need to lock to protect concurrent
+     * access to the input stream.
+     */
+    audio_comms::utilities::Mutex _streamLock;
 };
 
 };        // namespace android

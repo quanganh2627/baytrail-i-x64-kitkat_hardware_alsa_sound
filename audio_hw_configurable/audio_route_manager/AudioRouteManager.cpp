@@ -166,14 +166,15 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::R
 
 // Audio Source
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS[] = {
-    { AUDIO_SOURCE_DEFAULT,             "Default" },
-    { AUDIO_SOURCE_MIC,                 "Mic" },
-    { AUDIO_SOURCE_VOICE_UPLINK,        "VoiceUplink" },
-    { AUDIO_SOURCE_VOICE_DOWNLINK,      "VoiceDownlink" },
-    { AUDIO_SOURCE_VOICE_CALL,          "VoiceCall" },
-    { AUDIO_SOURCE_CAMCORDER,           "Camcorder" },
-    { AUDIO_SOURCE_VOICE_RECOGNITION,   "VoiceRecognition" },
-    { AUDIO_SOURCE_VOICE_COMMUNICATION, "VoiceCommunication" }
+    { 0,                                               "None" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_DEFAULT),             "Default" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_MIC),                 "Mic" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_UPLINK),        "VoiceUplink" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_DOWNLINK),      "VoiceDownlink" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_CALL),          "VoiceCall" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_CAMCORDER),           "Camcorder" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_RECOGNITION),   "VoiceRecognition" },
+    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION), "VoiceCommunication" }
 };
 
 // Voice Codec Band
@@ -603,6 +604,14 @@ void CAudioRouteManager::doReconsiderRouting()
              "%s:          -Platform Context Awareness = %s %s", __FUNCTION__,
              _pPlatformState->isContextAwarenessEnabled() ? "true" : "false",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EContextAwarenessStateChange) ? "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(
+                CAudioPlatformState::EAlwaysListeningStateChange),
+             "%s:          -Platform Always Listening = %s %s",
+             __FUNCTION__,
+             _pPlatformState->isAlwaysListeningEnabled() ? "true" : "false",
+             _pPlatformState->hasPlatformStateChanged(
+                CAudioPlatformState::EAlwaysListeningStateChange) ? "[has changed]" : ""
+            );
     ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EFmStateChange),
              "%s:          -Platform FM State = %s %s", __FUNCTION__,
              _pPlatformState->isFmStateOn()? "On" : "Off",
@@ -710,13 +719,13 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
                 param.remove(key);
 
                 // Found the input source
-                setInputSource(pStreamIn, inputSource);
+                setInputSourceMask(pStreamIn, INDEX_TO_MASK(inputSource));
             }
             if (devices == 0) {
 
                 // When this function is called with a null device, considers it as
-                // an unrouting request, restore source to default within route manager
-                setInputSource(pStreamIn, AUDIO_SOURCE_DEFAULT);
+                // an unrouting request, restore source to None (0) within route manager
+                setInputSourceMask(pStreamIn, 0);
             }
         } else {
 
@@ -856,6 +865,9 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Search context awareness parameter
     doSetContextAwarenessParameters(param);
 
+    // Search always listening parameter
+    doSetAlwaysListeningParameters(param);
+
     if (param.size()) {
 
         ALOGW("%s: Unhandled argument.", __FUNCTION__);
@@ -886,6 +898,20 @@ void CAudioRouteManager::doSetContextAwarenessParameters(AudioParameter &param)
 
         _pPlatformState->setContextAwarenessStatus(
                     strContextAwarenessStatus == AUDIO_PARAMETER_VALUE_CONTEXT_AWARENESS_ON);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doSetAlwaysListeningParameters(AudioParameter &param)
+{
+    String8 alwaysListeningStatus;
+    String8 key(AUDIO_PARAMETER_KEY_ALWAYS_LISTENING_STATUS);
+
+    // Search always listening parameter
+    if (param.get(key, alwaysListeningStatus) == NO_ERROR) {
+
+        _pPlatformState->setAlwaysListeningStatus(
+            alwaysListeningStatus == AUDIO_PARAMETER_VALUE_ALWAYS_LISTENING_ON);
         param.remove(key);
     }
 }
@@ -935,8 +961,9 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
     }
 
     //
-    // Search BT WBS parameter
+    // Search BT WBS parameter (B+ specific)
     //
+    static const char * AUDIO_PARAMETER_KEY_BT_WBS = "bt_headset_wbs";
 
     key = String8(AUDIO_PARAMETER_KEY_BT_WBS);
 
@@ -1080,15 +1107,15 @@ void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 // Assumption: only one active input source at one time.
 // @todo: Does it make sense to keep it in the platform state???
 //
-void CAudioRouteManager::setInputSource(AudioStreamInALSA* pStreamIn, int iInputSource)
+void CAudioRouteManager::setInputSourceMask(AudioStreamInALSA* pStreamIn, uint32_t inputSource)
 {
-    pStreamIn->setInputSource(iInputSource);
+    pStreamIn->setInputSourceMask(inputSource);
 
     ALOGD("%s: inputSource = %s", __FUNCTION__,
-          _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(iInputSource).c_str());
-    _pPlatformState->setInputSource(iInputSource);
+          _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(inputSource).c_str());
+    _pPlatformState->setInputSourceMask(inputSource);
 
-    if (iInputSource == AUDIO_SOURCE_VOICE_COMMUNICATION) {
+    if (inputSource == INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION)) {
 
         CAudioBand::Type eBand = CAudioBand::EWide;
         if (pStreamIn->sampleRate() == VOIP_RATE_FOR_NARROW_BAND_PROCESSING) {

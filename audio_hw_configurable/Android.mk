@@ -139,7 +139,9 @@ LOCAL_MODULE := audio.primary.$(TARGET_DEVICE)
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE_TAGS := optional
 TARGET_ERROR_FLAGS += -Wno-non-virtual-dtor
-LOCAL_STATIC_LIBRARIES := libmedia_helper
+LOCAL_STATIC_LIBRARIES := libmedia_helper \
+    libaudio_comms_utilities
+
 LOCAL_SHARED_LIBRARIES := \
     libtinyalsa \
     libcutils \

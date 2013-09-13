@@ -263,7 +263,13 @@ private:
 
     void setDevices(ALSAStreamOps* pStream, uint32_t devices);
 
-    void setInputSource(AudioStreamInALSA* pStreamIn, int iInputSource);
+    /**
+     * Update the active input source. Only one active input source at the time.
+     *
+     * @param[in] pStream input stream pointer.
+     * @param[in] inputSource the stream input source mask.
+     */
+    void setInputSourceMask(AudioStreamInALSA* pStreamIn, uint32_t inputSource);
 
     void setOutputFlags(AudioStreamOutALSA* pStreamOut, uint32_t uiFlags);
 
@@ -502,6 +508,15 @@ private:
      * @param[in/out] param: reference of parameters helper object.
      */
     void doSetContextAwarenessParameters(AudioParameter &param);
+
+    /**
+     * Do "Always Listening"-specific parameters pop & set.
+     * Pop all LPAL specific parameters provided in the key/value and set those which are handled.
+     * Always Listening key value pair will be removed if found.
+     *
+     * @param[in,out] param: reference of parameters helper object.
+     */
+    void doSetAlwaysListeningParameters(AudioParameter &param);
 
     void createsRoutes();
 

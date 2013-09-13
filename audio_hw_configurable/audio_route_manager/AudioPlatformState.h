@@ -88,6 +88,7 @@ public:
         StreamEvent,
         ScreenStateChange,
         ContextAwarenessStateChange,
+        AlwaysListeningStateChange,
         FmStateChange,
 
         NbEvents
@@ -113,6 +114,7 @@ public:
         ADD_EVENT(StreamEvent),
         ADD_EVENT(ScreenStateChange),
         ADD_EVENT(ContextAwarenessStateChange),
+        ADD_EVENT(AlwaysListeningStateChange),
         ADD_EVENT(FmStateChange)
     };
 
@@ -204,8 +206,12 @@ public:
     // Get input source
     uint32_t getInputSource() const { return _uiInputSource; }
 
-    // Set devices
-    void setInputSource(uint32_t inputSource);
+    /**
+     * Set input source mask
+     *
+     * @param[in] inputSource the stream input source mask.
+     */
+    void setInputSourceMask(uint32_t inputSource);
 
     /**
      * Set Context Awareness status
@@ -220,6 +226,20 @@ public:
      * @return true if the context awareness feature is enabled
      */
     bool isContextAwarenessEnabled() const { return _bIsContextAwarenessEnabled; }
+
+    /**
+     * Set "Always Listening" status
+     *
+     * @param[in] bEnabled if true, enables the "always listening" feature
+     */
+    void setAlwaysListeningStatus(bool enabled);
+
+    /**
+     * Get "Always Listening" status
+     *
+     * @return true if the "always listening" feature is enabled
+     */
+    bool isAlwaysListeningEnabled() const { return _isAlwaysListeningEnabled; }
 
     /**
      * Get FM State.
@@ -321,6 +341,8 @@ private:
 
     //Context Awareness status
     bool _bIsContextAwarenessEnabled;
+    // Always Listening status
+    bool _isAlwaysListeningEnabled;
 
     uint32_t _uiPlatformEventChanged;
 
