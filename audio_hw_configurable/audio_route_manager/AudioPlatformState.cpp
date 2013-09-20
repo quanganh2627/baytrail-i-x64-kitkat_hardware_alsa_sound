@@ -37,6 +37,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bBtHeadsetNrEcEnabled(false),
     _eBtHeadsetBandType(CAudioBand::ENarrow),
     _bIsBtEnabled(false),
+    _micMute(false),
     _uiInputSource(0),
     _bFmIsOn(false),
     _uiDirectStreamsRefCount(0),
@@ -162,6 +163,17 @@ void CAudioPlatformState::setHacMode(bool bEnabled)
     }
     setPlatformStateEvent(EHacModeChange);
     _bIsHacModeEnabled = bEnabled;
+}
+
+void CAudioPlatformState::setMicMute(bool state)
+{
+    ALOGD("%s(state %s)",
+          __FUNCTION__, (state == true) ? "true" : "false");
+    if (state != _micMute) {
+
+        setPlatformStateEvent(EMicMuteChange);
+        _micMute = state;
+    }
 }
 
 void CAudioPlatformState::setBtEnabled(bool bIsBtEnabled)

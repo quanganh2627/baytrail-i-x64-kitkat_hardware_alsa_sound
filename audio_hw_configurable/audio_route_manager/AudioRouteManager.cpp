@@ -111,6 +111,8 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"HAC",                     CAudioRouteManager::EOffOnCriteriaType},
     {"ScreenState",             CAudioRouteManager::EOffOnCriteriaType},
     {"BypassNonLinearPp",       CAudioRouteManager::EOffOnCriteriaType},
+    {"MicMute",                 CAudioRouteManager::EOffOnCriteriaType},
+
 };
 
 // Mode type
@@ -614,6 +616,13 @@ void CAudioRouteManager::doReconsiderRouting()
              _pPlatformState->bypassedNonLinearPp()? "On" : "Off",
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBypassNonLinearPpStateChange) ?
                                                       "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EMicMuteChange),
+             "%s:          -Platform MicMute = %s %s", __FUNCTION__,
+             _apCriteriaTypeInterface[EOffOnCriteriaType]->
+             getFormattedState(_pPlatformState->getMicMute()).c_str(),
+             _pPlatformState->hasPlatformStateChanged(
+                 CAudioPlatformState::EMicMuteChange) ? "[has changed]" : "");
 
     if (bRoutesWillChange) {
 
@@ -1041,6 +1050,17 @@ void CAudioRouteManager::doSetHacParameters(AudioParameter &param)
         _pPlatformState->setHacMode(strHacSetting == AUDIO_PARAMETER_VALUE_HAC_ON);
         param.remove(key);
     }
+}
+
+void CAudioRouteManager::setMicMute(bool state)
+{
+    AutoW lock(_lock);
+    _pPlatformState->setMicMute(state);
+    doReconsiderRouting();
+}
+
+bool CAudioRouteManager::getMicMute() {
+    return _pPlatformState->getMicMute();
 }
 
 void CAudioRouteManager::doSetStreamFlagsParameters(AudioParameter &param)
@@ -1573,6 +1593,9 @@ void CAudioRouteManager::executeConfigureStage()
 
     _apSelectedCriteria[ESelectedBypassNonLinearPp]->setCriterionState(
                 _pPlatformState->bypassedNonLinearPp());
+
+    _apSelectedCriteria[ESelectedMicMute]->setCriterionState(
+                _pPlatformState->getMicMute());
 
     _pParameterMgrPlatformConnector->applyConfigurations();
 }

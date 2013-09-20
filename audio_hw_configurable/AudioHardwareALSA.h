@@ -215,8 +215,6 @@ private:
     // Unlock the routing
     void unlockRouting();
 
-    bool mMicMuteState;
-
     struct hw_module {
         const char* module_id;
         const char* module_name;

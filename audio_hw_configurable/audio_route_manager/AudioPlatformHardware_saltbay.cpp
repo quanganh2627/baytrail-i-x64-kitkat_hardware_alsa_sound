@@ -706,9 +706,11 @@ public:
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
 
-    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    virtual bool needReconfiguration(bool isOut) const
     {
-        return false;
+        return (CAudioRoute::needReconfiguration(isOut) &&
+                _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EMicMuteChange)) ||
+                CAudioExternalRoute::needReconfiguration(isOut);
     }
 };
 
@@ -837,6 +839,14 @@ public:
         _pEffectSupported.push_back(FX_IID_AEC);
         _pEffectSupported.push_back(FX_IID_NS);
     }
+
+    virtual bool needReconfiguration(bool isOut) const
+    {
+        return (CAudioRoute::needReconfiguration(isOut) &&
+                _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EMicMuteChange)) ||
+                CAudioLPECentricStreamRoute::needReconfiguration(isOut);
+    }
+
 };
 
 //
