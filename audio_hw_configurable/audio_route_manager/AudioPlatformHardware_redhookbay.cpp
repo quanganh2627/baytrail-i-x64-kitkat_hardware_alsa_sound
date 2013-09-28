@@ -31,27 +31,22 @@
 #define LONG_PERIOD_FACTOR              ((int)2)
 #define SEC_PER_MSEC                    ((int)1000)
 
-/// May add a new route, include header here...
-#define NB_RING_BUFFER_NORMAL           ((int)2)
-#define NB_RING_BUFFER_MEDIA_PLAYBACK   ((int)4) /**< Period count for media playback only */
-#define NB_RING_BUFFER_INCALL           ((int)4)
+#define NB_RING_BUFFER                  ((int)4)
+#define NB_RING_BUFFER_DEEP             ((int)2)
 
 #define SAMPLE_RATE_8000                ((int)8000)
 #define SAMPLE_RATE_48000               ((int)48000)
 
-#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)  // 20ms @ 8k
-#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(96 * 48000 / 1000)
-#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(24 * 48000 / USEC_PER_SEC)
-#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC) //(20 *2 * 48000 / USEC_PER_SEC)
-#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)  //(20 * 48000 / USEC_PER_SEC)
-
-
+#define VOICE_8000_PERIOD_SIZE          ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_8000 / SEC_PER_MSEC)
+#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+#define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
 static const char* MEDIA_CARD_NAME = "cloverviewaudio";
 #define DEEP_MEDIA_PLAYBACK_DEVICE_ID   ((int)0)
 #define MEDIA_PLAYBACK_DEVICE_ID        ((int)0)
 #define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
-
 
 static const char* VOICE_MIXING_CARD_NAME = "cloverviewaudio";
 #define VOICE_MIXING_DEVICE_ID          ((int)5)
@@ -76,10 +71,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback = {
    channels          : 2,
    rate              : SAMPLE_RATE_48000,
    period_size       : DEEP_PLAYBACK_48000_PERIOD_SIZE,
-   period_count      : NB_RING_BUFFER_MEDIA_PLAYBACK,
+   period_count      : NB_RING_BUFFER_DEEP,
    format            : PCM_FORMAT_S16_LE,
-   start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_MEDIA_PLAYBACK - 1,
-   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_MEDIA_PLAYBACK,
+   start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_DEEP - 1,
+   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_DEEP,
    silence_threshold : 0,
    avail_min         : DEEP_PLAYBACK_48000_PERIOD_SIZE,
 };
@@ -88,10 +83,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
    channels          : 2,
    rate              : SAMPLE_RATE_48000,
    period_size       : PLAYBACK_48000_PERIOD_SIZE,
-   period_count      : NB_RING_BUFFER_MEDIA_PLAYBACK,
+   period_count      : NB_RING_BUFFER,
    format            : PCM_FORMAT_S16_LE,
-   start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_MEDIA_PLAYBACK - 1,
-   stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_MEDIA_PLAYBACK,
+   start_threshold   : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER - 1,
+   stop_threshold    : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER,
    silence_threshold : 0,
    avail_min         : PLAYBACK_48000_PERIOD_SIZE,
 };
@@ -100,10 +95,10 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : CAPTURE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_NORMAL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold    : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : CAPTURE_48000_PERIOD_SIZE,
 };
@@ -112,10 +107,10 @@ static const pcm_config pcm_config_voice_bt_downlink = {
     channels          : 1,
     rate              : SAMPLE_RATE_8000,
     period_size       : VOICE_8000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_8000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_8000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_8000_PERIOD_SIZE,
 };
@@ -124,7 +119,7 @@ static const pcm_config pcm_config_voice_bt_uplink = {
     channels          : 1,
     rate              : SAMPLE_RATE_8000,
     period_size       : VOICE_8000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 0,
     stop_threshold    : 0,
@@ -136,10 +131,10 @@ static const pcm_config pcm_config_voice_hwcodec_downlink = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_48000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         :  VOICE_48000_PERIOD_SIZE,
 };
@@ -148,10 +143,10 @@ static const pcm_config pcm_config_voice_hwcodec_uplink = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -160,10 +155,10 @@ static const pcm_config pcm_config_voice_mixing_playback = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : VOICE_48000_PERIOD_SIZE - 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
@@ -173,7 +168,7 @@ static const pcm_config pcm_config_voice_mixing_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
     period_size       : VOICE_48000_PERIOD_SIZE,
-    period_count      : NB_RING_BUFFER_INCALL,
+    period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
     start_threshold   : 0,
     stop_threshold    : 0,
@@ -234,10 +229,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         MEDIA_CARD_NAME,
         {
             MEDIA_CAPTURE_DEVICE_ID,
@@ -269,10 +260,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         MEDIA_CARD_NAME,
         {
             NOT_APPLICABLE,
@@ -303,10 +290,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {
@@ -342,10 +325,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_IN_CALL),
             (1 << AudioSystem::MODE_IN_CALL)
         },
-        {
-            CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
-            CAudioPlatformState::EModemAudioStatus | CAudioPlatformState::EModemState,
-        },
         VOICE_MIXING_CARD_NAME,
         {
             VOICE_RECORD_DEVICE_ID,
@@ -377,10 +356,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState
-        },
         VOICE_CARD_NAME,
         {
             VOICE_HWCODEC_UPLINK_DEVICE_ID,
@@ -411,10 +386,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
-        },
-        {
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState,
         },
         VOICE_CARD_NAME,
         {
@@ -452,10 +423,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -486,10 +453,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_IN_CALL)
-        },
-        {
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus,
-            CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus
         },
         NOT_APPLICABLE,
         {
@@ -522,10 +485,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_IN_CALL)
         },
-        {
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus,
-            CAudioPlatformState::EBtEnable | CAudioPlatformState::ESharedI2SState | CAudioPlatformState::EModemState | CAudioPlatformState::EModemAudioStatus
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -557,10 +516,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL),
             (1 << AudioSystem::MODE_NORMAL)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -580,10 +535,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "VirtualASP",
         CAudioRoute::EExternalRoute,
         "",
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE

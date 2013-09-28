@@ -288,9 +288,6 @@ private:
     char* mHwBuffer;
     ssize_t mHwBufferSize;
 
-    static const uint32_t HIGH_LATENCY_TO_BUFFER_INTERVAL_RATIO;
-    static const uint32_t LOW_LATENCY_TO_BUFFER_INTERVAL_RATIO;
-
     /**
      * Effects are handled in a separated thread, need to lock to protect concurrent
      * access to the input stream.

@@ -45,13 +45,12 @@ const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
 /**
  * Is aligned on one period time
  */
-const uint32_t AudioStreamOutALSA::LATENCY_TO_BUFFER_INTERVAL_RATIO = 4;
 const uint32_t AudioStreamOutALSA::USEC_PER_MSEC = 1000;
 
 AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
     base(parent, "AudioOutLock"),
     mFrameCount(0),
-    mFlags(AUDIO_OUTPUT_FLAG_NONE),
+    _flags(AUDIO_OUTPUT_FLAG_NONE),
     mEchoReference(NULL)
 {
 }
@@ -241,7 +240,7 @@ uint32_t AudioStreamOutALSA::latency() const
 
 size_t AudioStreamOutALSA::bufferSize() const
 {
-    return getBufferSize(LATENCY_TO_BUFFER_INTERVAL_RATIO);
+    return getBufferSize(_flags);
 }
 
 // return the number of audio frames written by the audio dsp to DAC since
@@ -274,7 +273,7 @@ status_t AudioStreamOutALSA::flush()
 
 void AudioStreamOutALSA::setFlags(uint32_t uiFlags)
 {
-    mFlags = uiFlags;
+    _flags = uiFlags;
 
     updateLatency(uiFlags);
 }

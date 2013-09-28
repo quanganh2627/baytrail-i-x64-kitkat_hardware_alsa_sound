@@ -29,6 +29,11 @@
  */
 #define PLAYBACK_PERIOD_TIME_MS         ((int)24)
 /**
+ *  96 ms makes a PCM frames count of 4608 which is aligned on a 16-frames
+ *  boundary. This is the best optimized size for a buffer in the LPE for DB.
+ */
+#define DEEP_PLAYBACK_PERIOD_TIME_MS    ((int)96)
+/**
  * 20 ms makes a PCM frames count of 960 which is aligned on a 16-frames
  * boundary. Also 20 ms is optimized for Audioflinger's minimal buffer size.
  */
@@ -46,6 +51,10 @@
  */
 #define VOICE_UL_16000_PERIOD_SIZE      ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_16000 / SEC_PER_MSEC)
 /**
+ * Deep Media playback period size of 4608 frames
+ */
+#define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
+/**
  * Media playback period size of 1152 frames
  */
 #define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
@@ -55,19 +64,18 @@
 #define CAPTURE_48000_PERIOD_SIZE       ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
 /**
- * Use of 2 period sized buffers for media in latency calculation
+ * Use of 4 periods ring buffer
  */
-#define NB_RING_BUFFER_NORMAL           (2)
-/**
- * Use of 4 period sized buffers for VoIP in latency calculation
- */
-#define NB_RING_BUFFER_INCALL           (4)
+#define NB_RING_BUFFER                  (4)
+
+
 
 /**
  * Audio card for Media streams
  */
 #define MEDIA_PLAYBACK_DEVICE_ID        (0)
 #define MEDIA_CAPTURE_DEVICE_ID         (0)
+#define DEEP_MEDIA_PLAYBACK_DEVICE_ID   (0)
 
 /**
  * Audio card for VoIP calls
@@ -81,14 +89,26 @@ namespace android_audio_legacy
 // first period is full.
 // For recording, configure ALSA to start the transfer on the
 // first frame.
+const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback = {
+   channels          : 2,
+   rate              : SAMPLE_RATE_48000,
+   period_size       : DEEP_PLAYBACK_48000_PERIOD_SIZE,
+   period_count      : NB_RING_BUFFER,
+   format            : PCM_FORMAT_S16_LE,
+   start_threshold   : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER - 1,
+   stop_threshold    : DEEP_PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER,
+   silence_threshold : 0,
+   avail_min         : DEEP_PLAYBACK_48000_PERIOD_SIZE,
+};
+
 const pcm_config CAudioPlatformHardware::pcm_config_media_playback = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
     period_size     : PLAYBACK_48000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_NORMAL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : PLAYBACK_48000_PERIOD_SIZE - 1,
-    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold  : PLAYBACK_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : PLAYBACK_48000_PERIOD_SIZE,
 };
@@ -97,25 +117,22 @@ const pcm_config CAudioPlatformHardware::pcm_config_media_capture = {
     channels        : 2,
     rate            : SAMPLE_RATE_48000,
     period_size     : CAPTURE_48000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_NORMAL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER_NORMAL,
+    stop_threshold  : CAPTURE_48000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : CAPTURE_48000_PERIOD_SIZE,
 };
-
-const pcm_config CAudioPlatformHardware::pcm_config_deep_media_playback =
-                CAudioPlatformHardware::pcm_config_media_playback;
 
 static const pcm_config pcm_config_voice_downlink = {
     channels        : 2,
     rate            : SAMPLE_RATE_16000,
     period_size     : VOICE_DL_16000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_INCALL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : VOICE_DL_16000_PERIOD_SIZE,
-    stop_threshold  : VOICE_DL_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold  : VOICE_DL_16000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : VOICE_DL_16000_PERIOD_SIZE,
 };
@@ -124,10 +141,10 @@ static const pcm_config pcm_config_voice_uplink = {
     channels        : 2,
     rate            : SAMPLE_RATE_16000,
     period_size     : VOICE_UL_16000_PERIOD_SIZE,
-    period_count    : NB_RING_BUFFER_INCALL,
+    period_count    : NB_RING_BUFFER,
     format          : PCM_FORMAT_S16_LE,
     start_threshold : 1,
-    stop_threshold  : VOICE_UL_16000_PERIOD_SIZE * NB_RING_BUFFER_INCALL,
+    stop_threshold  : VOICE_UL_16000_PERIOD_SIZE * NB_RING_BUFFER,
     silence_threshold : 0,
     avail_min       : VOICE_UL_16000_PERIOD_SIZE,
 };
@@ -247,10 +264,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) |
             (1 << AudioSystem::MODE_IN_CALL)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         mediaCardName,
         {
             MEDIA_CAPTURE_DEVICE_ID,
@@ -262,6 +275,37 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             { CSampleSpec::ECopy, CSampleSpec::EIgnore },
+            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+        },
+        ""
+    },
+    {
+        "DeepMedia",
+        CAudioRoute::EStreamRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
+        },
+        {
+            NOT_APPLICABLE,
+            AUDIO_OUTPUT_FLAG_DEEP_BUFFER
+        },
+        {
+            NOT_APPLICABLE,
+            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+        },
+        mediaCardName,
+        {
+            NOT_APPLICABLE,
+            DEEP_MEDIA_PLAYBACK_DEVICE_ID
+        },
+        {
+            pcm_config_not_applicable,
+            CAudioPlatformHardware::pcm_config_deep_media_playback
+        },
+        {
+            channel_policy_not_applicable,
             { CSampleSpec::ECopy, CSampleSpec::ECopy }
         },
         ""
@@ -284,10 +328,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_IN_COMMUNICATION)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         voiceCardName,
         {
@@ -319,10 +359,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             NOT_APPLICABLE,
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {
@@ -363,10 +399,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -380,7 +412,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening"
+        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening,DeepMedia"
     },
     //
     // HWCODEC 1 route
@@ -401,10 +433,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -418,7 +446,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening"
+        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening,DeepMedia"
     },
     //
     // ModemIA route
@@ -438,10 +466,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         {
             (1 << AudioSystem::MODE_IN_CALL),
             (1 << AudioSystem::MODE_IN_CALL)
-        },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
         },
         NOT_APPLICABLE,
         {
@@ -477,10 +501,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE) | (1 << AudioSystem::MODE_IN_CALL) | (1 << AudioSystem::MODE_IN_COMMUNICATION)
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -494,7 +514,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media"
+        "ModemIA,Voice,Media,DeepMedia"
     },
     //
     // FM route
@@ -513,10 +533,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             (1 << AudioSystem::MODE_NORMAL),
-            NOT_APPLICABLE
-        },
-        {
-            NOT_APPLICABLE,
             NOT_APPLICABLE
         },
        NOT_APPLICABLE,
@@ -558,10 +574,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             NOT_APPLICABLE,
             NOT_APPLICABLE
         },
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
@@ -583,10 +595,6 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         "AlwaysListening",
         CAudioRoute::EExternalRoute,
         "",
-        {
-            NOT_APPLICABLE,
-            NOT_APPLICABLE
-        },
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
@@ -928,6 +936,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "Media") {
 
         return new CAudioMediaLPECentricStreamRoute(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "DeepMedia") {
+
+        return new CAudioLPECentricStreamRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "Voice") {
 

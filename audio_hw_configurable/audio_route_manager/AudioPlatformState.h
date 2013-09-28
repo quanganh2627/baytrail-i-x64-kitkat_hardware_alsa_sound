@@ -43,33 +43,6 @@ class CAudioPlatformState
     };
 
 public:
-    enum ComponentStateName_t {
-        ModemState,
-        ModemAudioStatus,
-        HacMode,
-        TtySelected,
-        BtEnable,
-        BtHeadsetNrEc,
-        IsWideBandType,
-        SharedI2SState,
-        HasDirectStreams,
-
-        NbComponentStates
-    };
-
-    enum ComponentStateType_t {
-        ADD_EVENT(ModemState),
-        ADD_EVENT(ModemAudioStatus),
-        ADD_EVENT(HacMode),
-        ADD_EVENT(TtySelected),
-        ADD_EVENT(BtEnable),
-        ADD_EVENT(BtHeadsetNrEc),
-        ADD_EVENT(IsWideBandType),
-        ADD_EVENT(SharedI2SState),
-        ADD_EVENT(HasDirectStreams)
-    };
-
-
     enum EventName_t {
         AndroidModeChange,
         HwModeChange,
