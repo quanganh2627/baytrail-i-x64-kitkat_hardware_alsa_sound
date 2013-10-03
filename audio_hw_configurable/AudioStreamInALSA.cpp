@@ -341,15 +341,7 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
         return received_frames;
     }
 
-    ssize_t readBytes = mSampleSpec.convertFramesToBytes(received_frames);
-
-    if (mParent->mMicMuteState ) {
-
-        ALOGD("%s(buffer=%p, bytes=%ld). Mic muted. Generating silence.",
-            __FUNCTION__, buffer, static_cast<long int>(bytes));
-        generateSilence(buffer, readBytes);
-    }
-    return readBytes;
+    return mSampleSpec.convertFramesToBytes(received_frames);
 }
 
 status_t AudioStreamInALSA::dump(int __UNUSED fd, const Vector<String16> __UNUSED &args)
