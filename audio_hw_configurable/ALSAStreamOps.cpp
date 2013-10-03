@@ -425,4 +425,18 @@ CHALAudioDump *ALSAStreamOps::getDumpObjectAfterConv() const
     return dumpAfterConv;
 }
 
+bool ALSAStreamOps::safeSleep(uint32_t sleepTimeUs)
+{
+    struct timespec tim, tim2;
+
+    if (sleepTimeUs > MAX_SLEEP_TIME) {
+        sleepTimeUs = MAX_SLEEP_TIME;
+    }
+
+    tim.tv_sec = 0;
+    tim.tv_nsec = sleepTimeUs * NSEC_PER_USEC;
+
+    return nanosleep(&tim, &tim2) > 0;
+}
+
 }    // namespace android

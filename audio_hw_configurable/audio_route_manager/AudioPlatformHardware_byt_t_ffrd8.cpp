@@ -44,12 +44,12 @@ static const char* MEDIA_CARD_NAME = "baytrailaudio";
 #define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 static const char* VOICE_MIXING_CARD_NAME = "baytrailaudio";
-#define VOICE_MIXING_DEVICE_ID          ((int)1)
-#define VOICE_RECORD_DEVICE_ID          ((int)1)
+#define VOICE_MIXING_DEVICE_ID          ((int)3)
+#define VOICE_RECORD_DEVICE_ID          ((int)3)
 
 static const char* VOICE_CARD_NAME = "baytrailaudio";
-#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
-#define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
+#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)2)
+#define VOICE_BT_UPLINK_DEVICE_ID           ((int)2)
 
 using namespace std;
 
@@ -319,8 +319,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         VOICE_CARD_NAME,
         {
-            VOICE_BT_DOWNLINK_DEVICE_ID,
-            VOICE_BT_UPLINK_DEVICE_ID
+            VOICE_BT_UPLINK_DEVICE_ID,
+            VOICE_BT_DOWNLINK_DEVICE_ID
         },
         {
             pcm_config_voice_bt_uplink,
@@ -583,8 +583,10 @@ public:
         if (bIsOut) {
 
             return CAudioRoute::needReconfiguration(bIsOut) &&
-               (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange |
-                                                         CAudioPlatformState::EHwModeChange));
+               (_pPlatformState->hasPlatformStateChanged(
+                                           CAudioPlatformState::EOutputDevicesChange |
+                                           CAudioPlatformState::EHwModeChange |
+                                           CAudioPlatformState::EBypassNonLinearPpStateChange));
         }
         return CAudioRoute::needReconfiguration(bIsOut) &&
                 (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange |

@@ -52,6 +52,7 @@ void CAudioRoute::initRoute(bool bIsOut, uint32_t uiRouteIndex)
     _pPort[bIsOut] = NULL;
     _stUsed[bIsOut].bCurrently =  false;
     _stUsed[bIsOut].bAfterRouting =  false;
+    _needRerouting[bIsOut] = false;
 }
 
 void CAudioRoute::addPort(CAudioPort* pPort)
@@ -91,6 +92,8 @@ void CAudioRoute::resetAvailability()
     _bBlocked = false;
     _stUsed[CUtils::EOutput].bAfterRouting = false;
     _stUsed[CUtils::EInput].bAfterRouting = false;
+    _needRerouting[CUtils::EOutput] = false;
+    _needRerouting[CUtils::EInput] = false;
 }
 
 bool CAudioRoute::isApplicable(uint32_t uiDevices, int iMode, bool bIsOut, uint32_t) const
@@ -141,6 +144,11 @@ void CAudioRoute::setUsed(bool bIsOut)
             _pPort[i]->setUsed(this);
         }
     }
+}
+
+void CAudioRoute::setNeedRerouting(bool needRerouting, bool isOut)
+{
+    _needRerouting[isOut] = needRerouting;
 }
 
 bool CAudioRoute::needReconfiguration(bool bIsOut) const

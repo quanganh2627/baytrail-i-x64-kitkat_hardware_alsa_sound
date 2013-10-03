@@ -143,6 +143,23 @@ protected:
      * Triggered when the stream is started.
      */
     void                initAudioDump();
+    /* Used to sleep on the current thread.
+     *
+     * This function is used to get a POSIX-compliant way
+     * to accurately sleep the current thread.
+     *
+     * If function is successful, zero is returned
+     * and request has been honored, if function fails,
+     * EINTR has been raised by the system and -1 is returned.
+     *
+     * The other two errors considered by standard
+     * are not applicable in our context (EINVAL, ENOSYS)
+     *
+     * @param[in] time desired to sleep, in microseconds.
+     *
+     * @return on success true is returned, false otherwise.
+     */
+    bool                safeSleep(uint32_t uiSleepTimeUs);
 
     AudioHardwareALSA*      mParent;
     pcm*                    mHandle;
@@ -163,6 +180,20 @@ protected:
      * conversion is true (check init.rc file)
      */
     CHALAudioDump         *dumpAfterConv;
+    /**
+     * maximum number of read/write retries.
+     *
+     * This constant is used to set maximum number of retries to do
+     * on write/read operations before stating that error is not
+     * recoverable and reset media server.
+     */
+    static const uint32_t MAX_READ_WRITE_RETRIES = 50;
+
+    /** Ratio between microseconds and milliseconds */
+    static const uint32_t USEC_PER_MSEC = 1000;
+
+    /** Ratio between nanoseconds and microseconds */
+    static const uint32_t NSEC_PER_USEC = 1000;
 
 private:
     // Configure the audio conversion chain
@@ -199,6 +230,8 @@ private:
      * Array of property names after conversion
      */
     static const std::string dumpAfterConvProps[CUtils::ENbDirections];
+    /** maximum sleep time to be allowed by HAL, in microseconds. */
+    static const uint32_t MAX_SLEEP_TIME = 1000000UL;
 };
 
 };        // namespace android

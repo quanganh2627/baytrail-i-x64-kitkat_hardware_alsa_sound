@@ -47,6 +47,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bScreenOn(true),
     _bIsContextAwarenessEnabled(false),
     _isAlwaysListeningEnabled(false),
+    _bypassedNonLinearPp(false),
     _uiPlatformEventChanged(false),
     _pAudioRouteManager(pAudioRouteManager)
 {
@@ -292,6 +293,15 @@ void CAudioPlatformState::setAlwaysListeningStatus(bool enabled)
 
     _isAlwaysListeningEnabled = enabled;
     setPlatformStateEvent(EAlwaysListeningStateChange);
+}
+
+// set bypass non linear post processing status
+void CAudioPlatformState::bypassNonLinearPp(bool bypassed)
+{
+    if (_bypassedNonLinearPp != bypassed) {
+        _bypassedNonLinearPp = bypassed;
+        setPlatformStateEvent(EBypassNonLinearPpStateChange);
+    }
 }
 
 void CAudioPlatformState::updateHwMode()

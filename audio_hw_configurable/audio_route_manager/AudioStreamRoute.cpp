@@ -66,9 +66,9 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
     //      - still used by the same stream
     //      - the stream is using the same device
     if (base::needReconfiguration(bIsOut) &&
-            ((_stStreams[bIsOut].pCurrent != _stStreams[bIsOut].pNew) ||
+             (needRerouting(bIsOut) ||
+             (_stStreams[bIsOut].pCurrent != _stStreams[bIsOut].pNew) ||
              (_stStreams[bIsOut].pCurrent->getCurrentDevices() != _stStreams[bIsOut].pNew->getNewDevices()))) {
-
         return true;
     }
     return false;

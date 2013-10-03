@@ -93,6 +93,34 @@ public:
 
     virtual bool isPostDisableRequired() { return false; }
 
+    /**
+     * Expressed conditions in which the route will be closed/opened again.
+     * If rerouting is requested, it will be done at the configure step.
+     *
+     * @param[in] isOut: direction of the route.
+     *
+     * @return true if route need to be closed/opened, false otherwise.
+     */
+    virtual bool needRerouting(bool isOut) const { return _needRerouting[isOut]; }
+
+    /**
+     * Evaluate if a route needs to be rerouted.
+     * If rerouting flag is raised, the route will unrouted / routed again.
+     *
+     * @param[in] needRerouting: set if route needs to be rerouted.
+     * @param[in] isOut: direction of the stream.
+     */
+    virtual void checkAndSetNeedRerouting(bool __UNUSED isOut) { }
+
+    /**
+     * Sets a route to be rerouted during routing processus.
+     * If rerouting flag is raised, the route will unrouted / routed again.
+     *
+     * @param[in] needRerouting: set if route needs to be rerouted.
+     * @param[in] isOut: direction of the stream.
+     */
+    void setNeedRerouting(bool needRerouting, bool isOut);
+
 protected:
     CAudioRoute(const CAudioRoute &);
     CAudioRoute& operator = (const CAudioRoute &);
@@ -134,6 +162,13 @@ public:
     uint32_t _uiSlaveRoutes;
 
     CAudioPlatformState* _pPlatformState;
+
+    /**
+     * Used to track down the need to reinitialize the
+     * audio route, for both directions.
+     */
+    bool _needRerouting[CUtils::ENbDirections];
 };
+
 };        // namespace android
 

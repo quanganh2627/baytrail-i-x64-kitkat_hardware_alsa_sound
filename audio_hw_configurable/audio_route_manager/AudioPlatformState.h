@@ -63,6 +63,7 @@ public:
         ContextAwarenessStateChange,
         AlwaysListeningStateChange,
         FmStateChange,
+        BypassNonLinearPpStateChange,
 
         NbEvents
     };
@@ -88,7 +89,8 @@ public:
         ADD_EVENT(ScreenStateChange),
         ADD_EVENT(ContextAwarenessStateChange),
         ADD_EVENT(AlwaysListeningStateChange),
-        ADD_EVENT(FmStateChange)
+        ADD_EVENT(FmStateChange),
+        ADD_EVENT(BypassNonLinearPpStateChange)
     };
 
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
@@ -215,6 +217,20 @@ public:
     bool isAlwaysListeningEnabled() const { return _isAlwaysListeningEnabled; }
 
     /**
+     * Set "Bypass Non linear mode" status
+     *
+     * @param[in] bypassed if true, disables the non linear post processing
+     */
+    void bypassNonLinearPp(bool bypassed);
+
+    /**
+     * Get "Bypass Non linear status" status
+     *
+     * @return true if the non linear post processing is disabled
+     */
+    bool bypassedNonLinearPp() const { return _bypassedNonLinearPp; }
+
+    /**
      * Get FM State.
      *
      * @return true if FM module is powered on by FM stack.
@@ -316,6 +332,11 @@ private:
     bool _bIsContextAwarenessEnabled;
     // Always Listening status
     bool _isAlwaysListeningEnabled;
+
+    /**
+     * Bypass Non Linear PP status
+     */
+    bool _bypassedNonLinearPp;
 
     uint32_t _uiPlatformEventChanged;
 

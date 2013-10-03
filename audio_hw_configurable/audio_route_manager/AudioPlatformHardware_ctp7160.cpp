@@ -16,6 +16,7 @@
 
 #include "AudioPlatformHardware.h"
 #include "Property.h"
+#include "AudioStreamRouteIaSspWorkaround.h"
 
 #include <tinyalsa/asoundlib.h>
 
@@ -34,7 +35,6 @@
 #define SAMPLE_RATE_48000               ((int)48000)
 
 #define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / MSEC_PER_SEC)
-
 #define DEEP_PLAYBACK_48000_PERIOD_SIZE ((int)DEEP_PLAYBACK_PERIOD_TIME_MS * LONG_PERIOD_FACTOR * SAMPLE_RATE_48000 / MSEC_PER_SEC)
 #define PLAYBACK_48000_PERIOD_SIZE      ((int)PLAYBACK_PERIOD_TIME_MS * SAMPLE_RATE_48000 / MSEC_PER_SEC)
 #define CAPTURE_48000_PERIOD_SIZE       ((int)CAPTURE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / MSEC_PER_SEC)
@@ -446,180 +446,44 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState),
         _uiCodecDelayMs(TProperty<int32_t>(CAudioPlatformHardware::CODEC_DELAY_PROP_NAME, 0))
     {
-        _needRerouting[CUtils::EInput] = false;
-        _needRerouting[CUtils::EOutput] = false;
     }
     // Get amount of silence delay upon stream opening
     virtual uint32_t getOutputSilencePrologMs() const
     {
-
         if (((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_SPEAKER) == AudioSystem::DEVICE_OUT_SPEAKER) ||
                 ((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) == AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
 
             return _uiCodecDelayMs;
         }
+
         return CAudioStreamRoute::getOutputSilencePrologMs();
-    }
-
-    /**
-      * This function verifies the necessity to reconfigure routing
-      * @param[in] isOut is a bolean to track if we are configurating input or output streams
-      * @return true if SSP FIFO needs to be flushed or if it's base class decision
-      */
-     virtual bool needReconfiguration(bool isOut) const
-    {
-
-        return needFlushRouteMediaVoipSspFifo(isOut) ||
-                CAudioStreamRoute::needReconfiguration(isOut);
-    }
-    /**
-      * This function verifies the stream integrity and make a reroute the current stream
-      * @param[in] isOut is a bolean to track if we are configurating input or output streams
-      */
-    void configure(bool isOut)
-    {
-        if (_needRerouting[isOut]) {
-            // Before flushing SSP FIFO (for input or output streams) be
-            // sure stream is still the same.
-            if (_stStreams[isOut].pCurrent == _stStreams[isOut].pNew) {
-                ALOGD("%s Workaround: force rerouting", __FUNCTION__);
-
-                // Do rerouting in order to flush SSP FIFO
-                unroute(isOut);
-                route(isOut);
-            }
-            _needRerouting[isOut] = false;
-        }
-        CAudioStreamRoute::configure(isOut);
     }
 
 private:
     uint32_t _uiCodecDelayMs;
-    /**
-      * This function reconsiders if we need to flush the SSP FIFO
-      * @param[in] isOut is a bolean to track if we are configurating input or output streams
-      * @return true if SSP FIFO needs to be flushed
-      */
-    bool needFlushRouteMediaVoipSspFifo(bool isOut) const
-    {
-        /**
-         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
-         * considering reconfiguration of an input stream:
-         *
-         * 1) The stream was active before rerouting and will remain active after rerouting.
-         * 2) Output device has changed
-         * 3) Changed output device is earpiece or speaker
-         *
-         * Outside these conditions, no rerouting can take place.
-         *
-         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
-         * considering reconfiguration of an output stream:
-         *
-         * 1) The stream was active before rerouting and will remain active after rerouting.
-         * 2) Output device has changed
-         * 3) Changed output device is earpiece or headset
-         *
-         * Outside these conditions, no rerouting can take place.
-         */
-        _needRerouting[isOut] =
-              CAudioRoute::needReconfiguration(isOut) &&
-              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) &&
-              (isOut ?
-                     (_pPlatformState->getDevices(CUtils::EOutput) &
-                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_WIRED_HEADSET)) :
-                     (_pPlatformState->getDevices(CUtils::EOutput) &
-                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER)));
-
-        return _needRerouting[isOut];
-    }
-
-    /** Used to track the need to flush SSP FIFO, for both directions.  */
-    mutable bool _needRerouting[CUtils::ENbDirections];
-
 };
 
-class CAudioStreamRouteModemMix : public CAudioStreamRoute
+
+class CAudioStreamRouteModemMix : public AudioStreamRouteIaSspWorkaround
 {
 public:
     CAudioStreamRouteModemMix(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioStreamRoute(uiRouteIndex, pPlatformState) {
-        _needRerouting[CUtils::EInput] = false;
-        _needRerouting[CUtils::EOutput] = false;
+        AudioStreamRouteIaSspWorkaround(uiRouteIndex, pPlatformState)
+    {
     }
 
-    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const {
+    virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const
+    {
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         if (!_pPlatformState->isModemAudioAvailable()) {
             return false;
         }
 
-        return CAudioStreamRoute::isApplicable(uidevices, iMode, bIsOut, uiMask);
+        return AudioStreamRouteIaSspWorkaround::isApplicable(uidevices, iMode, bIsOut, uiMask);
     }
-
-    virtual bool needReconfiguration(bool isOut) const
-    {
-        // Reconfiguration is needed if:
-        //      -SSP FIFO needs to be flushed.
-        //      -It's base class decision.
-        return needFlushModemMixSspFifo(isOut) || CAudioStreamRoute::needReconfiguration(isOut);
-    }
-
-    void configure(bool isOut)
-    {
-        if (_needRerouting[isOut]) {
-            // Before flushing SSP FIFO (for input or output streams) be
-            // sure stream is still the same.
-            if (_stStreams[isOut].pCurrent == _stStreams[isOut].pNew) {
-                ALOGD("%s Workaround: force rerouting", __FUNCTION__);
-
-                // Do rerouting in order to flush SSP FIFO
-                unroute(isOut);
-                route(isOut);
-            }
-            _needRerouting[isOut] = false;
-        }
-        CAudioStreamRoute::configure(isOut);
-    }
-
-private:
-    bool needFlushModemMixSspFifo(bool isOut) const
-    {
-        /**
-         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
-         * considering reconfiguration of an input stream:
-         *
-         * 1) The stream was active before rerouting and will remain active after rerouting.
-         * 2) Output device has changed
-         * 3) Changed output device is earpiece or speaker
-         *
-         * Outside these conditions, no rerouting can take place.
-         *
-         * Conditions to be met in order to proceed to SSP FIFO flushing (rerouting) when
-         * considering reconfiguration of an output stream:
-         *
-         * 1) The stream was active before rerouting and will remain active after rerouting.
-         * 2) Output device has changed
-         * 3) Changed output device is earpiece or headset
-         *
-         * Outside these conditions, no rerouting can take place.
-         */
-        _needRerouting[isOut] =
-              CAudioRoute::needReconfiguration(isOut) &&
-              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EOutputDevicesChange) &&
-              (isOut ?
-                     (_pPlatformState->getDevices(CUtils::EOutput) &
-                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_WIRED_HEADSET)) :
-                     (_pPlatformState->getDevices(CUtils::EOutput) &
-                      (AudioSystem::DEVICE_OUT_EARPIECE | AudioSystem::DEVICE_OUT_SPEAKER)));
-
-        return _needRerouting[isOut];
-    }
-
-    /** Used to track the need to flush SSP FIFO, for both directions.  */
-    mutable bool _needRerouting[CUtils::ENbDirections];
-
 };
+
 
 class CAudioExternalRouteHwCodecCSV : public CAudioExternalRoute
 {
