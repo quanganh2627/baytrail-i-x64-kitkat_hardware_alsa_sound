@@ -623,7 +623,8 @@ public:
                     CAudioPlatformState::EHacModeChange |
                     CAudioPlatformState::ETtyDirectionChange |
                     CAudioPlatformState::EBandTypeChange |
-                    CAudioPlatformState::HwModeChange)) ||
+                    CAudioPlatformState::HwModeChange |
+                    CAudioPlatformState::EBypassNonLinearPpStateChange)) ||
                 CAudioExternalRoute::needReconfiguration(isOut);
     }
 };
