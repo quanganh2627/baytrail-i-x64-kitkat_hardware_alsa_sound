@@ -609,6 +609,14 @@ public:
 
             } else if (!bIsOut) {
 
+                if ((_pPlatformState->getDevices(CUtils::EOutput)
+                     & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE) != 0) {
+                    // In call, this route is also applicable if an headphone is plugged
+                    // In communication mode, the built-in mic is already selected in
+                    // the policy so this capture route is already applicable.
+                    return true;
+                }
+
                 // In call, the output is applicable if the output stream is used
                 return willBeUsed(CUtils::EOutput);
             }
@@ -663,11 +671,20 @@ public:
                 // Force OpenedCaptureRoutes to HwCodec0IA|ModemIA
                 return bIsOut;
 
-            } else if (!bIsOut) {
+           } else if (!bIsOut) {
 
-                // In call, the output is applicable if the output stream is used
-                return willBeUsed(CUtils::EOutput);
-            }
+               if ((_pPlatformState->getDevices(CUtils::EOutput)
+                    & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE) != 0) {
+                   // In call, this route isn't applicable if an headphone is plugged
+                   // (in such case we should use and elect the HwCodec0IA route)
+                   // In communication mode, the built-in mic is already selected in
+                   // the policy so that capture route is already not applicable.
+                   return false;
+               }
+
+               // In call, the output is applicable if the output stream is used
+               return willBeUsed(CUtils::EOutput);
+           }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
