@@ -79,5 +79,13 @@ private:
      */
     static const uint32_t MAX_NUMBER_OF_FILES;
 
+    /**
+     * Store stream directions in and out
+     */
     static const char *streamDirections[];
+
+    /**
+     * Dump directory path to store audio dump files
+     */
+    static const char *dumpDirPath;
 };
