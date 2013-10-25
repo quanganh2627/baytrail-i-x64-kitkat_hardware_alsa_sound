@@ -484,6 +484,20 @@ private:
     void doSetHacParameters(AudioParameter &param);
 
     /**
+     * This function sets the MicMute feature to state.
+     *
+     * @param[in] state if true, it indicates that the mic should be muted, and unmuted otherwise.
+     */
+    void setMicMute(bool state);
+
+    /**
+      * This functions returns the state of mic mute feature.
+      *
+      * @return true if the state of mic mute feature is true, false otherwise.
+      */
+    bool getMicMute();
+
+    /**
      * Do Stream Flags specific parameters pop & set.
      * Pop all Stream Flags  specific parameters provided in the key/value
      * and set those which are handled.
@@ -620,6 +634,7 @@ private:
         ESelectedHacMode,
         ESelectedScreenState,
         ESelectedBypassNonLinearPp,
+        ESelectedMicMute,
         ENbCriteria
     };
     struct CriteriaInterface {

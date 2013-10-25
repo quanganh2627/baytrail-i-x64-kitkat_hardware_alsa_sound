@@ -152,27 +152,9 @@ static const pcm_config pcm_config_voice_uplink = {
 // Location of the file containing the name of the card
 const char* const cardsPath = "/proc/asound/cards";
 
-// Name of the card (boomer)
-const char* lm49453audioCardName = "lm49453audio";
-
 // Name of the card (wm8958)
-const char* wm8958audioCardName = "wm8958audio";
-
-// Name of the card (unknown)
-const char* unknownAudioCardName = "unknown-audio-codec";
-
-// Retrieve the name of the current card
-const char* const mediaCardName = getCodecName();
-const char* const voiceCardName = getCodecName();
-
-// Defines the name of the Android property describing the name of the PFW configuration file
-const char* const gPfwConfFilePropName = "AudioComms.PFW.ConfPath";
-
-const char* const gPfwConfFileBoomerName =
-        "/etc/parameter-framework/ParameterFrameworkConfiguration-boomer.xml";
-
-const char* const gPfwConfFileWm8958Name =
-        "/etc/parameter-framework/ParameterFrameworkConfiguration-wm8958.xml";
+const char *const mediaCardName = "wm8958audio";
+const char *const voiceCardName = mediaCardName;
 
 const char* const CAudioPlatformHardware::_acPorts[] = {
 };
@@ -180,53 +162,6 @@ const char* const CAudioPlatformHardware::_acPorts[] = {
 // Port Group and associated port
 const char* const CAudioPlatformHardware::_acPortGroups[] = {
 };
-
-// Read the name of the card from the file /proc/asound/cards
-const char* getCodecName()
-{
-    ifstream istrCards(cardsPath);
-
-    if (!istrCards.is_open()) {
-
-        ALOGE("Error opening file %s", cardsPath);
-
-        return unknownAudioCardName;
-    }
-
-    stringstream strmBuffer;
-    strmBuffer << istrCards.rdbuf();
-
-    if (istrCards.fail()) {
-
-        ALOGE("Error reading file %s", cardsPath);
-
-        return unknownAudioCardName;
-    }
-
-    string strCards(strmBuffer.str());
-    istrCards.close();
-
-    const char* card_name;
-    if (strCards.find(lm49453audioCardName) != string::npos) {
-
-        // boomer
-        card_name = lm49453audioCardName;
-        TProperty<string>(gPfwConfFilePropName).setValue(gPfwConfFileBoomerName);
-
-    } else if (strCards.find(wm8958audioCardName) != string::npos) {
-
-        // wm8958
-        card_name = wm8958audioCardName;
-        TProperty<string>(gPfwConfFilePropName).setValue(gPfwConfFileWm8958Name);
-
-    } else {
-
-        // not found
-        card_name = unknownAudioCardName;
-    }
-
-    return card_name;
-}
 
 //
 // Route description structure
@@ -688,7 +623,8 @@ public:
                     CAudioPlatformState::EHacModeChange |
                     CAudioPlatformState::ETtyDirectionChange |
                     CAudioPlatformState::EBandTypeChange |
-                    CAudioPlatformState::HwModeChange)) ||
+                    CAudioPlatformState::HwModeChange |
+                    CAudioPlatformState::EBypassNonLinearPpStateChange)) ||
                 CAudioExternalRoute::needReconfiguration(isOut);
     }
 };
@@ -770,9 +706,11 @@ public:
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
 
-    virtual bool needReconfiguration(bool __UNUSED bIsOut) const
+    virtual bool needReconfiguration(bool isOut) const
     {
-        return false;
+        return (CAudioRoute::needReconfiguration(isOut) &&
+                _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EMicMuteChange)) ||
+                CAudioExternalRoute::needReconfiguration(isOut);
     }
 };
 
@@ -901,6 +839,14 @@ public:
         _pEffectSupported.push_back(FX_IID_AEC);
         _pEffectSupported.push_back(FX_IID_NS);
     }
+
+    virtual bool needReconfiguration(bool isOut) const
+    {
+        return (CAudioRoute::needReconfiguration(isOut) &&
+                _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EMicMuteChange)) ||
+                CAudioLPECentricStreamRoute::needReconfiguration(isOut);
+    }
+
 };
 
 //

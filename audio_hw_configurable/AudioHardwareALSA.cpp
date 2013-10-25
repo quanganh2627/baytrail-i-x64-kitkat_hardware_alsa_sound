@@ -173,8 +173,6 @@ AudioStreamIn* AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t &err = *status;
 
-    mMicMuteState = false;
-
     if (!CAudioUtils::isAudioInputDevice(devices)) {
 
         err = BAD_VALUE;
@@ -199,7 +197,6 @@ AudioStreamIn* AudioHardwareALSA::openInputStream(uint32_t devices,
 
 void AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 {
-    mMicMuteState = false;
     // Informs the route manager of stream destruction
     mRouteMgr->removeStream((AudioStreamInALSA* )in);
 
@@ -208,23 +205,15 @@ void AudioHardwareALSA::closeInputStream(AudioStreamIn* in)
 
 status_t AudioHardwareALSA::setMicMute(bool state)
 {
-    mMicMuteState = state;
-
-    ALOGD("Set MUTE %s", state? "true" : "false");
-
+    ALOGD("Set MicMute to %s state", state? "true" : "false");
+    mRouteMgr->setMicMute(state);
     return NO_ERROR;
 }
 
 status_t AudioHardwareALSA::getMicMute(bool *state)
 {
-    if (state != NULL) {
-
-        ALOGD("Get MUTE %s", mMicMuteState ? "true" : "false");
-        *state = mMicMuteState;
-    }
-
+    *state = mRouteMgr->getMicMute();
     return NO_ERROR;
-
 }
 
 size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, int channelCount)

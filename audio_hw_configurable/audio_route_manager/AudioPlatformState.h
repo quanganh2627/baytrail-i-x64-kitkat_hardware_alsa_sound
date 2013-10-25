@@ -64,6 +64,7 @@ public:
         AlwaysListeningStateChange,
         FmStateChange,
         BypassNonLinearPpStateChange,
+        MicMuteChange,
 
         NbEvents
     };
@@ -90,7 +91,8 @@ public:
         ADD_EVENT(ContextAwarenessStateChange),
         ADD_EVENT(AlwaysListeningStateChange),
         ADD_EVENT(FmStateChange),
-        ADD_EVENT(BypassNonLinearPpStateChange)
+        ADD_EVENT(BypassNonLinearPpStateChange),
+        ADD_EVENT(MicMuteChange)
     };
 
     CAudioPlatformState(CAudioRouteManager* pAudioRouteManager);
@@ -274,6 +276,20 @@ public:
 
     void setDirectStreamEvent(uint32_t uiFlags);
 
+    /**
+     * Set "Mic Mute" feature.
+     *
+     * @param[in] state new value of micmute feature.
+     */
+    void setMicMute(bool state);
+
+    /**
+     * Get "Mic Mute" feature state.
+     *
+     * @return true if the state of mic mute feature is set to true, false otherwise.
+     */
+    bool getMicMute() const { return _micMute; }
+
 private:
     // Check if the Hw mode has changed
     bool checkHwMode();
@@ -304,6 +320,11 @@ private:
 
     // BT Enabled flag
     bool _bIsBtEnabled;
+
+    /**
+      * This attribute indicates the state of the "Mic Mute" feature.
+      */
+    bool _micMute;
 
     // Input/output Devices bit field
     uint32_t _uiDevices[ENbDirections];
