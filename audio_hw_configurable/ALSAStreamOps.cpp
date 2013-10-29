@@ -41,6 +41,7 @@
 #include "AudioStreamRoute.h"
 #include <AudioConversion.h>
 #include "AudioHardwareALSA.h"
+#include <AudioCommsAssert.hpp>
 #include "Property.h"
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
@@ -88,10 +89,9 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
 
 ALSAStreamOps::~ALSAStreamOps()
 {
-    setStandby(true);
+    AUDIOCOMMS_ASSERT(!isStarted(), "stream deleted while still active");
 
     delete mAudioConversion;
-
     delete dumpAfterConv;
     delete dumpBeforeConv;
 }
@@ -253,27 +253,37 @@ void ALSAStreamOps::updateLatency(uint32_t uiFlags)
     mLatencyUs = latency;
 }
 
-status_t ALSAStreamOps::setStandby(bool bIsSet)
+status_t ALSAStreamOps::setStandby(bool isSet)
 {
-    return bIsSet ? mParent->stopStream(this) : mParent->startStream(this);
+    if (isStarted() == !isSet) {
+
+        return OK;
+    }
+    setStarted(!isSet);
+
+    return isSet ? mParent->stopStream(this) : mParent->startStream(this);
 }
 
-//
-// Route availability for a stream means a route has been
-// associate with this stream...
-//
 bool ALSAStreamOps::isRouteAvailable() const
+{
+    AutoR lock(_streamLock);
+    return isRouteAvailableL();
+}
+
+bool ALSAStreamOps::isRouteAvailableL() const
 {
     return mCurrentRoute != NULL;
 }
 
-//
-// Called from Route Manager Context -> WLocked
-//
 status_t ALSAStreamOps::attachRoute()
 {
-    ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
+    AutoW lock(_streamLock);
+    return attachRouteL();
+}
 
+status_t ALSAStreamOps::attachRouteL()
+{
+    ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
     SampleSpec ssSrc;
     SampleSpec ssDst;
 
@@ -300,10 +310,13 @@ status_t ALSAStreamOps::attachRoute()
     return NO_ERROR;
 }
 
-//
-// Called from Route Manager Context -> WLocked
-//
 status_t ALSAStreamOps::detachRoute()
+{
+    AutoW lock(_streamLock);
+    return detachRouteL();
+}
+
+status_t ALSAStreamOps::detachRouteL()
 {
     ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
 
@@ -330,12 +343,6 @@ status_t ALSAStreamOps::applyAudioConversion(const void* src, void** dst, uint32
     return mAudioConversion->convert(src, dst, inFrames, outFrames);
 }
 
-//
-// Called from Route Manager Context -> WLocked
-//
-// This function set the route pointer to the new route
-// It also set the new PCM device
-//
 void ALSAStreamOps::setNewRoute(CAudioStreamRoute *pRoute)
 {
     // No need to check Route, NULL pointer accepted
@@ -360,6 +367,7 @@ void ALSAStreamOps::setNewDevices(uint32_t uiNewDevices)
 
 void ALSAStreamOps::setCurrentDevices(uint32_t uiCurrentDevices)
 {
+    AutoW lock(_streamLock);
     mCurrentDevices = uiCurrentDevices;
 }
 
@@ -368,6 +376,7 @@ void ALSAStreamOps::setCurrentDevices(uint32_t uiCurrentDevices)
 //
 bool ALSAStreamOps::isStarted()
 {
+    AutoR lock(_streamLock);
     return !mStandby;
 }
 
@@ -376,7 +385,9 @@ bool ALSAStreamOps::isStarted()
 //
 void ALSAStreamOps::setStarted(bool isStarted)
 {
+    _streamLock.writeLock();
     mStandby = !isStarted;
+    _streamLock.unlock();
 
     initAudioDump();
 }

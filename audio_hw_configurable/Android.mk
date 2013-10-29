@@ -38,7 +38,6 @@ endif
 audio_hw_configurable_src_files :=  \
     ALSAStreamOps.cpp \
     audio_hw_hal.cpp \
-    AudioAutoRoutingLock.cpp \
     AudioHardwareALSA.cpp \
     AudioHardwareInterface.cpp \
     AudioStreamInALSA.cpp \
@@ -82,7 +81,6 @@ audio_hw_configurable_includes_dir_target := \
 
 audio_hw_configurable_header_files :=  \
     ALSAStreamOps.h \
-    AudioAutoRoutingLock.h \
     AudioDumpInterface.h \
     AudioHardwareALSA.h \
     audio_route_manager/AudioCompressedStreamRoute.h \
