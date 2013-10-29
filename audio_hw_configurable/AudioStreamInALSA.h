@@ -110,50 +110,6 @@ public:
      */
     virtual status_t removeAudioEffect(effect_handle_t effect);
 
-    /**
-     * Request to add effect on the stream in routing locked context.
-     * Called by the route manager with routing lock handled.
-     * It adds an audio effect request on the input stream.
-     *
-     * @param[in] structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    virtual status_t addAudioEffectRequest(effect_handle_t effect);
-
-    /**
-     * Request to remove an effect from the stream in routing locked context.
-     * Called by the route manager with routing lock handled.
-     * It requests to remove an audio effect from the input stream chain.
-     *
-     * @param[in] structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    virtual status_t removeAudioEffectRequest(effect_handle_t effect);
-
-    /**
-     * Add effect on the stream in routing locked context.
-     * Called by the route manager with routing lock handled.
-     * It adds an audio effect on the input stream.
-     *
-     * @param[in] structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    status_t addAudioEffect_l(effect_handle_t effect, struct echo_reference_itfe* reference = NULL);
-
-    /**
-     * Removes an effect from the stream in routing locked context.
-     * Called by the route manager with routing lock handled.
-     * It removes an audio effect from the input stream chain.
-     *
-     * @param[in] structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    status_t removeAudioEffect_l(effect_handle_t effect);
-
     // From ALSAStreamOps: to perform extra open/close actions
     virtual android::status_t    attachRoute();
     virtual android::status_t    detachRoute();
@@ -168,7 +124,11 @@ public:
      *
      * @param[in] the input source.
      */
-    inline void setInputSourceMask(uint32_t inputSource) { _inputSourceMask = inputSource; };
+    inline void setInputSourceMask(uint32_t inputSource)
+    {
+        AutoW lock(_streamLock);
+        _inputSourceMask = inputSource;
+    };
 
     /**
      * Applicability mask.
@@ -176,7 +136,11 @@ public:
      *
      * @return input source mask
      */
-    virtual uint32_t    getApplicabilityMask() const { return _inputSourceMask; }
+    virtual uint32_t    getApplicabilityMask() const
+    {
+        AutoR lock(_streamLock);
+        return _inputSourceMask;
+    }
 
 private:
     class AudioEffectHandle
@@ -202,6 +166,89 @@ private:
     };
     std::list<effect_handle_t>mRequestedEffects;
 
+    /**
+     * Identify AEC effect from UUID.
+     *
+     * @param[in] uuid UUID of the effect to identify against AEC
+     *
+     * @return true if UUID is matching SW AEC effect.
+     */
+    bool isAecEffect(const effect_uuid_t *uuid);
+
+    /**
+     * Extract from the effet handle the UUID.
+     *
+     * @param[in] effect handle of the audio effect to retrieve the uuid from.
+     * @param[out] uuid UUID is set correctly if returned status is OK.
+     *
+     * @return OK if effect handle was valid and whose uuid was found, error code otherwise.
+     */
+    status_t getAudioEffectUuidFromHandle(effect_handle_t effect, effect_uuid_t *uuid);
+
+    /**
+     * Request to add effect on the stream in locked context.
+     * It adds an audio effect request on the input stream.
+     *
+     * @param[in] effect handle of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    virtual status_t addAudioEffectRequestL(effect_handle_t effect);
+
+    /**
+     * Request to remove an effect from the stream in locked context.
+     * It requests to remove an audio effect from the input stream chain.
+     *
+     * @param[in] effect handle of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    virtual status_t removeAudioEffectRequestL(effect_handle_t effect);
+
+    /**
+     * Add effect on the stream in locked context.
+     * It adds an audio effect on the input stream. It may decides to use either SW or HW effect
+     * according to the capabilities of the audio stream route attached.
+     *
+     * @param[in] effect handle of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t addAudioEffectL(effect_handle_t effect);
+
+    /**
+     * Removes an effect from the stream in locked context.
+     * Checks if effects is SW or HW. In case of SW effects, it removes the audio effect
+     * from the input stream chain.
+     *
+     * @param[in] effect handle of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t removeAudioEffectL(effect_handle_t effect);
+
+    /**
+     * Add a SW effect on the stream in locked context.
+     * It adds an audio effect on the input stream.
+     *
+     * @param[in] effect handle of the effect to add.
+     * @param[in] reference Echo Reference may be provided for AEC SW effect
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t addSwAudioEffectL(effect_handle_t effect,
+                               struct echo_reference_itfe *reference = NULL);
+
+    /**
+     * Removes a SW effect from the stream in locked context.
+     * It removes an audio effect from the input stream chain.
+     *
+     * @param[in] effect handle of the effect to add.
+     *
+     * @return status_t OK upon succes, error code otherwise.
+     */
+    status_t removeSwAudioEffectL(effect_handle_t effect);
+
     AudioStreamInALSA(const AudioStreamInALSA &);
     AudioStreamInALSA& operator = (const AudioStreamInALSA &);
     void                resetFramesLost();
@@ -224,15 +271,15 @@ private:
                                                ssize_t* processing_frames_in);
 
     status_t            pushEchoReference(ssize_t frames, effect_handle_t preprocessor,
-                                          struct echo_reference_itfe* reference);
+                                          struct echo_reference_itfe *reference);
 
-    int32_t             updateEchoReference(ssize_t frames, struct echo_reference_itfe* reference);
+    int32_t             updateEchoReference(ssize_t frames, struct echo_reference_itfe *reference);
 
     status_t            setPreprocessorEchoDelay(effect_handle_t handle, int32_t delay_us);
 
     status_t            setPreprocessorParam(effect_handle_t handle, effect_param_t *param);
 
-    void                getCaptureDelay(struct echo_reference_buffer* buffer);
+    void                getCaptureDelay(struct echo_reference_buffer *buffer);
 
     status_t            checkAndAddAudioEffects();
     status_t            checkAndRemoveAudioEffects();
@@ -287,12 +334,6 @@ private:
 
     char* mHwBuffer;
     ssize_t mHwBufferSize;
-
-    /**
-     * Effects are handled in a separated thread, need to lock to protect concurrent
-     * access to the input stream.
-     */
-    audio_comms::utilities::Mutex _streamLock;
 };
 
 };        // namespace android

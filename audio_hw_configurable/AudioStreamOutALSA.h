@@ -84,7 +84,6 @@ public:
 
     /**
      * Request to provide Echo Reference.
-     * Called from Audio Route Manager WLocked context to add the echo reference.
      *
      * @param[in] echo reference structure pointer.
      */
@@ -92,7 +91,6 @@ public:
 
     /**
      * Cancel the request to provide Echo Reference.
-     * Called from Audio Route Manager WLocked context to remove the echo reference.
      *
      * @param[in] echo reference structure pointer.
      */
@@ -108,7 +106,12 @@ public:
      *
      * @return output flags associated with this output stream.
      */
-    uint32_t            getFlags() const { return _flags; }
+    uint32_t            getFlags() const
+    {
+        AutoR lock(_streamLock);
+        return _flags;
+    }
+
     void                setFlags(uint32_t uiFlags);
 
     /**

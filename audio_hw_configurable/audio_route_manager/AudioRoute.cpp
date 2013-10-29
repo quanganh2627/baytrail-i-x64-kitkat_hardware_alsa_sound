@@ -73,19 +73,26 @@ void CAudioRoute::addPort(CAudioPort* pPort)
     }
 }
 
-status_t CAudioRoute::route(bool bIsOut)
+status_t CAudioRoute::route(bool isOut, bool isPreEnable)
 {
-    _stUsed[bIsOut].bCurrently = true;
-
+    if (!isPreEnable) {
+        /**
+         * Update the status only once the enable routing stage is done.
+         */
+        _stUsed[isOut].bCurrently = true;
+    }
     return NO_ERROR;
 }
 
-void CAudioRoute::unroute(bool bIsOut)
+void CAudioRoute::unroute(bool isOut, bool isPostDisable)
 {
-    _stUsed[bIsOut].bCurrently = false;
+    if (isPostDisable) {
+        /**
+         * Update the status only once the enable unrouting stage is done.
+         */
+        _stUsed[isOut].bCurrently = false;
+    }
 }
-
-
 
 void CAudioRoute::resetAvailability()
 {

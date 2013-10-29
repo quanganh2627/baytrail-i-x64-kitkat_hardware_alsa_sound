@@ -171,52 +171,6 @@ public:
     status_t setVoiceVolume(float gain);
 
     /**
-     * Called by the stream in to request to add an effect.
-     * It appends the effect to the stream list of requested effects
-     * and add the effect only if the stream is already attached to the route.
-     *
-     * @param[in] pStream input stream pointer.
-     * @param[in] effect structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    status_t addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
-
-    /**
-     * Called by an input stream in to request to remove an effect.
-     * It removes the effect from the stream list of requested effects
-     * and add the effect only if the stream is still attached to the route.
-     *
-     * @param[in] pStream input stream pointer.
-     * @param[in] effect structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    status_t removeAudioEffectRequest(AudioStreamInALSA *pStream, effect_handle_t effect);
-
-    /**
-     * Called by an input stream in to add an effect.
-     * When calling this function, the stream must be already attached to an audio route.
-     *
-     * @param[in] pStream input stream pointer.
-     * @param[in] effect structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    status_t addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
-
-    /**
-     * Called by an input stream in to remove an effect.
-     * When calling this function, the stream must be still attached to an audio route..
-     *
-     * @param[in] pStream input stream pointer.
-     * @param[in] effect structure of the effect to add.
-     *
-     * @return status_t OK upon succes, error code otherwise.
-     */
-    status_t removeAudioEffect(AudioStreamInALSA *pStream, effect_handle_t effect);
-
-    /**
      * Reset the Echo Reference.
      * The purpose of this function is
      * - to stop the processing (i.e. writing of playback frames as echo reference for
@@ -319,10 +273,10 @@ private:
      * It only concerns the action that needs to be done on routes themselves, ie detaching
      * streams, closing alsa devices.
      *
-     * @param[in] bIsOut direction of the routes to disable.
-     * @param[in] bIsPostDisable if set, it indicates that the disable happens after unrouting.
+     * @param[in] isOut direction of the routes to disable.
+     * @param[in] isPostDisable if set, it indicates that the disable happens after unrouting.
      */
-    void doDisableRoutes(bool bIsOut, bool bIsPostDisable = false);
+    void doDisableRoutes(bool isOut, bool isPostDisable = false);
 
     /**
      * Performs the post-disabling of the route.
@@ -347,10 +301,10 @@ private:
      * It only concerns the action that needs to be done on routes themselves, ie attaching
      * streams, opening alsa devices.
      *
-     * @param[in] bIsOut direction of the routes to disable.
-     * @param[in] bIsPreEnable if set, it indicates that the enable happens before routing.
+     * @param[in] iOut direction of the routes to disable.
+     * @param[in] isPreEnable if set, it indicates that the enable happens before routing.
      */
-    void doEnableRoutes(bool bIsOut, bool bIsPreEnable = false);
+    void doEnableRoutes(bool iOut, bool isPreEnable = false);
 
     /**
      * Performs the pre-enabling of the routes.
