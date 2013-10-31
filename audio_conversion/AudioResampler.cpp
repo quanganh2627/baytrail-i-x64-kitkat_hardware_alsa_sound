@@ -15,9 +15,6 @@
  ** limitations under the License.
  */
 
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
 #define LOG_TAG "AudioResampler"
 
 #include <cutils/log.h>
@@ -25,40 +22,38 @@
 #include "AudioResampler.h"
 #include "Resampler.h"
 
-#define base CAudioConverter
+#define base AudioConverter
 
 using namespace android;
 
 namespace android_audio_legacy{
 
-const uint32_t CAudioResampler::_guiPivotSampleRate = 48000;
-
-CAudioResampler::CAudioResampler(SampleSpecItem eSampleSpecItem) :
-    base(eSampleSpecItem),
-    _pResampler(new CResampler(ERateSampleSpecItem)),
-    _pPivotResampler(new CResampler(ERateSampleSpecItem)),
+AudioResampler::AudioResampler(SampleSpecItem sampleSpecItem) :
+    base(sampleSpecItem),
+    _resampler(new Resampler(RateSampleSpecItem)),
+    _pivotResampler(new Resampler(RateSampleSpecItem)),
     _activeResamplerList()
 {
 }
 
-CAudioResampler::~CAudioResampler()
+AudioResampler::~AudioResampler()
 {
     _activeResamplerList.clear();
-    delete _pResampler;
-    delete _pPivotResampler;
+    delete _resampler;
+    delete _pivotResampler;
 }
 
-status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t AudioResampler::configure(const SampleSpec &ssSrc, const SampleSpec &ssDst)
 {
     _activeResamplerList.clear();
 
-    status_t status = base::doConfigure(ssSrc, ssDst);
+    status_t status = base::configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         return status;
     }
 
-    status = _pResampler->doConfigure(ssSrc, ssDst);
+    status = _resampler->configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         //
@@ -66,32 +61,36 @@ status_t CAudioResampler::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
         // using 2 resamplers
         //
         LOGD("%s: trying to use working sample rate @ 48kHz", __FUNCTION__);
-        CSampleSpec pivotSs = ssDst;
-        pivotSs.setSampleRate(_guiPivotSampleRate);
+        SampleSpec pivotSs = ssDst;
+        pivotSs.setSampleRate(PIVOT_SAMPLE_RATE);
 
-        status = _pPivotResampler->doConfigure(ssSrc, pivotSs);
+        status = _pivotResampler->configure(ssSrc, pivotSs);
         if (status != NO_ERROR) {
 
-            LOGD("%s: trying to use pivot sample rate @ %dkHz: FAILED", __FUNCTION__, _guiPivotSampleRate);
+            LOGD("%s: trying to use pivot sample rate @ %dkHz: FAILED",
+                 __FUNCTION__, PIVOT_SAMPLE_RATE);
             return status;
         }
-        _activeResamplerList.push_back(_pPivotResampler);
+        _activeResamplerList.push_back(_pivotResampler);
 
-        status = _pResampler->doConfigure(pivotSs, ssDst);
+        status = _resampler->configure(pivotSs, ssDst);
         if (status != NO_ERROR) {
 
             LOGD("%s: trying to use pivot sample rate @ 48kHz: FAILED", __FUNCTION__);
             return status;
         }
     }
-    _activeResamplerList.push_back(_pResampler);
+    _activeResamplerList.push_back(_resampler);
 
     return NO_ERROR;
 }
 
-status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames)
+status_t AudioResampler::convert(const void *src,
+                                  void **dst,
+                                  uint32_t inFrames,
+                                  uint32_t *outFrames)
 {
-    void *srcBuf = (void* )src;
+    const void *srcBuf = static_cast<const void *>(src);
     void *dstBuf = NULL;
     size_t srcFrames = inFrames;
     size_t dstFrames = 0;
@@ -99,15 +98,15 @@ status_t CAudioResampler::convert(const void* src, void** dst, uint32_t inFrames
     ResamplerListIterator it;
     for (it = _activeResamplerList.begin(); it != _activeResamplerList.end(); ++it) {
 
-        CResampler* pConv = *it;
+        Resampler *conv = *it;
         dstFrames = 0;
 
-        if (*dst && pConv == _activeResamplerList.back()) {
+        if (*dst && conv == _activeResamplerList.back()) {
 
             // Last converter must output within the provided buffer (if provided!!!)
             dstBuf = *dst;
         }
-        status_t status = pConv->convert(srcBuf, &dstBuf, srcFrames, &dstFrames);
+        status_t status = conv->convert(srcBuf, &dstBuf, srcFrames, &dstFrames);
         if (status != NO_ERROR) {
 
             return status;

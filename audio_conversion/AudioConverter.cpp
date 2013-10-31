@@ -17,39 +17,39 @@
 
 #define LOG_TAG "AudioConverter"
 
-#include <cutils/log.h>
-#include "AudioUtils.h"
 #include "AudioConverter.h"
+#include "AudioUtils.h"
+#include <cutils/log.h>
 
 using namespace android;
 
-namespace android_audio_legacy{
+namespace android_audio_legacy {
 
-CAudioConverter::CAudioConverter(SampleSpecItem eSampleSpecItem) :
-    _pfnConvertSamples(NULL),
+AudioConverter::AudioConverter(SampleSpecItem sampleSpecItem) :
+    _convertSamplesFct(NULL),
     _ssSrc(),
     _ssDst(),
-    _pConvertBuf(NULL),
-    _pConvertBufSize(0),
-    _eSampleSpecItem(eSampleSpecItem)
+    _convertBuf(NULL),
+    _convertBufSize(0),
+    _sampleSpecItem(sampleSpecItem)
 {
 }
 
-CAudioConverter::~CAudioConverter()
+AudioConverter::~AudioConverter()
 {
-    delete []_pConvertBuf;
+    delete [] _convertBuf;
 }
 
 //
 // This function gets an output buffer suitable
 // to convert inFrames input frames
 //
-void* CAudioConverter::getOutputBuffer(ssize_t inFrames)
+void* AudioConverter::getOutputBuffer(ssize_t inFrames)
 {
     status_t ret = NO_ERROR;
     size_t outBufSizeInBytes = _ssDst.convertFramesToBytes(convertSrcToDstInFrames(inFrames));
 
-    if (outBufSizeInBytes > _pConvertBufSize) {
+    if (outBufSizeInBytes > _convertBufSize) {
 
         ret = allocateConvertBuffer(outBufSizeInBytes);
         if (ret != NO_ERROR) {
@@ -58,21 +58,22 @@ void* CAudioConverter::getOutputBuffer(ssize_t inFrames)
             return NULL;
         }
     }
-    return (void* )_pConvertBuf;
+    return (void* )_convertBuf;
 }
 
-status_t CAudioConverter::allocateConvertBuffer(ssize_t bytes)
+status_t AudioConverter::allocateConvertBuffer(ssize_t bytes)
 {
     status_t ret = NO_ERROR;
     // Allocate one more frame for resampler
-    _pConvertBufSize = bytes + (audio_bytes_per_sample(_ssDst.getFormat()) * _ssDst.getChannelCount());
+    _convertBufSize = bytes +
+            (audio_bytes_per_sample(_ssDst.getFormat()) * _ssDst.getChannelCount());
 
-    delete []_pConvertBuf;
-    _pConvertBuf = NULL;
+    delete []_convertBuf;
+    _convertBuf = NULL;
 
-    _pConvertBuf = new char[_pConvertBufSize];
+    _convertBuf = new char[_convertBufSize];
 
-    if (!_pConvertBuf) {
+    if (!_convertBuf) {
 
         LOGE("cannot allocate resampler tmp buffers.\n");
         ret = NO_MEMORY;
@@ -80,16 +81,16 @@ status_t CAudioConverter::allocateConvertBuffer(ssize_t bytes)
     return ret;
 }
 
-status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t AudioConverter::configure(const SampleSpec &ssSrc, const SampleSpec &ssDst)
 {
     _ssSrc = ssSrc;
     _ssDst = ssDst;
 
-    for (int i = 0; i < ENbSampleSpecItems; i++) {
+    for (int i = 0; i < NbSampleSpecItems; i++) {
 
-        if (i == _eSampleSpecItem) {
+        if (i == _sampleSpecItem) {
 
-            if (CSampleSpec::isSampleSpecItemEqual((SampleSpecItem)i, ssSrc, ssDst)) {
+            if (SampleSpec::isSampleSpecItemEqual(static_cast<SampleSpecItem>(i), ssSrc, ssDst)) {
 
                 // The Sample spec items on which the converter is working
                 // are the same...
@@ -97,7 +98,7 @@ status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
             }
             continue;
         }
-        if (!CSampleSpec::isSampleSpecItemEqual((SampleSpecItem)i, ssSrc, ssDst)) {
+        if (!SampleSpec::isSampleSpecItemEqual(static_cast<SampleSpecItem>(i), ssSrc, ssDst)) {
 
             // The Sample spec items on which the converter is NOT working
             // MUST BE the same...
@@ -107,17 +108,20 @@ status_t CAudioConverter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpe
     }
 
     // Reset the convert function pointer
-    _pfnConvertSamples = NULL;
+    _convertSamplesFct = NULL;
 
     // force the size to 0 to clear the buffer
-    _pConvertBufSize = 0;
+    _convertBufSize = 0;
 
     return NO_ERROR;
 }
 
-status_t CAudioConverter::convert(const void* src, void** dst, const uint32_t inFrames, uint32_t* outFrames)
+status_t AudioConverter::convert(const void *src,
+                                  void **dst,
+                                  const uint32_t inFrames,
+                                  uint32_t *outFrames)
 {
-    void* outBuf;
+    void *outBuf;
     status_t ret = NO_ERROR;
 
     // output buffer might be provided by the caller
@@ -126,23 +130,23 @@ status_t CAudioConverter::convert(const void* src, void** dst, const uint32_t in
 
         return NO_MEMORY;
     }
-    if (_pfnConvertSamples != NULL) {
+    if (_convertSamplesFct != NULL) {
 
-        ret = (this->*_pfnConvertSamples)(src, outBuf, inFrames, outFrames);
+        ret = (this->*_convertSamplesFct)(src, outBuf, inFrames, outFrames);
     }
     *dst = outBuf;
 
     return ret;
 }
 
-size_t CAudioConverter::convertSrcToDstInFrames(ssize_t frames) const
+size_t AudioConverter::convertSrcToDstInFrames(ssize_t frames) const
 {
-    return CAudioUtils::convertSrcToDstInFrames(frames, _ssSrc, _ssDst);
+    return AudioUtils::convertSrcToDstInFrames(frames, _ssSrc, _ssDst);
 }
 
-size_t CAudioConverter::convertSrcFromDstInFrames(ssize_t frames) const
+size_t AudioConverter::convertSrcFromDstInFrames(ssize_t frames) const
 {
-    return CAudioUtils::convertSrcToDstInFrames(frames, _ssDst, _ssSrc);
+    return AudioUtils::convertSrcToDstInFrames(frames, _ssDst, _ssSrc);
 }
 
 }; // namespace android

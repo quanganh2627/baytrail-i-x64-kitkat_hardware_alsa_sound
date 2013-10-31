@@ -52,9 +52,9 @@ class CAudioRouteManager;
 class CAudioRoute;
 class CAudioStreamRoute;
 class CAudioAutoRoutingLock;
-class CAudioResampler;
-class CAudioConverter;
-class CAudioConversion;
+class AudioResampler;
+class AudioConverter;
+class AudioConversion;
 class AudioStreamOutALSA;
 class AudioStreamInALSA;
 class ALSAStreamOps;
@@ -203,7 +203,7 @@ protected:
     friend class ALSAStreamOps;
     friend class CAudioRouteManager;
     friend class CAudioAutoRoutingLock;
-    friend class CAudioConverter;
+    friend class AudioConverter;
 
 private:
     AudioHardwareALSA(const AudioHardwareALSA &);

@@ -173,8 +173,7 @@ AudioStreamIn* AudioHardwareALSA::openInputStream(uint32_t devices,
 
     status_t &err = *status;
 
-    if (!CAudioUtils::isAudioInputDevice(devices)) {
-
+    if (!AudioUtils::isAudioInputDevice(devices)) {
         err = BAD_VALUE;
         return NULL;
     }

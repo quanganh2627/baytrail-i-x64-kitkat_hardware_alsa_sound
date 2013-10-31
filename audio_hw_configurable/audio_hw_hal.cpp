@@ -18,6 +18,7 @@
 //#define LOG_NDEBUG 0
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <hardware/hardware.h>
 #include <system/audio.h>

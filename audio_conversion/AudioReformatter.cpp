@@ -15,40 +15,41 @@
  ** limitations under the License.
  */
 
-#ifdef LOG_TAG
-#undef LOG_TAG
-#endif
 #define LOG_TAG "AudioReformatter"
 
-#include <cutils/log.h>
 #include "AudioReformatter.h"
+#include <cutils/log.h>
 
-#define base CAudioConverter
+#define base AudioConverter
 
 using namespace android;
 
 namespace android_audio_legacy{
 
-CAudioReformatter::CAudioReformatter(SampleSpecItem eSampleSpecItem) :
-    base(eSampleSpecItem)
+AudioReformatter::AudioReformatter(SampleSpecItem sampleSpecItem) :
+    base(sampleSpecItem)
 {
 }
 
-status_t CAudioReformatter::doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t AudioReformatter::configure(const SampleSpec &ssSrc, const SampleSpec &ssDst)
 {
-    status_t status = base::doConfigure(ssSrc, ssDst);
+    status_t status = base::configure(ssSrc, ssDst);
     if (status != NO_ERROR) {
 
         return status;
     }
 
-    if (ssSrc.getFormat() == AUDIO_FORMAT_PCM_16_BIT && ssDst.getFormat() == AUDIO_FORMAT_PCM_8_24_BIT) {
+    if (ssSrc.getFormat() == AUDIO_FORMAT_PCM_16_BIT &&
+            ssDst.getFormat() == AUDIO_FORMAT_PCM_8_24_BIT) {
 
-        _pfnConvertSamples = (SampleConverter)(&CAudioReformatter::convertS16toS24over32);
+        _convertSamplesFct =
+                static_cast<SampleConverter>(&AudioReformatter::convertS16toS24over32);
 
-    } else if (ssSrc.getFormat() == AUDIO_FORMAT_PCM_8_24_BIT && ssDst.getFormat() == AUDIO_FORMAT_PCM_16_BIT) {
+    } else if (ssSrc.getFormat() == AUDIO_FORMAT_PCM_8_24_BIT &&
+               ssDst.getFormat() == AUDIO_FORMAT_PCM_16_BIT) {
 
-        _pfnConvertSamples = (SampleConverter)(&CAudioReformatter::convertS24over32toS16);
+        _convertSamplesFct =
+                static_cast<SampleConverter>(&AudioReformatter::convertS24over32toS16);
 
     } else {
 
@@ -58,7 +59,10 @@ status_t CAudioReformatter::doConfigure(const CSampleSpec& ssSrc, const CSampleS
     return NO_ERROR;
 }
 
-status_t CAudioReformatter::convertS16toS24over32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
+status_t AudioReformatter::convertS16toS24over32(const void *src,
+                                                  void *dst,
+                                                  const uint32_t inFrames,
+                                                  uint32_t *outFrames)
 {
     uint32_t i;
     const int16_t *src16 = (const int16_t *)src;
@@ -75,7 +79,10 @@ status_t CAudioReformatter::convertS16toS24over32(const void* src, void* dst, co
     return NO_ERROR;
 }
 
-status_t CAudioReformatter::convertS24over32toS16(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames)
+status_t AudioReformatter::convertS24over32toS16(const void *src,
+                                                  void *dst,
+                                                  const uint32_t inFrames,
+                                                  uint32_t *outFrames)
 {
     const uint32_t *src32 = (const uint32_t *)src;
     int16_t *dst16 = (int16_t *)dst;

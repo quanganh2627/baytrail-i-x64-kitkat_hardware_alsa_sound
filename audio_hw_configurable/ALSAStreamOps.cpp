@@ -39,18 +39,14 @@
 
 #include "ALSAStreamOps.h"
 #include "AudioStreamRoute.h"
-#include "AudioConverter.h"
-#include "AudioConversion.h"
-#include "AudioResampler.h"
-#include "AudioReformatter.h"
-#include "AudioRemapper.h"
-#include "AudioConversion.h"
+#include <AudioConversion.h>
 #include "AudioHardwareALSA.h"
 #include "Property.h"
 
 #define DEVICE_OUT_BLUETOOTH_SCO_ALL (AudioSystem::DEVICE_OUT_BLUETOOTH_SCO | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_HEADSET | AudioSystem::DEVICE_OUT_BLUETOOTH_SCO_CARKIT)
 
 using namespace android;
+using std::numeric_limits;
 
 namespace android_audio_legacy
 {
@@ -83,7 +79,7 @@ ALSAStreamOps::ALSAStreamOps(AudioHardwareALSA *parent, const char* pcLockTag) :
     mLatencyUs(0),
     mPowerLock(false),
     mPowerLockTag(pcLockTag),
-    mAudioConversion(new CAudioConversion)
+    mAudioConversion(new AudioConversion)
 {
     mSampleSpec.setChannelCount(AudioHardwareALSA::DEFAULT_CHANNEL_COUNT);
     mSampleSpec.setSampleRate(AudioHardwareALSA::DEFAULT_SAMPLE_RATE);
@@ -232,12 +228,12 @@ size_t ALSAStreamOps::getBufferSize(uint32_t flags) const
      * Pcm config might not be in the same sample specification of the stream. So, need first
      * translate it into time domain, before switch back to frames and bytes.
      */
-    uint64_t bufferSizeUs = (uint64_t)CAudioUtils::USEC_TO_SEC * pcmConf.period_size  /
-                                                                                   pcmConf.rate;
+    uint64_t bufferSizeUs = (uint64_t)AudioUtils::USEC_TO_SEC * pcmConf.period_size /
+                                                                                  pcmConf.rate;
     LOG_ALWAYS_FATAL_IF(bufferSizeUs > std::numeric_limits<uint32_t>::max());
 
     uint32_t bufferSizeInFrames = mSampleSpec.convertUsecToframes(bufferSizeUs);
-    size_t bytes = mSampleSpec.convertFramesToBytes(CAudioUtils::alignOn16(bufferSizeInFrames));
+    size_t bytes = mSampleSpec.convertFramesToBytes(AudioUtils::alignOn16(bufferSizeInFrames));
 
     ALOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
     return bytes;
@@ -245,15 +241,15 @@ size_t ALSAStreamOps::getBufferSize(uint32_t flags) const
 
 uint32_t ALSAStreamOps::latency() const
 {
-    return CAudioUtils::convertUsecToMsec(mLatencyUs);
+    return AudioUtils::convertUsecToMsec(mLatencyUs);
 }
 
 void ALSAStreamOps::updateLatency(uint32_t uiFlags)
 {
     pcm_config pcmConf = mParent->getDefaultPcmConfig(isOut(), uiFlags);
-    uint64_t latency = (uint64_t)CAudioUtils::USEC_TO_SEC * pcmConf.period_count *
+    uint64_t latency = (uint64_t)AudioUtils::USEC_TO_SEC * pcmConf.period_count *
                                             pcmConf.period_size  / pcmConf.rate;
-    LOG_ALWAYS_FATAL_IF(latency > std::numeric_limits<uint32_t>::max());
+    LOG_ALWAYS_FATAL_IF(latency > numeric_limits<uint32_t>::max());
     mLatencyUs = latency;
 }
 
@@ -278,8 +274,8 @@ status_t ALSAStreamOps::attachRoute()
 {
     ALOGD("%s %s stream", __FUNCTION__, isOut()? "output" : "input");
 
-    CSampleSpec ssSrc;
-    CSampleSpec ssDst;
+    SampleSpec ssSrc;
+    SampleSpec ssDst;
 
     //
     // Set the new pcm device and sample spec given by the audio stream route
@@ -319,7 +315,7 @@ status_t ALSAStreamOps::detachRoute()
     return NO_ERROR;
 }
 
-status_t ALSAStreamOps::configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst)
+status_t ALSAStreamOps::configureAudioConversion(const SampleSpec &ssSrc, const SampleSpec &ssDst)
 {
     return mAudioConversion->configure(ssSrc, ssDst);
 }

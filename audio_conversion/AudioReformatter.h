@@ -19,17 +19,23 @@
 
 namespace android_audio_legacy {
 
-class CAudioReformatter : public CAudioConverter {
+class AudioReformatter : public AudioConverter {
 
 public:
-    CAudioReformatter(SampleSpecItem eSampleSpecItem);
+    AudioReformatter(SampleSpecItem sampleSpecItem);
 
 private:
-    virtual android::status_t doConfigure(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    virtual android::status_t configure(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
-    android::status_t convertS16toS24over32(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
+    android::status_t convertS16toS24over32(const void *src,
+                                            void *dst,
+                                            const uint32_t inFrames,
+                                            uint32_t *outFrames);
 
-    android::status_t convertS24over32toS16(const void* src, void* dst, const uint32_t inFrames, uint32_t* outFrames);
+    android::status_t convertS24over32toS16(const void *src,
+                                            void *dst,
+                                            const uint32_t inFrames,
+                                            uint32_t *outFrames);
 };
 
 }; // namespace android

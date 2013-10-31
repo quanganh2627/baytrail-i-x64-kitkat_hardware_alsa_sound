@@ -44,6 +44,7 @@ static const char* MEDIA_CARD_NAME = "baytrailaudio";
 #define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 static const char* VOICE_MIXING_CARD_NAME = "baytrailaudio";
+
 #define VOICE_MIXING_DEVICE_ID          ((int)3)
 #define VOICE_RECORD_DEVICE_ID          ((int)3)
 
@@ -198,8 +199,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             CAudioPlatformHardware::pcm_config_media_playback
         },
         {
-            { CSampleSpec::ECopy, CSampleSpec::ECopy },
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+            { SampleSpec::Copy, SampleSpec::Copy },
+            { SampleSpec::Copy, SampleSpec::Copy }
         },
         ""
     },
@@ -230,8 +231,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             CAudioPlatformHardware::pcm_config_deep_media_playback
         },
         {
-            { CSampleSpec::ECopy, CSampleSpec::ECopy },
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }
+            { SampleSpec::Copy, SampleSpec::Copy },
+            { SampleSpec::Copy, SampleSpec::Copy }
         },
         ""
     },
@@ -295,8 +296,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_mixing_playback,
         },
         {
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }, // @todo checks if record is in dual mono on modem side
-            { CSampleSpec::EAverage, CSampleSpec::EIgnore }
+            { SampleSpec::Copy, SampleSpec::Copy }, // @todo checks if record is in dual mono on modem side
+            { SampleSpec::Average, SampleSpec::Ignore }
         },
         ""
     },
@@ -327,8 +328,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_bt_downlink,
         },
         {
-            { CSampleSpec::ECopy, CSampleSpec::ECopy }, // @todo checks if real stereo, mono, dual mono, or average/ignore
-            { CSampleSpec::ECopy, CSampleSpec::ECopy } // @todo checks if real stereo, mono, dual mono, or average/ignore
+            { SampleSpec::Copy, SampleSpec::Copy }, // @todo checks if real stereo, mono, dual mono, or average/ignore
+            { SampleSpec::Copy, SampleSpec::Copy } // @todo checks if real stereo, mono, dual mono, or average/ignore
         },
         ""
     },
@@ -478,7 +479,6 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode,
                               bool bIsOut, uint32_t uiMask = 0) const {
-
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         if (!_pPlatformState->isModemAudioAvailable()) {
@@ -499,7 +499,6 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
                               uint32_t __UNUSED uiMask = 0 ) const {
-
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         if (!_pPlatformState->isModemAudioAvailable()) {
@@ -537,7 +536,6 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode,
                               bool bIsOut, uint32_t __UNUSED uiMask = 0) const {
-
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         if (!_pPlatformState->isModemAudioAvailable() || !_pPlatformState->isBtEnabled()) {

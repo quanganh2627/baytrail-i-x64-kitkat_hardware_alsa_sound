@@ -47,7 +47,8 @@ CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
        _astPcmConfig[iDir] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, iDir);
        _acPowerLockTag[iDir] = POWER_LOCK_TAG[iDir];
 
-       _routeSampleSpec[iDir].setFormat(CAudioUtils::convertTinyToHalFormat(_astPcmConfig[iDir].format));
+       _routeSampleSpec[iDir].setFormat(
+                   AudioUtils::convertTinyToHalFormat(_astPcmConfig[iDir].format));
        _routeSampleSpec[iDir].setSampleRate(_astPcmConfig[iDir].rate);
        _routeSampleSpec[iDir].setChannelCount(_astPcmConfig[iDir].channels);
        _routeSampleSpec[iDir].setChannelsPolicy(CAudioPlatformHardware::getChannelsPolicy(uiRouteIndex, iDir));
@@ -261,7 +262,8 @@ status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)
     // it will return a reference on a "bad pcm" structure
     //
     uint32_t uiFlags= (bIsOut ? PCM_OUT : PCM_IN);
-    _astPcmDevice[bIsOut] = pcm_open(CAudioUtils::getCardNumberByName(getCardName()), getPcmDeviceId(bIsOut), uiFlags, &config);
+    _astPcmDevice[bIsOut] = pcm_open(AudioUtils::getCardIndexByName(getCardName()),
+                                     getPcmDeviceId(bIsOut), uiFlags, &config);
     if (_astPcmDevice[bIsOut] && !pcm_is_ready(_astPcmDevice[bIsOut])) {
 
         ALOGE("%s: Cannot open tinyalsa (%s,%d) device for %s stream (error=%s)", __FUNCTION__,

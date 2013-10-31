@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "AudioBufferProvider.h"
-#include "SampleSpec.h"
+#include <media/AudioBufferProvider.h>
+#include <SampleSpec.h>
 #include <utils/String8.h>
 #include "Utils.h"
 
@@ -32,7 +32,7 @@ namespace android_audio_legacy
 
 class AudioHardwareALSA;
 class CAudioStreamRoute;
-class CAudioConversion;
+class AudioConversion;
 struct acoustic_device_t;
 struct alsa_handle_t;
 
@@ -166,8 +166,8 @@ protected:
 
     bool                    mStandby;
     uint32_t                mDevices;
-    CSampleSpec             mSampleSpec;
-    CSampleSpec             mHwSampleSpec;
+    SampleSpec             mSampleSpec;
+    SampleSpec             mHwSampleSpec;
 
     /**
      * Audio dump object used if one of the dump property before
@@ -197,7 +197,7 @@ protected:
 
 private:
     // Configure the audio conversion chain
-    android::status_t configureAudioConversion(const CSampleSpec& ssSrc, const CSampleSpec& ssDst);
+    android::status_t configureAudioConversion(const SampleSpec &ssSrc, const SampleSpec &ssDst);
 
     int         headsetPmDownDelay;
     int         speakerPmDownDelay;
@@ -216,7 +216,7 @@ private:
     const char*             mPowerLockTag;
 
     // Audio Conversion utility class
-    CAudioConversion* mAudioConversion;
+    AudioConversion *mAudioConversion;
 
     static const uint32_t STR_FORMAT_LENGTH;
 

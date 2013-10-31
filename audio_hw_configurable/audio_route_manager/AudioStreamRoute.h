@@ -36,7 +36,7 @@ public:
 
     pcm* getPcmDevice(bool bIsOut) const;
 
-    const CSampleSpec getSampleSpec(bool bIsOut) const { return _routeSampleSpec[bIsOut]; }
+    const SampleSpec getSampleSpec(bool bIsOut) const { return _routeSampleSpec[bIsOut]; }
 
     virtual RouteType getRouteType() const { return CAudioRoute::EStreamRoute; }
 
@@ -120,10 +120,10 @@ private:
 
     pcm* _astPcmDevice[CUtils::ENbDirections];
 
-    CSampleSpec             _routeSampleSpec[CUtils::ENbDirections];
+    SampleSpec _routeSampleSpec[CUtils::ENbDirections];
 
-    bool                    _bPowerLock[CUtils::ENbDirections];
-    const char*             _acPowerLockTag[CUtils::ENbDirections];
+    bool _bPowerLock[CUtils::ENbDirections];
+    const char *_acPowerLockTag[CUtils::ENbDirections];
 
     static const char* const POWER_LOCK_TAG[CUtils::ENbDirections];
 };
