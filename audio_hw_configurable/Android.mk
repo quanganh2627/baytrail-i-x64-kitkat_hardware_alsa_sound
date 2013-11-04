@@ -29,6 +29,12 @@ LOCAL_PATH := $(call my-dir)
 #######################################################################
 # Common variables
 
+AUDIO_PLATHW := audio_route_manager/AudioPlatformHardware_$(REF_PRODUCT_NAME).cpp
+
+ifeq ($(wildcard $(LOCAL_PATH)/$(AUDIO_PLATHW)),)
+    AUDIO_PLATHW := audio_route_manager/AudioPlatformHardware_default.cpp
+endif
+
 audio_hw_configurable_src_files :=  \
     ALSAStreamOps.cpp \
     audio_hw_hal.cpp \
@@ -42,7 +48,7 @@ audio_hw_configurable_src_files +=  \
     audio_route_manager/AudioCompressedStreamRoute.cpp \
     audio_route_manager/AudioExternalRoute.cpp \
     audio_route_manager/AudioParameterHandler.cpp \
-    audio_route_manager/AudioPlatformHardware_$(REF_PRODUCT_NAME).cpp \
+    $(AUDIO_PLATHW) \
     audio_route_manager/AudioPlatformState.cpp \
     audio_route_manager/AudioPort.cpp \
     audio_route_manager/AudioPortGroup.cpp \
