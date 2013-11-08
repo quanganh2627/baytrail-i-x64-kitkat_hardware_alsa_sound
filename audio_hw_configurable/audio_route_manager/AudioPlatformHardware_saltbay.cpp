@@ -347,7 +347,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening,DeepMedia"
+        "ModemIA,Voice,Media,ContextAwareness,CompressedMedia,AlwaysListening,DeepMedia,FMIA"
     },
     //
     // HWCODEC 1 route
@@ -381,7 +381,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             channel_policy_not_applicable,
             channel_policy_not_applicable
         },
-        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening,DeepMedia"
+        "ModemIA,Voice,Media,CompressedMedia,AlwaysListening,DeepMedia,FMIA"
     },
     //
     // ModemIA route
@@ -468,9 +468,9 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             (1 << AudioSystem::MODE_NORMAL),
-            NOT_APPLICABLE
+            (1 << AudioSystem::MODE_NORMAL)
         },
-       NOT_APPLICABLE,
+        NOT_APPLICABLE,
         {
             NOT_APPLICABLE,
             NOT_APPLICABLE
@@ -609,6 +609,14 @@ public:
 
             } else if (!bIsOut) {
 
+                if ((_pPlatformState->getDevices(CUtils::EOutput)
+                     & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE) != 0) {
+                    // In call, this route is also applicable if an headphone is plugged
+                    // In communication mode, the built-in mic is already selected in
+                    // the policy so this capture route is already applicable.
+                    return true;
+                }
+
                 // In call, the output is applicable if the output stream is used
                 return willBeUsed(CUtils::EOutput);
             }
@@ -663,11 +671,20 @@ public:
                 // Force OpenedCaptureRoutes to HwCodec0IA|ModemIA
                 return bIsOut;
 
-            } else if (!bIsOut) {
+           } else if (!bIsOut) {
 
-                // In call, the output is applicable if the output stream is used
-                return willBeUsed(CUtils::EOutput);
-            }
+               if ((_pPlatformState->getDevices(CUtils::EOutput)
+                    & AudioSystem::DEVICE_OUT_WIRED_HEADPHONE) != 0) {
+                   // In call, this route isn't applicable if an headphone is plugged
+                   // (in such case we should use and elect the HwCodec0IA route)
+                   // In communication mode, the built-in mic is already selected in
+                   // the policy so that capture route is already not applicable.
+                   return false;
+               }
+
+               // In call, the output is applicable if the output stream is used
+               return willBeUsed(CUtils::EOutput);
+           }
         }
         return CAudioExternalRoute::isApplicable(uidevices, iMode, bIsOut);
     }
@@ -748,7 +765,23 @@ class CAudioExternalRouteFMIA : public CAudioExternalRoute
 {
 public:
     CAudioExternalRouteFMIA(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState) :
-        CAudioExternalRoute(uiRouteIndex, pPlatformState) {
+        CAudioExternalRoute(uiRouteIndex, pPlatformState)
+    {
+    }
+
+    virtual bool isApplicable(uint32_t __UNUSED devices, int __UNUSED mode,
+                              bool __UNUSED isOut,
+                              uint32_t __UNUSED flags = 0) const
+    {
+        if (_pPlatformState->isFmStateOn()) {
+
+            // FM_OUT is activated as it is declared as a slave of Codec0,Codec1
+            // FM_IN is activated as PFW logic required FM_IN in OpenedPlayback route
+            // for FmRx UC
+            return true;
+        }
+
+        return false;
     }
 };
 
