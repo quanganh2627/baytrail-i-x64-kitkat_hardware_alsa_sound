@@ -111,6 +111,7 @@ const CAudioRouteManager::CriteriaInterface CAudioRouteManager::ARRAY_CRITERIA_I
     {"HAC",                     CAudioRouteManager::EOffOnCriteriaType},
     {"ScreenState",             CAudioRouteManager::EOffOnCriteriaType},
     {"BypassNonLinearPp",       CAudioRouteManager::EOffOnCriteriaType},
+    {"BypassLinearPp",          CAudioRouteManager::EOffOnCriteriaType},
     {"MicMute",                 CAudioRouteManager::EOffOnCriteriaType},
 
 };
@@ -617,6 +618,12 @@ void CAudioRouteManager::doReconsiderRouting()
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBypassNonLinearPpStateChange) ?
                                                       "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBypassLinearPpStateChange),
+             "%s:          -Platform Bypass Linear PP State = %s %s", __FUNCTION__,
+             _pPlatformState->bypassedLinearPp()? "On" : "Off",
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBypassLinearPpStateChange) ?
+                                                      "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EMicMuteChange),
              "%s:          -Platform MicMute = %s %s", __FUNCTION__,
              _apCriteriaTypeInterface[EOffOnCriteriaType]->
@@ -875,8 +882,11 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Search always listening parameter
     doSetAlwaysListeningParameters(param);
 
-    // Search bypass linear PP parameter
+    // Search bypass non linear PP parameter
     doBypassNonLinearPpParameters(param);
+
+    // Search bypass linear PP parameter
+    doBypassLinearPpParameters(param);
 
     if (param.size()) {
 
@@ -1008,6 +1018,20 @@ void CAudioRouteManager::doBypassNonLinearPpParameters(AudioParameter &param)
 
         _pPlatformState->bypassNonLinearPp(
             strBypassNonLinearPpSetting == AUDIO_PARAMETER_VALUE_BYPASS_NON_LINEAR_PP_ON);
+        param.remove(key);
+    }
+}
+
+void CAudioRouteManager::doBypassLinearPpParameters(AudioParameter &param)
+{
+    String8 strBypassLinearPpSetting;
+    String8 key = String8(AUDIO_PARAMETER_KEY_BYPASS_LINEAR_POSTPROCESSING_SETTING);
+
+    // Search bypass linear PP setting key
+    if (param.get(key, strBypassLinearPpSetting) == NO_ERROR) {
+
+        _pPlatformState->bypassLinearPp(
+            strBypassLinearPpSetting == AUDIO_PARAMETER_VALUE_BYPASS_LINEAR_PP_ON);
         param.remove(key);
     }
 }
@@ -1593,6 +1617,9 @@ void CAudioRouteManager::executeConfigureStage()
 
     _apSelectedCriteria[ESelectedBypassNonLinearPp]->setCriterionState(
                 _pPlatformState->bypassedNonLinearPp());
+
+    _apSelectedCriteria[ESelectedBypassLinearPp]->setCriterionState(
+                _pPlatformState->bypassedLinearPp());
 
     _apSelectedCriteria[ESelectedMicMute]->setCriterionState(
                 _pPlatformState->getMicMute());

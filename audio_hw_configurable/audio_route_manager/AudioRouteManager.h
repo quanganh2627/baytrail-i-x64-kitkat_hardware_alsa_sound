@@ -475,6 +475,13 @@ private:
     void doBypassNonLinearPpParameters(AudioParameter &param);
 
     /**
+     * Do bypass linear post processing parameter pop & set.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doBypassLinearPpParameters(AudioParameter &param);
+
+    /**
      * Do HAC specific parameters pop & set.
      * Pop all HAC specific parameters provided in the key/value and set those which are handled.
      * HAC key value pair will be removed if found.
@@ -634,6 +641,7 @@ private:
         ESelectedHacMode,
         ESelectedScreenState,
         ESelectedBypassNonLinearPp,
+        ESelectedBypassLinearPp,
         ESelectedMicMute,
         ENbCriteria
     };

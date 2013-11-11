@@ -584,7 +584,8 @@ public:
                (_pPlatformState->hasPlatformStateChanged(
                                            CAudioPlatformState::EOutputDevicesChange |
                                            CAudioPlatformState::EHwModeChange |
-                                           CAudioPlatformState::EBypassNonLinearPpStateChange));
+                                           CAudioPlatformState::EBypassNonLinearPpStateChange |
+                                           CAudioPlatformState::EBypassLinearPpStateChange));
         }
         return CAudioRoute::needReconfiguration(bIsOut) &&
                 (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange |
