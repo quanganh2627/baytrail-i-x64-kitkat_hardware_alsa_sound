@@ -30,8 +30,9 @@
 #include <tinyalsa/asoundlib.h>
 
 #include "AudioStreamOutALSA.h"
+#include "AudioAutoRoutingLock.h"
 #include "AudioStreamRoute.h"
-#include <AudioCommsAssert.hpp>
+
 
 #define base ALSAStreamOps
 
@@ -56,6 +57,7 @@ AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
 
 AudioStreamOutALSA::~AudioStreamOutALSA()
 {
+    close();
 }
 
 uint32_t AudioStreamOutALSA::channels() const
@@ -74,6 +76,7 @@ size_t AudioStreamOutALSA::generateSilence(size_t bytes)
     //       we are here because of hardware error or missing route availability.
     // Also, keep time sync by sleeping the equivalent amount of time.
     usleep(mSampleSpec.convertFramesToUsec(mSampleSpec.convertBytesToFrames(bytes)));
+    mStandby = false;
     return bytes;
 }
 
@@ -81,18 +84,18 @@ ssize_t AudioStreamOutALSA::write(const void *buffer, size_t bytes)
 {
     setStandby(false);
 
-    AutoR lock(_streamLock);
+    CAudioAutoRoutingLock lock(mParent);
 
     // Check if the audio route is available for this stream
     if (!isRouteAvailable()) {
 
-        _streamLock.unlock();
-        ALOGW("%s(buffer=%p, bytes=%d) No route available. Generating silence.",
-            __FUNCTION__, buffer, bytes);
+        lock.unlock();
+        ALOGW("%s(buffer=%p, bytes=%d) No route available. Generating silence to alsa device (0x%x).",
+            __FUNCTION__, buffer, bytes, getCurrentDevices());
         return generateSilence(bytes);
     }
 
-    AUDIOCOMMS_ASSERT(mHandle != NULL, "unexpected NULL handle on audio device");
+    LOG_ALWAYS_FATAL_IF(mHandle == NULL);
 
     ssize_t srcFrames = mSampleSpec.convertBytesToFrames(bytes);
     size_t dstFrames = 0;
@@ -200,7 +203,6 @@ status_t AudioStreamOutALSA::open(int __UNUSED mode)
 //
 status_t AudioStreamOutALSA::attachRoute()
 {
-    AutoW lock(_streamLock);
     status_t status = base::attachRoute();
     if (status != NO_ERROR) {
 
@@ -208,10 +210,9 @@ status_t AudioStreamOutALSA::attachRoute()
     }
 
     // Need to generate silence?
-    AUDIOCOMMS_ASSERT(getCurrentRouteL() != NULL && mHandle != NULL,
-                      "NULL route pointer or audio device handle");
+    LOG_ALWAYS_FATAL_IF(getCurrentRoute() == NULL || mHandle == NULL);
 
-    uint32_t uiSilenceMs = getCurrentRouteL()->getOutputSilencePrologMs();
+    uint32_t uiSilenceMs = getCurrentRoute()->getOutputSilencePrologMs();
     if (uiSilenceMs) {
 
         // Allocate a 1Ms buffer in stack
@@ -265,7 +266,7 @@ status_t AudioStreamOutALSA::getRenderPosition(uint32_t *dspFrames)
 // flush the data down the flow. It is similar to drop.
 status_t AudioStreamOutALSA::flush()
 {
-    AutoR lock(_streamLock);
+    CAudioAutoRoutingLock lock(mParent);
 
     // Check if there is an available audio route to flush
     if (!isRouteAvailable()) {
@@ -284,7 +285,6 @@ status_t AudioStreamOutALSA::flush()
 
 void AudioStreamOutALSA::setFlags(uint32_t uiFlags)
 {
-    AutoW lock(_streamLock);
     _flags = uiFlags;
 
     updateLatency(uiFlags);
@@ -306,8 +306,6 @@ status_t  AudioStreamOutALSA::setParameters(const String8& keyValuePairs)
 void AudioStreamOutALSA::addEchoReference(struct echo_reference_itfe* reference)
 {
     ALOGD("%s(reference = %p): note mEchoReference = %p", __FUNCTION__, reference, mEchoReference);
-
-    AutoW lock(_streamLock);
     LOG_ALWAYS_FATAL_IF(reference == NULL);
 
     // Called from a WLocked context
@@ -316,7 +314,6 @@ void AudioStreamOutALSA::addEchoReference(struct echo_reference_itfe* reference)
 
 void AudioStreamOutALSA::removeEchoReference(struct echo_reference_itfe* reference)
 {
-    AutoW lock(_streamLock);
     if (reference == NULL) {
 
         return ;
@@ -376,9 +373,11 @@ void AudioStreamOutALSA::pushEchoReference(const void *buffer, ssize_t frames)
     }
 }
 
+//
+// Called from Route Manager Context -> WLocked
+//
 status_t AudioStreamOutALSA::detachRoute()
 {
-    AutoW lock(_streamLock);
     removeEchoReference(mEchoReference);
 
     return base::detachRoute();

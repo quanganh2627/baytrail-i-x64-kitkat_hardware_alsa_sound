@@ -27,11 +27,6 @@
  */
 #include "HALAudioDump.h"
 
-using android::RWLock;
-
-typedef RWLock::AutoRLock AutoR;
-typedef RWLock::AutoWLock AutoW;
-
 namespace android_audio_legacy
 {
 
@@ -68,16 +63,7 @@ public:
     inline uint32_t     channels() const { return mSampleSpec.getChannelMask(); }
 
     // From AudioStreamIn/Out: indicates if the stream has a route pointer
-    /**
-     * Checks if a stream is fully routed or not.
-     * Note that a stream is considered as routed when
-     *          -not only when the audio device is opened
-     *          -but also all the controls are applyed on the audio path.
-     *
-     * @return true if routed, audio path is ready for stream operations, false otherwise.
-     */
     bool                isRouteAvailable() const;
-
     // From
     virtual android::status_t    attachRoute();
     virtual android::status_t    detachRoute();
@@ -98,26 +84,11 @@ public:
     inline bool         isRouteAssignedToStream() const { return mNewRoute != NULL; }
     void                resetRoute();
 
-    uint32_t            getNewDevices() const
-    {
-        AutoR lock(_streamLock);
-        return mNewDevices;
-    }
+    uint32_t            getNewDevices() const { return mNewDevices; }
     void                setNewDevices(uint32_t uiNewDevices);
-    uint32_t            getCurrentDevices() const
-    {
-        AutoR lock(_streamLock);
-        return mCurrentDevices;
-    }
+    uint32_t            getCurrentDevices() const { return mCurrentDevices; }
     void                setCurrentDevices(uint32_t uiCurrentDevices);
-
-    /**
-     * Get the route attached to the stream.
-     * Called from locked context.
-     *
-     * @return stream route attached to the stream, may be NULL if not routed.
-     */
-    CAudioStreamRoute *getCurrentRouteL() const { return mCurrentRoute; }
+    CAudioStreamRoute*  getCurrentRoute() const { return mCurrentRoute; }
 
     /**
      * Get the current stream state
@@ -223,19 +194,6 @@ protected:
 
     /** Ratio between nanoseconds and microseconds */
     static const uint32_t NSEC_PER_USEC = 1000;
-
-    /**
-     * Lock to protect not only the access to pcm device but also any access to device dependant
-     * parameters as sample specification.
-     * Sensitive data are the:
-     *  -data read / set by both Route Manager and Stream (mCurrentRoute, mNewRoute,
-     * mCurrentDevices, mNewDevices, mStandby, mHandle, mDevices, mHwSampleSpec,
-     * applicability mask (inputStreamMask for input stream, outputFlags for output stream,
-     * effects list for input streams only).
-     *
-     * Using in both Read or Write mode is quite interesting, but required to use mutable attribute.
-     */
-    mutable android::RWLock _streamLock;
 
 private:
     // Configure the audio conversion chain

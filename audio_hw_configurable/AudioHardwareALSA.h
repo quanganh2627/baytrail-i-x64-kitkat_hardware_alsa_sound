@@ -51,6 +51,7 @@ class AudioHardwareALSA;
 class CAudioRouteManager;
 class CAudioRoute;
 class CAudioStreamRoute;
+class CAudioAutoRoutingLock;
 class AudioResampler;
 class AudioConverter;
 class AudioConversion;
@@ -132,12 +133,19 @@ public:
     }
 
     // Reconsider the routing
-    android::status_t startStream(ALSAStreamOps *stream);
+    android::status_t startStream(ALSAStreamOps* pStream);
 
-    android::status_t stopStream(ALSAStreamOps *stream);
+    android::status_t stopStream(ALSAStreamOps *pStream);
 
 protected:
     virtual status_t    dump(int fd, const Vector<String16>& args);
+
+
+    // Effect helpers functions
+    status_t addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t removeAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
+    status_t removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect);
 
     /*
      * Reset the echo reference.
@@ -194,6 +202,7 @@ protected:
     friend class AudioStreamInALSA;
     friend class ALSAStreamOps;
     friend class CAudioRouteManager;
+    friend class CAudioAutoRoutingLock;
     friend class AudioConverter;
 
 private:

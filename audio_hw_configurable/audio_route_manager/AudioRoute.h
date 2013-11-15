@@ -74,29 +74,11 @@ public:
 
     virtual RouteType getRouteType() const = 0;
 
-    /**
-     * Route is called during enable routing stage.
-     * It is called twice: before setting the audio path and after setting the audio path
-     * in order to give flexibility to the route objects.
-     *
-     * @param[in] isOut direction of the audio route
-     * @param[in] isPreEnable flag is true if called before setting the audio path, false after.
-     *
-     * @return OK if successfull operation, error code otherwise.
-     */
-    virtual status_t route(bool isOut, bool isPreEnable);
+    // Route order - for external until Manager under PFW
+    virtual status_t route(bool bIsOut);
 
-    /**
-     * Unroute is called during disable routing stage.
-     * It is called twice: before reseting the audio path and after reseting the audio path
-     * in order to give flexibility to the route objects.
-     *
-     * @param[in] isOut direction of the audio route
-     * @param[in] isPostDisable flag is true if called after reseting the audio path, false before.
-     *
-     * @return OK if successfull operation, error code otherwise.
-     */
-    virtual void unroute(bool isOut, bool isPostDisable);
+    // UnRoute order - for external until Manager under PFW
+    virtual void unroute(bool bIsOut);
 
     virtual void configure(bool __UNUSED bIsOut) { return ; }
 

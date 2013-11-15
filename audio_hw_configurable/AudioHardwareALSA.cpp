@@ -41,12 +41,13 @@
 #include "ALSAStreamOps.h"
 #include "Utils.h"
 
-#include <AudioCommsAssert.hpp>
+
 #include <hardware/audio_effect.h>
 #include <audio_utils/echo_reference.h>
 #include <audio_effects/effect_aec.h>
 
 #include "AudioRouteManager.h"
+#include "AudioAutoRoutingLock.h"
 #include "AudioConversion.h"
 
 #define DEFAULTGAIN "1.0"
@@ -155,6 +156,7 @@ void AudioHardwareALSA::closeOutputStream(AudioStreamOut* out)
 {
     // Informs the route manager of stream destruction
     mRouteMgr->removeStream((AudioStreamOutALSA* )out);
+
     delete out;
 }
 
@@ -265,21 +267,76 @@ status_t AudioHardwareALSA::setStreamParameters(ALSAStreamOps* pStream, const St
     return mRouteMgr->setStreamParameters(pStream, keyValuePairs, mode());
 }
 
+// Lock the routing
+void AudioHardwareALSA::lockRouting()
+{
+    mRouteMgr->lock();
+}
+
+// Unlock the routing
+void AudioHardwareALSA::unlockRouting()
+{
+    mRouteMgr->unlock();
+}
+
 const pcm_config& AudioHardwareALSA::getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags) const
 {
     return mRouteMgr->getDefaultPcmConfig(bIsOut, uiFlags);
 }
 
-status_t AudioHardwareALSA::startStream(ALSAStreamOps *stream)
+status_t AudioHardwareALSA::startStream(ALSAStreamOps* pStream)
 {
-    AUDIOCOMMS_ASSERT(stream != NULL, "requesting to start NULL pointer stream");
-    return mRouteMgr->startStream(stream);
+    bool bIsStreamOut;
+    {
+        CAudioAutoRoutingLock lock(this);
+        if (pStream->isStarted()) {
+
+            return OK;
+        }
+
+        // Start stream
+        pStream->setStarted(true);
+        bIsStreamOut = pStream->isOut();
+    }
+    return mRouteMgr->startStream(bIsStreamOut);
 }
 
-status_t AudioHardwareALSA::stopStream(ALSAStreamOps *stream)
+status_t AudioHardwareALSA::stopStream(ALSAStreamOps* pStream)
 {
-    AUDIOCOMMS_ASSERT(stream != NULL, "requesting to stop NULL pointer stream");
-    return mRouteMgr->stopStream(stream);
+    bool bIsStreamOut;
+    {
+        CAudioAutoRoutingLock lock(this);
+        if (!pStream->isStarted()) {
+
+            return OK;
+        }
+
+        // Stop stream
+        pStream->setStarted(false);
+        bIsStreamOut = pStream->isOut();
+    }
+    return mRouteMgr->stopStream(bIsStreamOut);
+}
+
+
+status_t AudioHardwareALSA::addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->addAudioEffect(pStream, effect);
+}
+
+status_t AudioHardwareALSA::removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->removeAudioEffect(pStream, effect);
+}
+
+status_t AudioHardwareALSA::addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->addAudioEffectRequest(pStream, effect);
+}
+
+status_t AudioHardwareALSA::removeAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
+{
+    return mRouteMgr->removeAudioEffectRequest(pStream, effect);
 }
 
 void AudioHardwareALSA::resetEchoReference(struct echo_reference_itfe* reference)

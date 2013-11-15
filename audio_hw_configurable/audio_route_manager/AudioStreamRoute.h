@@ -43,31 +43,11 @@ public:
     // Assign a new stream to this route
     status_t setStream(ALSAStreamOps* pStream);
 
-    /**
-     * Route is called during enable routing stage.
-     * It is called twice: before setting the audio path and after setting the audio path
-     * in order to give flexibility to the stream route objects to opens the device at the right
-     * step.
-     *
-     * @param[in] isOut direction of the audio stream route
-     * @param[in] isPreEnable flag is true if called before setting the audio path, false after.
-     *
-     * @return OK if successfull operation, error code otherwise.
-     */
-    virtual status_t route(bool isOut, bool isPreEnable);
+    // Route order
+    virtual status_t route(bool bForOutput);
 
-    /**
-     * unroute is called during disable routing stage.
-     * It is called twice: before reseting the audio path and after reseting the audio path
-     * in order to give flexibility to the stream route objects to close the device at the right
-     * step.
-     *
-     * @param[in] isOut direction of the audio stream route
-     * @param[in] isPostDisable flag is true if called after reseting the audio path, false before.
-     *
-     * @return OK if successfull operation, error code otherwise.
-     */
-    virtual void unroute(bool isOut, bool isPostDisable);
+    // Unroute order
+    virtual void unroute(bool bForOutput);
 
     // Configure order
     virtual void configure(bool bIsOut);
@@ -77,6 +57,12 @@ public:
 
     // Inherited from AudioRoute - Called from AudioRouteManager
     virtual bool available(bool bIsOut);
+
+    // Inherited from AudioRoute - Called from RouteManager
+    virtual bool currentlyUsed(bool bIsOut) const;
+
+    // Inherited from AudioRoute - Called from RouteManager
+    virtual bool willBeUsed(bool bIsOut) const;
 
     // Inherited for AudioRoute - called from RouteManager
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut, uint32_t uiMask = 0) const;

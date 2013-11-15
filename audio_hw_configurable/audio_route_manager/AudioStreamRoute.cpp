@@ -75,51 +75,23 @@ bool CAudioStreamRoute::needReconfiguration(bool bIsOut) const
     return false;
 }
 
-status_t CAudioStreamRoute::route(bool isOut, bool isPreEnable)
+status_t CAudioStreamRoute::route(bool bIsOut)
 {
-    if (isPreEnable == isPreEnableRequired()) {
+    status_t err = openPcmDevice(bIsOut);
+    if (err != NO_ERROR) {
 
-        status_t err = openPcmDevice(isOut);
-        if (err != NO_ERROR) {
-
-            // Failed to open PCM device -> bailing out
-            return err;
-        }
+        // Failed to open PCM device -> bailing out
+        return err;
     }
-    if (!isPreEnable) {
 
-        /**
-         * Attach the stream to its route only once routing stage is completed
-         * to let the audio-parameter-manager performing the required configuration of the
-         * audio path.
-         */
-        status_t err = attachNewStream(isOut);
-        if (err) {
-
-            // Failed to attach the stream -> bailing out
-            return err;
-        }
-    }
-    CAudioRoute::route(isOut, isPreEnable);
-    return OK;
+    return attachNewStream(bIsOut);
 }
 
-void CAudioStreamRoute::unroute(bool isOut, bool isPostDisable)
+void CAudioStreamRoute::unroute(bool bIsOut)
 {
-    if (!isPostDisable) {
+    closePcmDevice(bIsOut);
 
-        /**
-         * Detach the stream from its route at the beginning of unrouting stage.
-         * Action of audio-parameter-manager on the audio path may lead to blocking issue, so
-         * need to garantee that the stream will not access to the device before unrouting.
-         */
-        detachCurrentStream(isOut);
-    }
-    if (isPostDisable == isPostDisableRequired()) {
-
-        closePcmDevice(isOut);
-    }
-    CAudioRoute::unroute(isOut, isPostDisable);
+    detachCurrentStream(bIsOut);
 }
 
 void CAudioStreamRoute::configure(bool bIsOut)
@@ -189,6 +161,16 @@ bool CAudioStreamRoute::available(bool bIsOut)
 {
     // A route is available if no stream is already using it and if not condemened
     return !isBlocked() && !_stStreams[bIsOut].pNew;
+}
+
+bool CAudioStreamRoute::currentlyUsed(bool bIsOut) const
+{
+    return _stStreams[bIsOut].pCurrent != NULL;
+}
+
+bool CAudioStreamRoute::willBeUsed(bool bIsOut) const
+{
+    return _stStreams[bIsOut].pNew != NULL;
 }
 
 int CAudioStreamRoute::getPcmDeviceId(bool bIsOut) const
