@@ -981,7 +981,7 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
     }
 
     //
-    // Search BT WBS parameter (B+ specific)
+    // Search BT WBS parameter
     //
     static const char * AUDIO_PARAMETER_KEY_BT_WBS = "bt_headset_wbs";
 
@@ -1119,10 +1119,10 @@ void CAudioRouteManager::doSetFmParameters(AudioParameter &param)
     String8 strKey = String8(FM_ROUTE_PARAM_KEY);
     String8 strFmRoute;
 
-    // Search FM key (B+ specific)
+    // Search FM key
     if (param.get(strKey, strFmRoute) == NO_ERROR) {
 
-        // Search FM parameter values (B+ specific)
+        // Search FM parameter values
         static const char* const FM_ROUTE_REQUESTING_SPEAKER = "speaker";
         static const char* const FM_ROUTE_REQUESTING_HEADSET = "headset";
 
