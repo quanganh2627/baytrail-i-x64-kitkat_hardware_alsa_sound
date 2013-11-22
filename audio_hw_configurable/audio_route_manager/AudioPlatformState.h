@@ -64,6 +64,7 @@ public:
         AlwaysListeningStateChange,
         FmStateChange,
         BypassNonLinearPpStateChange,
+        BypassLinearPpStateChange,
         MicMuteChange,
 
         NbEvents
@@ -92,6 +93,7 @@ public:
         ADD_EVENT(AlwaysListeningStateChange),
         ADD_EVENT(FmStateChange),
         ADD_EVENT(BypassNonLinearPpStateChange),
+        ADD_EVENT(BypassLinearPpStateChange),
         ADD_EVENT(MicMuteChange)
     };
 
@@ -226,11 +228,25 @@ public:
     void bypassNonLinearPp(bool bypassed);
 
     /**
+     * Set "Bypass Linear mode" status
+     *
+     * @param[in] bypassed if true, disables the linear post processing
+     */
+    void bypassLinearPp(bool bypassed);
+
+    /**
      * Get "Bypass Non linear status" status
      *
      * @return true if the non linear post processing is disabled
      */
     bool bypassedNonLinearPp() const { return _bypassedNonLinearPp; }
+
+    /**
+     * Get "Bypass Linear status" status
+     *
+     * @return true if the linear post processing is disabled
+     */
+    bool bypassedLinearPp() const { return _bypassedLinearPp; }
 
     /**
      * Get FM State.
@@ -358,6 +374,11 @@ private:
      * Bypass Non Linear PP status
      */
     bool _bypassedNonLinearPp;
+
+    /**
+     * Bypass Linear PP status
+     */
+    bool _bypassedLinearPp;
 
     uint32_t _uiPlatformEventChanged;
 
