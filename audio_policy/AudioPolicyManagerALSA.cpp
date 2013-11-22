@@ -238,6 +238,14 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
     }
     AudioInputDescriptor *inputDesc = mInputs.valueAt(index);
 
+    if (inputDesc->mInputSource & AUDIO_SOURCE_REMOTE_SUBMIX) {
+        ALOGV("startInput() input %d remote submix initiated", input);
+        int errCode = baseClass::startInput(input);
+        if (!errCode) {
+            ALOGE("%s :remote submix initialization failed",__func__);
+        }
+    }
+
 #ifdef AUDIO_POLICY_TEST
     if (mTestInput == 0)
 #endif //AUDIO_POLICY_TEST
