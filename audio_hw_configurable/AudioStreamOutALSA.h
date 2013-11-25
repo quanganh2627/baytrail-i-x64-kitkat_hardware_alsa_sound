@@ -28,7 +28,7 @@ namespace android_audio_legacy
 class AudioStreamOutALSA : public AudioStreamOut, public ALSAStreamOps
 {
 public:
-    AudioStreamOutALSA(AudioHardwareALSA *parent);
+    AudioStreamOutALSA(AudioHardwareALSA *parent, audio_output_flags_t flags);
     virtual            ~AudioStreamOutALSA();
 
     virtual uint32_t    sampleRate() const

@@ -195,7 +195,7 @@ status_t ALSAStreamOps::set(int      *format,
 
     mHwSampleSpec = mSampleSpec;
 
-    updateLatency();
+    updateLatency(getApplicabilityMask());
 
     ALOGD("%s() -- OUT", __FUNCTION__);
     return NO_ERROR;

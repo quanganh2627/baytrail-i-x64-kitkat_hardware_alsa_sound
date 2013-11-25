@@ -126,6 +126,8 @@ AudioStreamOut* AudioHardwareALSA::openOutputStream(uint32_t devices,
     LOG_ALWAYS_FATAL_IF(status == NULL);
 
     status_t &err = *status;
+    /* output flags is passed through status parameter */
+    audio_output_flags_t flags = static_cast<audio_output_flags_t>(*status);
 
     if (!audio_is_output_device(devices)) {
 
@@ -134,7 +136,7 @@ AudioStreamOut* AudioHardwareALSA::openOutputStream(uint32_t devices,
         return NULL;
     }
 
-    AudioStreamOutALSA* out = new AudioStreamOutALSA(this);
+    AudioStreamOutALSA* out = new AudioStreamOutALSA(this, flags);
 
     err = out->set(format, channels, sampleRate);
     if (err != NO_ERROR) {
