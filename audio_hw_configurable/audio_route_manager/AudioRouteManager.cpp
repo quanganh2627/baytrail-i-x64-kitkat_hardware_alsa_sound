@@ -1921,6 +1921,10 @@ bool CAudioRouteManager::onProcess(uint16_t __UNUSED uiEvent)
         ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to Modem State change", __FUNCTION__);
         // Update the platform state
         _pPlatformState->setModemAlive(_pModemAudioManagerInterface->isModemAlive());
+        // Force Parameters synchronization to reduce cold latency
+        if (_pModemAudioManagerInterface->isModemAlive()) {
+            _pParameterMgrPlatformConnector->applyConfigurations();
+        }
         break;
 
     case EUpdateModemAudioStatus:
