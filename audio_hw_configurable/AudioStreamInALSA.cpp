@@ -18,10 +18,11 @@
 #define LOG_TAG "AudioStreamInALSA"
 
 #include "AudioStreamInALSA.h"
-#include "AudioAutoRoutingLock.h"
 
+#include "AudioStreamRoute.h"
 #include <hardware_legacy/power.h>
 #include <media/AudioRecord.h>
+#include <AudioCommsAssert.hpp>
 #include <utils/Log.h>
 #include <utils/String8.h>
 #include <cutils/properties.h>
@@ -64,13 +65,11 @@ AudioStreamInALSA::AudioStreamInALSA(AudioHardwareALSA *parent,
 AudioStreamInALSA::~AudioStreamInALSA()
 {
     /**
-     * Note that memory allocated will
-     * be freed upon doClose callback from route manager
      * Effects are managed by AudioFlinger in a different thread than Capture thread.
      * Deleting the input stream may happen while trying to remove / add an effect.
      */
-    Mutex::Locker Locker(_streamLock);
-    close();
+    AutoW lock(_streamLock);
+    freeAllocatedBuffers();
 }
 
 status_t AudioStreamInALSA::setGain(float __UNUSED gain)
@@ -86,7 +85,6 @@ size_t AudioStreamInALSA::generateSilence(void *buffer, size_t bytes)
     //       we are here because of hardware error or missing route availability.
     // Also, keep time sync by sleeping the equivalent amount of time.
     usleep(mSampleSpec.convertFramesToUsec(mSampleSpec.convertBytesToFrames(bytes)));
-    mStandby = false;
     return bytes;
 }
 
@@ -305,14 +303,13 @@ ssize_t AudioStreamInALSA::read(void *buffer, ssize_t bytes)
 {
     setStandby(false);
 
-    CAudioAutoRoutingLock lock(mParent);
+    AutoR lock(_streamLock);
 
     // Check if the audio route is available for this stream
-    if (!isRouteAvailable()) {
+    if (!isRouteAvailableL()) {
 
-        lock.unlock();
-        ALOGW("%s(buffer=%p, bytes=%ld) No route available. Generating silence for device 0x%x.",
-              __FUNCTION__, buffer, static_cast<long int>(bytes), getCurrentDevices());
+        ALOGW("%s(buffer=%p, bytes=%ld) No route available. Generating silence.",
+              __FUNCTION__, buffer, static_cast<long int>(bytes));
         return generateSilence(buffer, bytes);
     }
 
@@ -429,9 +426,9 @@ void AudioStreamInALSA::freeAllocatedBuffers()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamInALSA::attachRoute()
+status_t AudioStreamInALSA::attachRouteL()
 {
-    status_t status = base::attachRoute();
+    status_t status = base::attachRouteL();
     if (status != NO_ERROR) {
 
         return status;
@@ -446,42 +443,135 @@ status_t AudioStreamInALSA::attachRoute()
 //
 // Called from Route Manager Context -> WLocked
 //
-status_t AudioStreamInALSA::detachRoute()
+status_t AudioStreamInALSA::detachRouteL()
 {
     freeAllocatedBuffers();
 
     // Checks if any effect requested to remove them
     checkAndRemoveAudioEffects();
 
-    return base::detachRoute();
+    return base::detachRouteL();
 }
 
 size_t AudioStreamInALSA::bufferSize() const
 {
+    AutoR lock(_streamLock);
     return getBufferSize(_inputSourceMask);
 }
 
 status_t AudioStreamInALSA::addAudioEffect(effect_handle_t effect)
 {
     ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    Mutex::Locker Locker(_streamLock);
+    AUDIOCOMMS_ASSERT(effect != NULL, "effect handle is NULL");
 
-    // Called from different context than the stream,
-    // so Routing Lock must be held, so request the parent to perform the action.
-    return mParent->addAudioEffectRequest(this, effect);
+    AutoW lock(_streamLock);
+    status_t err = addAudioEffectRequestL(effect);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+
+    // First check of the stream is already started
+    // (ie already attached to an Audio Stream Route)
+    if (!isRouteAvailableL()) {
+
+        // Stream is not started, do not add the effect, it will be done
+        // when the stream will be attached to the stream route
+        // Bailing out
+        ALOGD("%s (effect=%p), stream not started, bailing out", __FUNCTION__, effect);
+        return NO_ERROR;
+    }
+    return addAudioEffectL(effect);
 }
 
 status_t AudioStreamInALSA::removeAudioEffect(effect_handle_t effect)
 {
     ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    Mutex::Locker Locker(_streamLock);
+    AUDIOCOMMS_ASSERT(effect != NULL, "effect handle is NULL");
 
-    // Called from different context than the stream,
-    // so Routing Lock must be held, so request the parent to perform the action.
-    return mParent->removeAudioEffectRequest(this, effect);
+    AutoW lock(_streamLock);
+    status_t err = removeAudioEffectRequestL(effect);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+
+    // Stream is not started, do not remove the effect, it has been already done
+    // when the stream was detached from the stream route
+    if (!isRouteAvailableL()) {
+
+        ALOGD("%s (effect=%p) stream not attached to any stream route, effect already removed",
+              __FUNCTION__, effect);
+        return NO_ERROR;
+    }
+    return removeAudioEffectL(effect);
 }
 
-status_t AudioStreamInALSA::addAudioEffectRequest(effect_handle_t effect)
+
+status_t AudioStreamInALSA::addAudioEffectL(effect_handle_t effect)
+{
+    AUDIOCOMMS_ASSERT(effect!= NULL, "effect handle is NULL");
+    AUDIOCOMMS_ASSERT(isRouteAvailableL(), "stream not routed");
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+    effect_uuid_t uuid;
+    status_t err = getAudioEffectUuidFromHandle(effect, &uuid);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+    CAudioStreamRoute *streamRoute = getCurrentRouteL();
+    if (streamRoute != NULL && streamRoute->isEffectSupported(&uuid)) {
+
+        // Handled by the route itself...
+        // @todo: set the right parameter to inform effect is requested
+        ALOGD("%s: %s route attached to the stream embedds requested effect", __FUNCTION__,
+              streamRoute->getName().c_str());
+        return NO_ERROR;
+    }
+
+    //
+    // Route does not provide any effect, use SW effects
+    //
+    if (isAecEffect(&uuid)) {
+
+        struct echo_reference_itfe *stReference = NULL;
+        stReference = mParent->getEchoReference(format(),
+                                               channelCount(),
+                                               sampleRate());
+        return addSwAudioEffectL(effect, stReference);
+    }
+    return addSwAudioEffectL(effect);
+}
+
+status_t AudioStreamInALSA::removeAudioEffectL(effect_handle_t effect)
+{
+    AUDIOCOMMS_ASSERT(effect!= NULL, "effect handle is NULL");
+    AUDIOCOMMS_ASSERT(isRouteAvailableL(), "stream not routed");
+
+    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
+
+    effect_uuid_t uuid;
+    status_t err = getAudioEffectUuidFromHandle(effect, &uuid);
+    if (err != NO_ERROR) {
+
+        return err;
+    }
+    // The route attached to the stream embedds effect
+    CAudioStreamRoute *streamRoute = getCurrentRouteL();
+    if (streamRoute != NULL && streamRoute->isEffectSupported(&uuid)) {
+
+        // Handled by the route itself...
+        // @todo: set the right parameter to inform effect is requested
+        ALOGD("%s: %s route attached to the stream embedds requested effect",
+              __FUNCTION__, streamRoute->getName().c_str());
+        return NO_ERROR;
+    }
+    return removeSwAudioEffectL(effect);
+}
+
+
+status_t AudioStreamInALSA::addAudioEffectRequestL(effect_handle_t effect)
 {
     AudioEffectsListIterator it;
     it = std::find(mRequestedEffects.begin(), mRequestedEffects.end(), effect);
@@ -498,7 +588,7 @@ status_t AudioStreamInALSA::addAudioEffectRequest(effect_handle_t effect)
     return NO_ERROR;
 }
 
-status_t AudioStreamInALSA::removeAudioEffectRequest(effect_handle_t effect)
+status_t AudioStreamInALSA::removeAudioEffectRequestL(effect_handle_t effect)
 {
 
     AudioEffectsListIterator it;
@@ -517,9 +607,10 @@ status_t AudioStreamInALSA::removeAudioEffectRequest(effect_handle_t effect)
     return BAD_VALUE;
 }
 
-status_t AudioStreamInALSA::addAudioEffect_l(effect_handle_t effect, echo_reference_itfe *reference)
+status_t AudioStreamInALSA::addSwAudioEffectL(effect_handle_t effect,
+                                               echo_reference_itfe *reference)
 {
-    LOG_ALWAYS_FATAL_IF(effect == NULL);
+    AUDIOCOMMS_ASSERT(effect != NULL, "effect handle is NULL");
 
     //audio effects processing is very costy in term of CPU,
     // so useless to add the same effect more than one time
@@ -544,12 +635,9 @@ status_t AudioStreamInALSA::addAudioEffect_l(effect_handle_t effect, echo_refere
     return NO_ERROR;
 }
 
-//
-// @brief Called from Route Manager locked context to remove an audio effect
-//
-status_t AudioStreamInALSA::removeAudioEffect_l(effect_handle_t effect)
+status_t AudioStreamInALSA::removeSwAudioEffectL(effect_handle_t effect)
 {
-    LOG_ALWAYS_FATAL_IF(effect == NULL);
+    AUDIOCOMMS_ASSERT(effect != NULL, "effect handle is NULL");
 
     Vector<AudioEffectHandle>::iterator it;
     it = std::find_if(mPreprocessorsHandlerList.begin(), mPreprocessorsHandlerList.end(),
@@ -572,6 +660,31 @@ status_t AudioStreamInALSA::removeAudioEffect_l(effect_handle_t effect)
         return NO_ERROR;
     }
     return BAD_VALUE;
+}
+
+bool AudioStreamInALSA::isAecEffect(const effect_uuid_t *uuid)
+{
+    if (memcmp(uuid, FX_IID_AEC, sizeof(*uuid)) == 0) {
+
+        ALOGD("%s effect is AEC", __FUNCTION__);
+        return true;
+    }
+    return false;
+}
+
+status_t AudioStreamInALSA::getAudioEffectUuidFromHandle(effect_handle_t effect,
+                                                         effect_uuid_t *uuid)
+{
+    AUDIOCOMMS_ASSERT(effect != NULL, "effect handle is NULL");
+    AUDIOCOMMS_ASSERT(uuid != NULL, "UUID is NULL");
+    effect_descriptor_t desc;
+    if ((*effect)->get_descriptor(effect, &desc) != 0) {
+
+        ALOGE("%s: could not get effect descriptor", __FUNCTION__);
+        return BAD_VALUE;
+    }
+    *uuid = desc.type;
+    return NO_ERROR;
 }
 
 void AudioStreamInALSA::getCaptureDelay(struct echo_reference_buffer* buffer)
@@ -771,7 +884,7 @@ status_t AudioStreamInALSA::checkAndAddAudioEffects()
 
     for (it = mRequestedEffects.begin(); it != mRequestedEffects.end(); ++it) {
 
-        mParent->addAudioEffect(this, *it);
+        addAudioEffectL(*it);
     }
     return NO_ERROR;
 }
@@ -783,7 +896,7 @@ status_t AudioStreamInALSA::checkAndRemoveAudioEffects()
 
     for (it = mRequestedEffects.begin(); it != mRequestedEffects.end(); ++it) {
 
-        mParent->removeAudioEffect(this, *it);
+        removeAudioEffectL(*it);
     }
     return NO_ERROR;
 }

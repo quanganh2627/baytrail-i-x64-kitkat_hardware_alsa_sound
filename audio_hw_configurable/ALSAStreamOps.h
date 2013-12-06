@@ -27,6 +27,9 @@
  */
 #include "HALAudioDump.h"
 
+typedef android::RWLock::AutoRLock AutoR;
+typedef android::RWLock::AutoWLock AutoW;
+
 namespace android_audio_legacy
 {
 
@@ -62,17 +65,43 @@ public:
     inline uint32_t     channelCount() const { return mSampleSpec.getChannelCount(); }
     inline uint32_t     channels() const { return mSampleSpec.getChannelMask(); }
 
-    // From AudioStreamIn/Out: indicates if the stream has a route pointer
+    /**
+     * Checks if a stream is fully routed or not.
+     * Note that a stream is considered as routed when
+     *          -not only when the audio device is opened
+     *          -but also all the controls are applyed on the audio path.
+     *
+     * @return true if routed, audio path is ready for stream operations, false otherwise.
+     */
     bool                isRouteAvailable() const;
-    // From
-    virtual android::status_t    attachRoute();
-    virtual android::status_t    detachRoute();
+
+    /**
+     * Called from route manager during routing of a stream. It attaches the stream to the new
+     * route, sets the audio device.
+     *
+     * @return OK is success, error code otherwise.
+     */
+    android::status_t attachRoute();
+
+    /**
+     * Called from route manager during unrouting of a stream. It detaches the stream to the new
+     * route, resets the audio device.
+     *
+     * @return OK is success, error code otherwise.
+     */
+    android::status_t detachRoute();
 
     android::status_t   setStandby(bool bIsSet);
 
     virtual bool        isOut() const = 0;
 
-    void                setNewRoute(CAudioStreamRoute* attachRoute);
+    /**
+     * Set the route pointer to the new route.
+     * No need to lock, newRoute is for exclusive access for route manager, from atomic context.
+     *
+     * @param[in] attachRoute Route to attach the stream with.
+     */
+    void  setNewRoute(CAudioStreamRoute *attachRoute);
 
     /**
      * Check if the stream has a new route assigned.
@@ -84,11 +113,25 @@ public:
     inline bool         isRouteAssignedToStream() const { return mNewRoute != NULL; }
     void                resetRoute();
 
-    uint32_t            getNewDevices() const { return mNewDevices; }
+    uint32_t            getNewDevices() const
+    {
+        return mNewDevices;
+    }
     void                setNewDevices(uint32_t uiNewDevices);
-    uint32_t            getCurrentDevices() const { return mCurrentDevices; }
+    uint32_t            getCurrentDevices() const
+    {
+        AutoR lock(_streamLock);
+        return mCurrentDevices;
+    }
     void                setCurrentDevices(uint32_t uiCurrentDevices);
-    CAudioStreamRoute*  getCurrentRoute() const { return mCurrentRoute; }
+
+    /**
+     * Get the route attached to the stream.
+     * Called from locked context.
+     *
+     * @return stream route attached to the stream, may be NULL if not routed.
+     */
+    CAudioStreamRoute *getCurrentRouteL() const { return mCurrentRoute; }
 
     /**
      * Get the current stream state
@@ -132,11 +175,38 @@ protected:
     ALSAStreamOps(const ALSAStreamOps &);
     ALSAStreamOps& operator = (const ALSAStreamOps &);
 
+    /**
+     * Attaches the stream to the new route, sets the audio device.
+     * Must be called with stream lock held.
+     *
+     * @return OK is success, error code otherwise.
+     */
+    virtual android::status_t attachRouteL();
+
+    /**
+     * Detaches the stream to the new route, resets the audio device.
+     * Must be called with stream lock held.
+     *
+     * @return OK is success, error code otherwise.
+     */
+    virtual android::status_t detachRouteL();
+
     android::status_t applyAudioConversion(const void* src, void** dst, uint32_t inFrames, uint32_t* outFrames);
     android::status_t getConvertedBuffer(void* dst, const uint32_t outFrames, android::AudioBufferProvider* pBufferProvider);
 
     uint32_t            latency() const;
     void                updateLatency(uint32_t uiFlags = 0);
+
+    /**
+     * Checks if a stream is fully routed or not.
+     * Note that a stream is considered as routed when
+     *          -not only when the audio device is opened
+     *          -but also all the controls are applyed on the audio path.
+     * Must be called with stream lock held.
+     *
+     * @return true if routed, audio path is ready for stream operations, false otherwise.
+     */
+    bool isRouteAvailableL() const;
 
     /**
      * Init audio dump if dump properties are activated to create the dump object(s).
@@ -194,6 +264,19 @@ protected:
 
     /** Ratio between nanoseconds and microseconds */
     static const uint32_t NSEC_PER_USEC = 1000;
+
+    /**
+     * Lock to protect not only the access to pcm device but also any access to device dependant
+     * parameters as sample specification.
+     * Sensitive data are the:
+     *  -data read / set by both Route Manager and Stream (mCurrentRoute,
+     * mCurrentDevices, mStandby, mHandle, mDevices, mHwSampleSpec,
+     * applicability mask (inputStreamMask for input stream, outputFlags for output stream,
+     * effects list for input streams only).
+     *
+     * Using in both Read or Write mode is quite interesting, but required to use mutable attribute.
+     */
+    mutable android::RWLock _streamLock;
 
 private:
     // Configure the audio conversion chain

@@ -1137,8 +1137,6 @@ void CAudioRouteManager::doSetFmParameters(AudioParameter &param)
 //
 void CAudioRouteManager::setDevices(ALSAStreamOps* pStream, uint32_t devices)
 {
-    AutoW lock(_lock);
-
     ALOGD("%s: 0x%X", __FUNCTION__, devices);
     if ((devices & AUDIO_DEVICE_BIT_IN) != 0) {
 
@@ -1699,7 +1697,7 @@ void CAudioRouteManager::prepareDisableRoutes(bool bIsOut)
     selectedOpenedRoutes(bIsOut)->setCriterionState(uiOpenedRoutes);
 }
 
-void CAudioRouteManager::doDisableRoutes(bool bIsOut, bool bIsPostDisable)
+void CAudioRouteManager::doDisableRoutes(bool isOut, bool isPostDisable)
 {
     RouteListIterator it;
 
@@ -1714,10 +1712,9 @@ void CAudioRouteManager::doDisableRoutes(bool bIsOut, bool bIsPostDisable)
         // Disable Routes that were opened before reconsidering the routing
         // and will be closed after.
         //
-        if ((bIsPostDisable == route->isPostDisableRequired()) &&
-                ((route->currentlyUsed(bIsOut) && !route->willBeUsed(bIsOut)) ||
-                route->needRerouting(bIsOut))){
-            route->unroute(bIsOut);
+        if ((route->currentlyUsed(isOut) && !route->willBeUsed(isOut)) ||
+                route->needRerouting(isOut)) {
+            route->unroute(isOut, isPostDisable);
         }
     }
 }
@@ -1739,31 +1736,31 @@ void CAudioRouteManager::executeEnableStage()
     doEnableRoutes(CUtils::EInput);
 }
 
-void CAudioRouteManager::doEnableRoutes(bool bIsOut, bool bIsPreEnable)
+void CAudioRouteManager::doEnableRoutes(bool isOut, bool isPreEnable)
 {
     ALOGV("%s for %s:", __FUNCTION__,
-          bIsOut ? "output" : "input");
+          isOut ? "output" : "input");
 
     RouteListIterator it;
 
     // Enable Routes that were not enabled and will be enabled after
     // the routing reconsideration
     //
-    ALOGD_IF(_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled,
+    ALOGD_IF(_stRoutes[isOut].uiEnabled & ~_stRoutes[isOut].uiPrevEnabled,
              "%s: Routes to be enabled(routed) in %s = %s", __FUNCTION__,
-             bIsOut ? "Output" : "Input",
-             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(_stRoutes[bIsOut].uiEnabled & ~_stRoutes[bIsOut].uiPrevEnabled).c_str());
+             isOut ? "Output" : "Input",
+             _apCriteriaTypeInterface[ERouteCriteriaType]->getFormattedState(
+                 _stRoutes[isOut].uiEnabled & ~_stRoutes[isOut].uiPrevEnabled).c_str());
 
     for (it = _routeList.begin(); it != _routeList.end(); ++it) {
 
         CAudioRoute* route = *it;
 
         // If the route is external and was set busy -> it needs to be routed
-        if ((bIsPreEnable == route->isPreEnableRequired()) &&
-                ((!route->currentlyUsed(bIsOut) && route->willBeUsed(bIsOut)) ||
-                route->needRerouting(bIsOut))){
+        if ((!route->currentlyUsed(isOut) && route->willBeUsed(isOut)) ||
+                route->needRerouting(isOut)) {
 
-            if (route->route(bIsOut) != NO_ERROR) {
+            if (route->route(isOut, isPreEnable) != NO_ERROR) {
                 // Just logging
                 ALOGE("\t error while routing %s", route->getName().c_str());
             }
@@ -1924,6 +1921,10 @@ bool CAudioRouteManager::onProcess(uint16_t __UNUSED uiEvent)
         ALOGD("%s: {+++ RECONSIDER ROUTING +++} due to Modem State change", __FUNCTION__);
         // Update the platform state
         _pPlatformState->setModemAlive(_pModemAudioManagerInterface->isModemAlive());
+        // Force Parameters synchronization to reduce cold latency
+        if (_pModemAudioManagerInterface->isModemAlive()) {
+            _pParameterMgrPlatformConnector->applyConfigurations();
+        }
         break;
 
     case EUpdateModemAudioStatus:
@@ -1943,22 +1944,6 @@ bool CAudioRouteManager::onProcess(uint16_t __UNUSED uiEvent)
     doReconsiderRouting();
 
     return false;
-}
-
-void CAudioRouteManager::lock()
-{
-    if (_bRoutingLocked) {
-
-        _lock.readLock();
-    }
-}
-
-void CAudioRouteManager::unlock()
-{
-    if (_bRoutingLocked) {
-
-        _lock.unlock();
-    }
 }
 
 // Used to fill types for PFW
@@ -2222,148 +2207,6 @@ status_t CAudioRouteManager::setVoiceVolume(float gain)
     return OK;
 }
 
-status_t CAudioRouteManager::addAudioEffectRequest(AudioStreamInALSA* pStream, effect_handle_t effect)
-{
-    // As each stream does not have its own lock,
-    // take the routing lock here to protect the members of the stream.
-    AutoW lock(_lock);
-
-    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL);
-
-    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    status_t err = pStream->addAudioEffectRequest(effect);
-    if (err != NO_ERROR) {
-
-        return err;
-    }
-
-    // First check of the stream is already started
-    // (ie already attached to an Audio Stream Route)
-    if (!pStream->isRouteAvailable()) {
-
-        // Stream is not started, do not add the effect, it will be done
-        // when the stream will be attached to the stream route
-        // Bailing out
-        ALOGD("%s (effect=%p), stream not started, bailing out", __FUNCTION__, effect);
-        return NO_ERROR;
-    }
-    return doAddAudioEffect(pStream, effect);
-}
-
-status_t CAudioRouteManager::addAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
-{
-    // As each stream does not have its own lock,
-    // take the routing lock here to protect the members of the stream.
-    AutoW lock(_lock);
-
-    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    return doAddAudioEffect(pStream, effect);
-}
-
-status_t CAudioRouteManager::doAddAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
-{
-    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL || !pStream->isRouteAvailable());
-
-    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    effect_uuid_t uuid;
-    status_t err = getAudioEffectUuidFromHandle(effect, &uuid);
-    if (err != NO_ERROR) {
-
-        return err;
-    }
-    CAudioStreamRoute* pStreamRoute = pStream->getCurrentRoute();
-    if (pStreamRoute != NULL && pStreamRoute->isEffectSupported(&uuid)) {
-
-        // Handled by the route itself...
-        // @todo: set the right parameter to inform effect is requested
-        ALOGD("%s: %s route attached to the stream embedds requested effect", __FUNCTION__,
-                                                                pStreamRoute->getName().c_str());
-        return NO_ERROR;
-    }
-
-    //
-    // Route does not provide any effect, use SW effects
-    //
-    if (isAecEffect(&uuid)) {
-
-        struct echo_reference_itfe* stReference = NULL;
-        stReference = getEchoReference(pStream->format(),
-                                       pStream->channelCount(),
-                                       pStream->sampleRate());
-        return pStream->addAudioEffect_l(effect, stReference);
-    }
-    return pStream->addAudioEffect_l(effect);
-}
-
-status_t CAudioRouteManager::removeAudioEffectRequest(AudioStreamInALSA* pStream,
-                                                        effect_handle_t effect)
-{
-    AutoW lock(_lock);
-
-    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL);
-
-    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    status_t err = pStream->removeAudioEffectRequest(effect);
-    if (err != NO_ERROR) {
-
-        return err;
-    }
-
-    // Stream is not started, do not remove the effect, it has been already done
-    // when the stream was detached from the stream route
-    if (!pStream->isRouteAvailable()) {
-
-        ALOGD("%s (effect=%p) stream not attached to any stream route, effect already removed",
-                                                                    __FUNCTION__, effect);
-        return NO_ERROR;
-    }
-    return doRemoveAudioEffect(pStream, effect);
-}
-
-status_t CAudioRouteManager::removeAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
-{
-    AutoW lock(_lock);
-
-    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-    return doRemoveAudioEffect(pStream, effect);
-}
-
-status_t CAudioRouteManager::doRemoveAudioEffect(AudioStreamInALSA* pStream, effect_handle_t effect)
-{
-    LOG_ALWAYS_FATAL_IF(pStream == NULL || effect == NULL || !pStream->isRouteAvailable());
-
-    ALOGD("%s (effect=%p)", __FUNCTION__, effect);
-
-    effect_uuid_t uuid;
-    status_t err = getAudioEffectUuidFromHandle(effect, &uuid);
-    if (err != NO_ERROR) {
-
-        return err;
-    }
-    // The route attached to the stream embedds effect
-    CAudioStreamRoute* pStreamRoute = pStream->getCurrentRoute();
-    if (pStreamRoute != NULL && pStreamRoute->isEffectSupported(&uuid)) {
-
-        // Handled by the route itself...
-        // @todo: set the right parameter to inform effect is requested
-        ALOGD("%s: %s route attached to the stream embedds requested effect",
-                                                    __FUNCTION__, pStreamRoute->getName().c_str());
-        return NO_ERROR;
-    }
-    // Remove SW effects through the stream
-    return pStream->removeAudioEffect_l(effect);
-}
-
-bool CAudioRouteManager::isAecEffect(const effect_uuid_t* uuid)
-{
-    if (memcmp(uuid, FX_IID_AEC, sizeof(*uuid)) == 0) {
-
-        ALOGD("%s effect is AEC", __FUNCTION__);
-        return true;
-    }
-    return false;
-}
-
 void CAudioRouteManager::resetEchoReference(struct echo_reference_itfe* reference)
 {
     AutoW lock(_lock);
@@ -2443,19 +2286,6 @@ struct echo_reference_itfe* CAudioRouteManager::getEchoReference(int format,
     }
     ALOGD(" %s() will return that mEchoReference=%p", __FUNCTION__, _pEchoReference);
     return _pEchoReference;
-}
-
-status_t CAudioRouteManager::getAudioEffectUuidFromHandle(effect_handle_t effect, effect_uuid_t* uuid)
-{
-    LOG_ALWAYS_FATAL_IF(effect == NULL || uuid == NULL);
-    effect_descriptor_t desc;
-    if ((*effect)->get_descriptor(effect, &desc) != 0) {
-
-        ALOGE("%s: could not get effect descriptor", __FUNCTION__);
-        return BAD_VALUE;
-    }
-    *uuid = desc.type;
-    return NO_ERROR;
 }
 
 const pcm_config& CAudioRouteManager::getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags) const
