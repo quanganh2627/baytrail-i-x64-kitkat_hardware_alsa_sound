@@ -605,8 +605,8 @@ public:
         }
         return CAudioRoute::needReconfiguration(bIsOut) &&
                 (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange |
-                                                          CAudioPlatformState::EInputSourceChange) |
-                                                          CAudioPlatformState::EHwModeChange);
+                                                          CAudioPlatformState::EInputSourceChange |
+                                                          CAudioPlatformState::EHwModeChange));
     }
 };
 
