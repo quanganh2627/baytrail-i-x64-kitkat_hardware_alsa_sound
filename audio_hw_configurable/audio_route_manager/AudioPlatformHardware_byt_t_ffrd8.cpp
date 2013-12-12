@@ -455,6 +455,21 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
+    virtual bool needReconfiguration(bool bIsOut) const
+    {
+        // The route needs reconfiguration except if:
+        //      - still used by the same stream
+        //      - bluetooth noise reduction and echo cancelation has not changed
+        if ((CAudioRoute::needReconfiguration(bIsOut) &&
+            _pPlatformState->hasPlatformStateChanged(
+                CAudioPlatformState::EBtHeadsetNrEcChange)) ||
+            CAudioStreamRoute::needReconfiguration(bIsOut)) {
+
+            return true;
+        }
+        return false;
+    }
+
     virtual bool isApplicable(uint32_t uidevices, int iMode,
                               bool bIsOut, uint32_t uiMask = 0) const {
 
@@ -560,7 +575,8 @@ public:
                                                          CAudioPlatformState::EHacModeChange | // @todo: checks if codec requires reconfig when HAC, TTY, Band change
                                                          CAudioPlatformState::ETtyDirectionChange |
                                                          CAudioPlatformState::EBandTypeChange |
-                                                         CAudioPlatformState::EInputDevicesChange);
+                                                         CAudioPlatformState::EInputDevicesChange |
+                                                         CAudioPlatformState::EBtHeadsetNrEcChange);
     }
 };
 
