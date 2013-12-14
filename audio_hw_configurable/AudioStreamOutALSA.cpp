@@ -46,10 +46,10 @@ const uint32_t AudioStreamOutALSA::WAIT_BEFORE_RETRY_US = 10000; //10ms
  */
 const uint32_t AudioStreamOutALSA::USEC_PER_MSEC = 1000;
 
-AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent) :
+AudioStreamOutALSA::AudioStreamOutALSA(AudioHardwareALSA *parent, audio_output_flags_t flags) :
     base(parent, "AudioOutLock"),
     mFrameCount(0),
-    _flags(AUDIO_OUTPUT_FLAG_NONE),
+    _flags(flags),
     mEchoReference(NULL)
 {
 }

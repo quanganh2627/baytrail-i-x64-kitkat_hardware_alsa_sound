@@ -491,7 +491,7 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_io_handle_t __UNUSED handle,
                                    audio_devices_t devices,
-                                   audio_output_flags_t __UNUSED flags,
+                                   audio_output_flags_t flags,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out)
 {
@@ -505,6 +505,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         return -ENOMEM;
 
     devices = convert_audio_device(devices, HAL_API_REV_2_0, HAL_API_REV_1_0);
+
+    /* use status as input parameter to pass output flags */
+    status = static_cast<status_t>(flags);
 
     out->legacy_out = ladev->hwif->openOutputStream(devices, (int *) &config->format,
                                                     &config->channel_mask,

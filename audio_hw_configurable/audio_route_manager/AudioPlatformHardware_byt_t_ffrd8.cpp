@@ -139,10 +139,10 @@ static const pcm_config pcm_config_voice_mixing_capture = {
     period_size       : VOICE_48000_PERIOD_SIZE,
     period_count      : NB_RING_BUFFER,
     format            : PCM_FORMAT_S16_LE,
-    start_threshold   : 1,
-    stop_threshold    : VOICE_48000_PERIOD_SIZE * NB_RING_BUFFER,
+    start_threshold   : 0,
+    stop_threshold    : 0,
     silence_threshold : 0,
-    avail_min         : VOICE_48000_PERIOD_SIZE,
+    avail_min         : 0,
 };
 
 const char* const CAudioPlatformHardware::_acPorts[] = {
@@ -296,8 +296,8 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
             pcm_config_voice_mixing_playback,
         },
         {
-            { SampleSpec::Copy, SampleSpec::Copy }, // @todo checks if record is in dual mono on modem side
-            { SampleSpec::Average, SampleSpec::Ignore }
+            { SampleSpec::Copy, SampleSpec::Copy },
+            { SampleSpec::Copy, SampleSpec::Copy }
         },
         ""
     },
