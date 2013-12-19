@@ -21,7 +21,6 @@
 #include "AudioUtils.h"
 #include "ALSAStreamOps.h"
 #include <tinyalsa/asoundlib.h>
-#include <hardware_legacy/power.h>
 #include <utils/Log.h>
 #include <algorithm>
 
@@ -29,8 +28,6 @@
 
 namespace android_audio_legacy
 {
-
-const char* const CAudioStreamRoute::POWER_LOCK_TAG[CUtils::ENbDirections] = {"AudioInLock","AudioOutLock"};
 
 CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
                                      CAudioPlatformState *platformState) :
@@ -45,7 +42,6 @@ CAudioStreamRoute::CAudioStreamRoute(uint32_t uiRouteIndex,
        _astPcmDevice[iDir] = NULL;
        _aiPcmDeviceId[iDir] = CAudioPlatformHardware::getRouteDeviceId(uiRouteIndex, iDir);
        _astPcmConfig[iDir] = CAudioPlatformHardware::getRoutePcmConfig(uiRouteIndex, iDir);
-       _acPowerLockTag[iDir] = POWER_LOCK_TAG[iDir];
 
        _routeSampleSpec[iDir].setFormat(
                    AudioUtils::convertTinyToHalFormat(_astPcmConfig[iDir].format));
@@ -256,8 +252,6 @@ status_t CAudioStreamRoute::openPcmDevice(bool bIsOut)
 {
     LOG_ALWAYS_FATAL_IF(_astPcmDevice[bIsOut] != NULL);
 
-    acquirePowerLock(bIsOut);
-
     pcm_config config = getPcmConfig(bIsOut);
     ALOGD("%s called for card (%s,%d)",
                                 __FUNCTION__,
@@ -318,7 +312,6 @@ close_device:
 
     pcm_close(_astPcmDevice[bIsOut]);
     _astPcmDevice[bIsOut] = NULL;
-    releasePowerLock(bIsOut);
     return NO_MEMORY;
 }
 
@@ -332,23 +325,6 @@ void CAudioStreamRoute::closePcmDevice(bool bIsOut)
                                 getPcmDeviceId(bIsOut));
     pcm_close(_astPcmDevice[bIsOut]);
     _astPcmDevice[bIsOut] = NULL;
-
-    releasePowerLock(bIsOut);
 }
 
-void CAudioStreamRoute::acquirePowerLock(bool bIsOut)
-{
-    LOG_ALWAYS_FATAL_IF(_bPowerLock[bIsOut]);
-
-    acquire_wake_lock(PARTIAL_WAKE_LOCK, _acPowerLockTag[bIsOut]);
-    _bPowerLock[bIsOut] = true;
-}
-
-void CAudioStreamRoute::releasePowerLock(bool bIsOut)
-{
-    LOG_ALWAYS_FATAL_IF(!_bPowerLock[bIsOut]);
-
-    release_wake_lock(_acPowerLockTag[bIsOut]);
-    _bPowerLock[bIsOut] = false;
-}
 }       // namespace android

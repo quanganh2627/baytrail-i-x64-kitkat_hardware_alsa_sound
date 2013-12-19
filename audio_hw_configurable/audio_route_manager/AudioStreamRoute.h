@@ -124,10 +124,6 @@ private:
 
     void detachCurrentStream(bool bIsOut);
 
-    void acquirePowerLock(bool bIsOut);
-
-    void releasePowerLock(bool bIsOut);
-
     const char* _pcCardName;
     int _aiPcmDeviceId[CUtils::ENbDirections];
     pcm_config _astPcmConfig[CUtils::ENbDirections];
@@ -136,10 +132,6 @@ private:
 
     SampleSpec _routeSampleSpec[CUtils::ENbDirections];
 
-    bool _bPowerLock[CUtils::ENbDirections];
-    const char *_acPowerLockTag[CUtils::ENbDirections];
-
-    static const char* const POWER_LOCK_TAG[CUtils::ENbDirections];
 };
 };        // namespace android
 
