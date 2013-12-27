@@ -23,6 +23,8 @@
 #include <sstream>
 #include <fstream>
 
+using audio_comms::utilities::BitField;
+
 /**
  *  24 ms makes a PCM frames count of 1152 which is aligned on a 16-frames
  *  boundary. This is the best optimized size for a buffer in the LPE.
@@ -855,6 +857,15 @@ public:
                 (uidevices & AudioSystem::DEVICE_IN_VOICE_CALL) &&
                 (iMode != AudioSystem::MODE_IN_CALL)) {
 
+            return false;
+        }
+
+        // When voice_uplink input source is selected and microphone is muted, set
+        // the media capture route as not applicable, so that silence be recorded.
+        if ((!bIsOut) &&
+            _pPlatformState->getMicMute() &&
+            (_pPlatformState->getInputSource() ==
+             BitField::indexToMask(AUDIO_SOURCE_VOICE_UPLINK))) {
             return false;
         }
 
