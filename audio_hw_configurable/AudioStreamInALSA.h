@@ -22,11 +22,6 @@
 #include <media/AudioBufferProvider.h>
 #include <Mutex.hpp>
 
-/**
- * This macro converts a bit index into a bitfield mask
- */
-#define INDEX_TO_MASK(x) (1 << (x))
-
 namespace android_audio_legacy
 {
 
