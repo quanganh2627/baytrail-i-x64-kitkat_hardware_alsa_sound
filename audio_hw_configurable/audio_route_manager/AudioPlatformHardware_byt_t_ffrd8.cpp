@@ -45,12 +45,12 @@ static const char* MEDIA_CARD_NAME = "baytrailaudio";
 
 static const char* VOICE_MIXING_CARD_NAME = "baytrailaudio";
 
-#define VOICE_MIXING_DEVICE_ID          ((int)4)
-#define VOICE_RECORD_DEVICE_ID          ((int)4)
+#define VOICE_MIXING_DEVICE_ID          ((int)3)
+#define VOICE_RECORD_DEVICE_ID          ((int)3)
 
 static const char* VOICE_CARD_NAME = "baytrailaudio";
-#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
-#define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
+#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)2)
+#define VOICE_BT_UPLINK_DEVICE_ID           ((int)2)
 
 using namespace std;
 
@@ -455,21 +455,6 @@ public:
         CAudioStreamRoute(uiRouteIndex, pPlatformState) {
     }
 
-    virtual bool needReconfiguration(bool bIsOut) const
-    {
-        // The route needs reconfiguration except if:
-        //      - still used by the same stream
-        //      - bluetooth noise reduction and echo cancelation has not changed
-        if ((CAudioRoute::needReconfiguration(bIsOut) &&
-            _pPlatformState->hasPlatformStateChanged(
-                CAudioPlatformState::EBtHeadsetNrEcChange)) ||
-            CAudioStreamRoute::needReconfiguration(bIsOut)) {
-
-            return true;
-        }
-        return false;
-    }
-
     virtual bool isApplicable(uint32_t uidevices, int iMode,
                               bool bIsOut, uint32_t uiMask = 0) const {
 
@@ -575,8 +560,7 @@ public:
                                                          CAudioPlatformState::EHacModeChange | // @todo: checks if codec requires reconfig when HAC, TTY, Band change
                                                          CAudioPlatformState::ETtyDirectionChange |
                                                          CAudioPlatformState::EBandTypeChange |
-                                                         CAudioPlatformState::EInputDevicesChange |
-                                                         CAudioPlatformState::EBtHeadsetNrEcChange);
+                                                         CAudioPlatformState::EInputDevicesChange);
     }
 };
 
@@ -605,8 +589,8 @@ public:
         }
         return CAudioRoute::needReconfiguration(bIsOut) &&
                 (_pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EInputDevicesChange |
-                                                          CAudioPlatformState::EInputSourceChange |
-                                                          CAudioPlatformState::EHwModeChange));
+                                                          CAudioPlatformState::EInputSourceChange) |
+                                                          CAudioPlatformState::EHwModeChange);
     }
 };
 
