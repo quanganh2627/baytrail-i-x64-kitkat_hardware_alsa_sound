@@ -853,6 +853,23 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
 }
 
 //
+// Called from AudioHardwareALSA
+//
+String8 CAudioRouteManager::getParameters(const String8& keyValuePairs)
+{
+    ALOGV("%s: key value pair %s", __FUNCTION__, keyValuePairs.string());
+
+    //
+    // Search FM state parameter
+    //
+    if (keyValuePairs.find(String8("fm-mode")) < 0) {
+        return String8("");
+    }
+
+    return String8(_pPlatformState->isFmStateOn() ? "fm-mode=on" : "fm-mode=off");
+}
+
+//
 // Called from locked context
 //
 status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)

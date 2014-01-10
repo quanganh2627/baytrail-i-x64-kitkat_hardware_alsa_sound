@@ -91,7 +91,7 @@ public:
 
     // set/get global audio parameters
     virtual android::status_t    setParameters(const String8& keyValuePairs);
-    //virtual String8     getParameters(const String8& keys);
+    virtual String8              getParameters(const String8& keys);
 
     // set Stream Parameters
     virtual android::status_t    setStreamParameters(ALSAStreamOps* pStream,

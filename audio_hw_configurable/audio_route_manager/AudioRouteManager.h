@@ -131,6 +131,7 @@ public:
     status_t stopStream(bool bIsStreamOut);
 
     status_t setParameters(const String8& keyValuePairs);
+    String8 getParameters(const String8& keyValuePairs);
 
     // Add a new group to route manager
     void addPort(uint32_t uiPortIndex);
