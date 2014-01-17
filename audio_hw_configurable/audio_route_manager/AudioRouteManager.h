@@ -21,6 +21,7 @@
 #include <utils/threads.h>
 #include <hardware_legacy/AudioHardwareBase.h>
 #include <tinyalsa/asoundlib.h>
+#include <BitField.hpp>
 
 #include "AudioRoute.h"
 #include "SyncSemaphoreList.h"

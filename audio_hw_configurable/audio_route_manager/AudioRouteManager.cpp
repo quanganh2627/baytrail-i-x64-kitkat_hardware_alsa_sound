@@ -41,6 +41,7 @@
 
 using namespace android;
 using namespace std;
+using audio_comms::utilities::BitField;
 
 typedef RWLock::AutoRLock AutoR;
 typedef RWLock::AutoWLock AutoW;
@@ -171,14 +172,16 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::R
 // Audio Source
 const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::AUDIO_SOURCE_VALUE_PAIRS[] = {
     { 0,                                               "None" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_DEFAULT),             "Default" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_MIC),                 "Mic" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_UPLINK),        "VoiceUplink" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_DOWNLINK),      "VoiceDownlink" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_CALL),          "VoiceCall" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_CAMCORDER),           "Camcorder" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_RECOGNITION),   "VoiceRecognition" },
-    { INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION), "VoiceCommunication" }
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_DEFAULT)),             "Default" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_MIC)),                 "Mic" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_VOICE_UPLINK)),        "VoiceUplink" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_VOICE_DOWNLINK)),      "VoiceDownlink" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_VOICE_CALL)),          "VoiceCall" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_CAMCORDER)),           "Camcorder" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_VOICE_RECOGNITION)),
+      "VoiceRecognition" },
+    { static_cast<int>(BitField::indexToMask(AUDIO_SOURCE_VOICE_COMMUNICATION)),
+      "VoiceCommunication" }
 };
 
 // Voice Codec Band
@@ -733,7 +736,7 @@ status_t CAudioRouteManager::setStreamParameters(ALSAStreamOps* pStream, const S
                 param.remove(key);
 
                 // Found the input source
-                setInputSourceMask(pStreamIn, INDEX_TO_MASK(inputSource));
+                setInputSourceMask(pStreamIn, BitField::indexToMask(inputSource));
             }
             if (devices == 0) {
 
@@ -1172,7 +1175,7 @@ void CAudioRouteManager::setInputSourceMask(AudioStreamInALSA* pStreamIn, uint32
           _apCriteriaTypeInterface[EInputSourceCriteriaType]->getFormattedState(inputSource).c_str());
     _pPlatformState->setInputSourceMask(inputSource);
 
-    if (inputSource == INDEX_TO_MASK(AUDIO_SOURCE_VOICE_COMMUNICATION)) {
+    if (inputSource == BitField::indexToMask(AUDIO_SOURCE_VOICE_COMMUNICATION)) {
 
         CAudioBand::Type eBand = CAudioBand::EWide;
         if (pStreamIn->sampleRate() == VOIP_RATE_FOR_NARROW_BAND_PROCESSING) {
