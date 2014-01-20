@@ -259,7 +259,7 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         {
             NOT_APPLICABLE,
-            (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
+            (1 << AudioSystem::MODE_NORMAL)
         },
         MEDIA_CARD_NAME,
         {
