@@ -863,7 +863,8 @@ String8 CAudioRouteManager::getParameters(const String8& keyValuePairs)
     // Search FM state parameter
     //
     if (keyValuePairs.find(String8("fm-mode")) < 0) {
-        return String8("");
+       AudioParameter param = AudioParameter(keyValuePairs);
+       return param.toString();
     }
 
     return String8(_pPlatformState->isFmStateOn() ? "fm-mode=on" : "fm-mode=off");
