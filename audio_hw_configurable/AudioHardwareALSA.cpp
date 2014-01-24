@@ -256,6 +256,11 @@ status_t AudioHardwareALSA::setParameters(const String8& keyValuePairs)
     return mRouteMgr->setParameters(keyValuePairs);
 }
 
+String8 AudioHardwareALSA::getParameters(const String8& keyValuePairs)
+{
+    ALOGD("%s", __FUNCTION__);
+    return mRouteMgr->getParameters(keyValuePairs);
+}
 
 //
 // Direct Output Stream to be identified by new KeyValuePair

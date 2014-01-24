@@ -853,6 +853,24 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
 }
 
 //
+// Called from AudioHardwareALSA
+//
+String8 CAudioRouteManager::getParameters(const String8& keyValuePairs)
+{
+    ALOGV("%s: key value pair %s", __FUNCTION__, keyValuePairs.string());
+
+    //
+    // Search FM state parameter
+    //
+    if (keyValuePairs.find(String8("fm-mode")) < 0) {
+       AudioParameter param = AudioParameter(keyValuePairs);
+       return param.toString();
+    }
+
+    return String8(_pPlatformState->isFmStateOn() ? "fm-mode=on" : "fm-mode=off");
+}
+
+//
 // Called from locked context
 //
 status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
@@ -986,7 +1004,6 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
     //
     // Search BT WBS parameter
     //
-    static const char * AUDIO_PARAMETER_KEY_BT_WBS = "bt_headset_wbs";
 
     key = String8(AUDIO_PARAMETER_KEY_BT_WBS);
 
