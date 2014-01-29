@@ -51,6 +51,7 @@ public:
         HacModeChange,
         TtyDirectionChange,
         BtEnableChange,
+        ScoRscReqStateChange,
         BtHeadsetNrEcChange,
         BtHeadsetBandTypeChange,
         BandTypeChange,
@@ -80,6 +81,7 @@ public:
         ADD_EVENT(HacModeChange),
         ADD_EVENT(TtyDirectionChange),
         ADD_EVENT(BtEnableChange),
+        ADD_EVENT(ScoRscReqStateChange),
         ADD_EVENT(BtHeadsetNrEcChange),
         ADD_EVENT(BtHeadsetBandTypeChange),
         ADD_EVENT(BandTypeChange),
@@ -173,6 +175,20 @@ public:
 
     // Get BT Enabled flag
     bool isBtEnabled() const { return _bIsBtEnabled; }
+
+    /**
+     * Set SCO resource requested flag
+     *
+     * @param[in] scoEnabled: if true, the SCO resource is requested.
+     */
+    void setScoResourceRequested(bool scoEnabled);
+
+    /**
+     * Get SCO resource requested flag
+     *
+     * @return true if SCO resource is requested.
+     */
+    bool isScoResourceRequested() const { return mScoResourceRequested; }
 
     bool hasDirectStreams() const { return (_uiDirectStreamsRefCount != 0); }
 
@@ -336,6 +352,9 @@ private:
 
     // BT Enabled flag
     bool _bIsBtEnabled;
+
+    /** SCO resource requested flag */
+    bool mScoResourceRequested;
 
     /**
       * This attribute indicates the state of the "Mic Mute" feature.

@@ -577,6 +577,12 @@ void CAudioRouteManager::doReconsiderRouting()
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtEnableChange) ?
                  "[has changed]" : "");
     ALOGD_IF(bRoutesWillChange ||
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScoRscReqStateChange),
+             "%s:          -ScoRscReqStateChange = %d %s", __FUNCTION__,
+             _pPlatformState->isScoResourceRequested(),
+             _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EScoRscReqStateChange) ?
+             "[has changed]" : "");
+    ALOGD_IF(bRoutesWillChange ||
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EBtHeadsetNrEcChange),
              "%s:          -BT NREC = %d %s", __FUNCTION__,
              _pPlatformState->isBtHeadsetNrEcEnabled(),
@@ -923,6 +929,9 @@ status_t CAudioRouteManager::doSetParameters(const String8& keyValuePairs)
     // Search BT settings
     doSetBTParameters(param);
 
+    /** Search SCO resource request */
+    doScoResourceRequestParameters(param);
+
     // Search context awareness parameter
     doSetContextAwarenessParameters(param);
 
@@ -1051,6 +1060,20 @@ void CAudioRouteManager::doSetBTParameters(AudioParameter &param)
 
             LOGD("HFP not supported: ignore %s=%s", key.string(), value.string());
         }
+    }
+}
+
+void CAudioRouteManager::doScoResourceRequestParameters(AudioParameter &param)
+{
+    String8 strScoRequestSetting;
+    String8 key(AUDIO_PARAMETER_KEY_SCO_RESOURCE);
+
+    /** Search SCO resource request setting key */
+    if (param.get(key, strScoRequestSetting) == NO_ERROR) {
+
+        _pPlatformState->setScoResourceRequested(
+            strScoRequestSetting == AUDIO_PARAMETER_VALUE_SCO_RESOURCE_REQUESTED);
+        param.remove(key);
     }
 }
 

@@ -37,6 +37,7 @@ CAudioPlatformState::CAudioPlatformState(CAudioRouteManager* pAudioRouteManager)
     _bBtHeadsetNrEcEnabled(false),
     _eBtHeadsetBandType(CAudioBand::ENarrow),
     _bIsBtEnabled(false),
+    mScoResourceRequested(false),
     _micMute(false),
     _uiInputSource(0),
     _bFmIsOn(false),
@@ -185,6 +186,14 @@ void CAudioPlatformState::setBtEnabled(bool bIsBtEnabled)
     }
     setPlatformStateEvent(EBtEnableChange);
     _bIsBtEnabled = bIsBtEnabled;
+}
+
+void CAudioPlatformState::setScoResourceRequested(bool scoEnabled)
+{
+    if (mScoResourceRequested != scoEnabled) {
+        mScoResourceRequested = scoEnabled;
+        setPlatformStateEvent(EScoRscReqStateChange);
+    }
 }
 
 // Set BT_NREC

@@ -435,6 +435,13 @@ private:
     void doSetTtyParameters(AudioParameter &param);
 
     /**
+     * Do SCO request parameter pop & set.
+     *
+     * @param[in/out] param: reference of parameters helper object.
+     */
+    void doScoResourceRequestParameters(AudioParameter &param);
+
+    /**
      * Do bypass non linear post processing parameter pop & set.
      *
      * @param[in/out] param: reference of parameters helper object.

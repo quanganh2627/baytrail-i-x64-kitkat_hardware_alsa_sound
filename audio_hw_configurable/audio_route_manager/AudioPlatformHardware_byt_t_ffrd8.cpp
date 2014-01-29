@@ -473,11 +473,15 @@ public:
     virtual bool isApplicable(uint32_t uidevices, int iMode,
                               bool bIsOut, uint32_t uiMask = 0) const {
 
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
-        // and it should be the one and only one available device as it does not have the priority
-        if (!_pPlatformState->isSharedI2SBusAvailable() || !_pPlatformState->isBtEnabled() ||
-                ((uidevices != 0) && (AudioSystem::popCount(uidevices) != 1))) {
+        /**
+         * BT module must be on, SCO Resource criterion must be true
+         * and as the BT is on the shared I2S bus the modem must be alive as well to use this route
+         * and it should be the one and only one available device as it does not have the priority
+         */
+        if (!_pPlatformState->isSharedI2SBusAvailable() ||
+            !_pPlatformState->isBtEnabled() ||
+            !_pPlatformState->isScoResourceRequested() ||
+            ((uidevices != 0) && (AudioSystem::popCount(uidevices) != 1))) {
 
             return false;
         }
@@ -514,9 +518,12 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode, bool bIsOut,
                               uint32_t __UNUSED uiMask = 0 ) const {
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
-        if (!_pPlatformState->isModemAudioAvailable()) {
+        /**
+         * The modem must be alive to use this route and
+         * SCO Resource criterion must be false.
+         */
+        if (!_pPlatformState->isModemAudioAvailable() ||
+            _pPlatformState->isScoResourceRequested()) {
 
             return false;
         }
@@ -551,9 +558,13 @@ public:
 
     virtual bool isApplicable(uint32_t uidevices, int iMode,
                               bool bIsOut, uint32_t __UNUSED uiMask = 0) const {
-        // BT module must be off and as the BT is on the shared I2S bus
-        // the modem must be alive as well to use this route
-        if (!_pPlatformState->isModemAudioAvailable() || !_pPlatformState->isBtEnabled()) {
+        /**
+         * BT module must be on, SCO Resource criterion must be true and as the BT
+         * is on the shared I2S bus the modem must be alive as well to use this route
+         */
+        if (!_pPlatformState->isModemAudioAvailable() ||
+            !_pPlatformState->isBtEnabled() ||
+            !_pPlatformState->isScoResourceRequested()) {
 
             return false;
         }
