@@ -118,11 +118,26 @@ public:
         return mNewDevices;
     }
     void                setNewDevices(uint32_t uiNewDevices);
+
+
+    /**
+     * Get the current output device(s).
+     * No need to lock, mCurrentDevices is for exclusive access for route manager,
+     * from atomic context.
+     * @return output device(s) currently active.
+     */
     uint32_t            getCurrentDevices() const
     {
-        AutoR lock(_streamLock);
         return mCurrentDevices;
     }
+
+    /**
+     * Set the current output device(s).
+     * No need to lock, uiCurrentDevices is for exclusive access for route manager,
+     * from atomic context.
+     *
+     * @param[in] uiCurrentDevices  set the current device
+     */
     void                setCurrentDevices(uint32_t uiCurrentDevices);
 
     /**
@@ -270,7 +285,7 @@ protected:
      * parameters as sample specification.
      * Sensitive data are the:
      *  -data read / set by both Route Manager and Stream (mCurrentRoute,
-     * mCurrentDevices, mStandby, mHandle, mDevices, mHwSampleSpec,
+     * mStandby, mHandle, mDevices, mHwSampleSpec,
      * applicability mask (inputStreamMask for input stream, outputFlags for output stream,
      * effects list for input streams only).
      *

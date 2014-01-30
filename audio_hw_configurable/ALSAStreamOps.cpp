@@ -360,14 +360,15 @@ void ALSAStreamOps::resetRoute()
     mNewRoute = NULL;
 }
 
+// No need to call from a locked context. Internal to route manager
 void ALSAStreamOps::setNewDevices(uint32_t uiNewDevices)
 {
     mNewDevices = uiNewDevices;
 }
 
+// No need to call from a locked context. Internal to route manager
 void ALSAStreamOps::setCurrentDevices(uint32_t uiCurrentDevices)
 {
-    AutoW lock(_streamLock);
     mCurrentDevices = uiCurrentDevices;
 }
 
