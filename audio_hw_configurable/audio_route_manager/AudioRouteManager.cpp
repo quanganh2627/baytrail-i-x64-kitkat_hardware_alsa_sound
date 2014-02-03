@@ -38,6 +38,10 @@
 
 #include "AudioPlatformHardware.h"
 #include "AudioParameterHandler.h"
+#include "AudioCommsAssert.hpp"
+
+#include <fcntl.h>
+#include <cutils/uevent.h>
 
 using namespace android;
 using namespace std;
@@ -63,6 +67,10 @@ const char* const CAudioRouteManager::gpcVoiceVolume =
                                         "/Audio/CONFIGURATION/VOICE_VOLUME_CTRL_PARAMETER";
 
 const uint32_t CAudioRouteManager::VOIP_RATE_FOR_NARROW_BAND_PROCESSING = 8000;
+
+const int CAudioRouteManager::UEVENT_MSG_MAX_LEN = 1024;
+
+const int CAudioRouteManager::SOCKET_BUFFER_DEFAULT_SIZE = 64 * 1024;
 
 /// PFW related definitions
 // Logger
@@ -456,6 +464,8 @@ status_t CAudioRouteManager::start()
 
     _bIsStarted = true;
 
+    uevent_init();
+
     // Start Event thread
     _pEventThread->start();
 
@@ -474,6 +484,17 @@ status_t CAudioRouteManager::start()
     ALOGI("parameter-framework successfully started!");
 
     return NO_ERROR;
+}
+
+void CAudioRouteManager::uevent_init()
+{
+    uevent_fd = uevent_open_socket(SOCKET_BUFFER_DEFAULT_SIZE, true);
+    ALOGE_IF(uevent_fd < 0, "uevent_init: uevent_open_socket failed");
+
+    if (uevent_fd >= 0) {
+        // Add & Listen
+        _pEventThread->addOpenedFd(FdFromSstDriver, uevent_fd, true);
+    }
 }
 
 //
@@ -1885,9 +1906,31 @@ void  CAudioRouteManager::onModemAudioBandChanged()
 // Worker thread context
 // Event processing
 //
-bool CAudioRouteManager::onEvent(int __UNUSED iFd)
+bool CAudioRouteManager::onEvent(int iFd)
 {
-    return false;
+    if (iFd == _pEventThread->getFd(FdFromSstDriver)) {
+        char msg[UEVENT_MSG_MAX_LEN + 1];
+        char *cp;
+        int n;
+
+        n = uevent_kernel_multicast_recv(uevent_fd, msg, UEVENT_MSG_MAX_LEN);
+        if (n <= 0 || n > UEVENT_MSG_MAX_LEN) {
+            return false;
+        }
+
+        msg[n] = '\0';
+        cp = msg;
+        while (cp < msg + n) {
+            if (!strcmp(cp, "EVENT_TYPE=SST_RECOVERY")) {
+                LOGE("Encountered SST driver event : %s", cp);
+                //Restart Mediaserver to complete LPE recovery
+                AUDIOCOMMS_ASSERT(false, "Restarting MediaServer due to SST_RECOVERY event");
+                break;
+            }
+           cp += strlen(cp) + 1;
+        }
+    }
+    return true;
 }
 
 //
