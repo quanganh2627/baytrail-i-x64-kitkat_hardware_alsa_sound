@@ -213,6 +213,16 @@ public:
      */
     const pcm_config& getDefaultPcmConfig(bool bIsOut, uint32_t uiFlags = 0) const;
 
+    /**  Socket Id enumerator**/
+    enum UeventSocketDesc {
+        FdFromSstDriver,
+
+        NbSocketDesc
+    };
+
+    /** Uevent socket fd */
+    int uevent_fd;
+
 private:
     CAudioRouteManager(const CAudioRouteManager &);
     CAudioRouteManager& operator = (const CAudioRouteManager &);
@@ -230,6 +240,11 @@ private:
     void setOutputFlags(AudioStreamOutALSA* pStreamOut, uint32_t uiFlags);
 
     void reconsiderRouting(bool bIsSynchronous = true);
+
+    /**
+     * Open uevent socket and listen to it
+     */
+    void uevent_init();
 
     // Routing within worker thread context
     void doReconsiderRouting();
@@ -673,6 +688,12 @@ private:
         // Bitfield of previously enabled route
         uint32_t uiPrevEnabled;
     } _stRoutes[CUtils::ENbDirections];
+
+    /** Uevent message max length */
+    static const int UEVENT_MSG_MAX_LEN;
+
+    /** Socket buffer default size (64K) */
+    static const int SOCKET_BUFFER_DEFAULT_SIZE;
 
 protected:
     friend class AudioHardwareALSA;
