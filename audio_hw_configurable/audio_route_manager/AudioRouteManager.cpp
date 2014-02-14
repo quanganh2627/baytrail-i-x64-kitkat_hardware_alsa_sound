@@ -863,9 +863,12 @@ status_t CAudioRouteManager::setParameters(const String8& keyValuePairs)
         status = doSetParameters(keyValuePairs);
         if (status == NO_ERROR) {
 
+            // Do not save Stream parameter
+            param.remove(String8(AudioParameter::keyStreamFlags));
+
             ALOGV("%s: saving %s", __FUNCTION__, keyValuePairs.string());
             // Save the audio parameters for recovering audio parameters in case of crash.
-            _pAudioParameterHandler->saveParameters(keyValuePairs);
+            _pAudioParameterHandler->saveParameters(param.toString());
         } else {
 
             return status;
