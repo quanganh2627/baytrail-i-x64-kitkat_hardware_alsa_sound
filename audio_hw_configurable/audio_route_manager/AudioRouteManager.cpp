@@ -320,6 +320,7 @@ const char* const CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_PROP_NAME = "Audio
 const bool CAudioRouteManager::BLUETOOTH_HFP_SUPPORTED_DEFAULT_VALUE = true;
 
 CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
+    uevent_fd(-1),
     _pParameterMgrPlatformConnectorLogger(new CParameterMgrPlatformConnectorLogger),
     _pVoiceVolumeParamHandle(NULL),
     _pModemAudioManagerInterface(NULL),
