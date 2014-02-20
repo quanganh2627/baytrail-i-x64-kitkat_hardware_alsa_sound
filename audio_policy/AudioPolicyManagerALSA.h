@@ -65,6 +65,15 @@ public:
     virtual audio_devices_t getDeviceForStrategy(routing_strategy strategy, bool fromCache = true);
 
     /**
+     * Get the device for a given input source
+     *
+     * @param[in] the input source used
+     *
+     * @return enum input device
+     */
+    virtual audio_devices_t getDeviceForInputSource(int inputSource);
+
+    /**
       * This function delegates to parent implementation the release of input stream and then
       * it checks if it is necessary to restart a previously stopped input stream.
       *
