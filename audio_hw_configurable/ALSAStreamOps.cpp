@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <limits>
+#include <fstream>
 
 #ifdef LOG_TAG
 #undef LOG_TAG
@@ -54,6 +55,8 @@ namespace android_audio_legacy
 
 const uint32_t ALSAStreamOps::STR_FORMAT_LENGTH = 32;
 
+
+const uint32_t ALSAStreamOps::MAX_DEBUG_STREAM_SIZE = 998;
 
 /**
  * Audio dump properties management (set with setprop)
@@ -446,5 +449,43 @@ bool ALSAStreamOps::safeSleep(uint32_t sleepTimeUs)
 
     return nanosleep(&tim, &tim2) > 0;
 }
+
+void ALSAStreamOps::printLPEfwDebugInfo() {
+
+    ALOGE("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+    ALOGE("^^^^^^   Print LPE firmware debug info   ^^^^^^^");
+    ALOGE("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+
+    const std::string sstFiles[] = {"/d/sst/shim_dump",
+                                    "/d/sst/sram_lpe_checkpoint",
+                                    "/d/sst/sram_lpe_ia_mailbox",
+                                    "/d/sst/sram_ia_lpe_mailbox",
+                                    "/d/sst/fw_ssp_reg"};
+
+    vector<std::string> debugFiles(sstFiles, sstFiles + sizeof(sstFiles) / sizeof(std::string));
+    vector<std::string>::const_iterator it;
+
+    for (it = debugFiles.begin(); it != debugFiles.end(); ++it) {
+        ifstream debugStream;
+
+        ALOGE("Opening file %s and reading it.", it->c_str());
+        debugStream.open(it->c_str(), ifstream::in);
+
+        if (debugStream.fail()) {
+            ALOGE("Could not open lpe fw SST debug file, error %d", errno);
+            continue;
+        }
+
+        while (debugStream.good()) {
+          char dataToRead[MAX_DEBUG_STREAM_SIZE];
+
+          debugStream.read(dataToRead, MAX_DEBUG_STREAM_SIZE);
+          ALOGE("%s", dataToRead);
+        }
+
+        debugStream.close();
+    }
+  }
+
 
 }    // namespace android

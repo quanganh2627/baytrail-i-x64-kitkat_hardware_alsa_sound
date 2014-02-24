@@ -246,6 +246,13 @@ protected:
      */
     bool                safeSleep(uint32_t uiSleepTimeUs);
 
+    /**
+     * Prints debug information from LPE debug files
+     *
+     */
+    void printLPEfwDebugInfo();
+
+
     AudioHardwareALSA*      mParent;
     pcm*                    mHandle;
 
@@ -317,6 +324,8 @@ private:
     AudioConversion *mAudioConversion;
 
     static const uint32_t STR_FORMAT_LENGTH;
+
+    static const uint32_t MAX_DEBUG_STREAM_SIZE;
 
     /**
      * Array of property names before conversion
