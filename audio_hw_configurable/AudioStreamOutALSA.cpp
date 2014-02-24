@@ -21,8 +21,6 @@
 #endif
 #define LOG_TAG "AudioStreamOutAlsa"
 
-#include <utils/String8.h>
-
 #include <cutils/properties.h>
 #include <media/AudioRecord.h>
 #include <hardware_legacy/power.h>
@@ -165,6 +163,10 @@ ssize_t AudioStreamOutALSA::writeFrames(void* buffer, ssize_t frames)
 
         if (ret != 0) {
             ALOGE("%s: write error: %d %s", __FUNCTION__, ret, pcm_get_error(mHandle));
+
+            // For debug purposes, dump registers
+            printLPEfwDebugInfo();
+
             LOG_ALWAYS_FATAL_IF(++retryCount >= MAX_READ_WRITE_RETRIES,
                                     "Hardware not responding, restarting media server");
 
