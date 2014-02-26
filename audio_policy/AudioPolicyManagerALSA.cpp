@@ -23,7 +23,6 @@
 
 #define baseClass AudioPolicyManagerBase
 
-
 namespace android_audio_legacy {
 
 /**< Note that Audio Policy makes use of HAL_API_REV_2_0
@@ -177,12 +176,9 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
     }
     AudioInputDescriptor *inputDesc = mInputs.valueAt(index);
 
-    if (inputDesc->mInputSource == AUDIO_SOURCE_REMOTE_SUBMIX) {
+    if (isVirtualInputDevice(inputDesc->mDevice)) {
         ALOGV("startInput() input %d remote submix initiated", input);
-        int errCode = baseClass::startInput(input);
-        if (!errCode) {
-            ALOGE("%s :remote submix initialization failed",__func__);
-        }
+        return baseClass::startInput(input);
     }
 
 #ifdef AUDIO_POLICY_TEST
@@ -234,6 +230,14 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
         }
     }
 
+    // Check again input device selection when capture starts in case
+    // conditions have changed since the input stream was opened gromanche.
+    // It makes the selection of BT SCO device consistent.
+    audio_devices_t newDevice = getDeviceForInputSource(inputDesc->mInputSource);
+    if ((newDevice != AUDIO_DEVICE_NONE) && (newDevice != inputDesc->mDevice)) {
+        inputDesc->mDevice = newDevice;
+    }
+
     AudioParameter param = AudioParameter();
     param.addInt(String8(AudioParameter::keyRouting), (int)inputDesc->mDevice);
 
@@ -241,6 +245,9 @@ status_t AudioPolicyManagerALSA::startInput(audio_io_handle_t input)
                                         AUDIO_SOURCE_VOICE_RECOGNITION : inputDesc->mInputSource;
 
     param.addInt(String8(AudioParameter::keyInputSource), aliasSource);
+
+    ALOGV("StartInput() with input source = %d", inputDesc->mInputSource);
+
     mpClientInterface->setParameters(input, param.toString());
 
     inputDesc->mRefCount = 1;
