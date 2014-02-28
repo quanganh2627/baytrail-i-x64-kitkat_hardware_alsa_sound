@@ -29,7 +29,7 @@ LOCAL_PATH := $(call my-dir)
 #######################################################################
 # Common variables
 
-AUDIO_PLATHW := audio_route_manager/AudioPlatformHardware_$(REF_PRODUCT_NAME).cpp
+AUDIO_PLATHW := audio_route_manager/AudioPlatformHardware_$(TARGET_PRODUCT).cpp
 
 ifeq ($(wildcard $(LOCAL_PATH)/$(AUDIO_PLATHW)),)
     AUDIO_PLATHW := audio_route_manager/AudioPlatformHardware_default.cpp
