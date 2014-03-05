@@ -130,7 +130,8 @@ const CAudioRouteManager::SSelectionCriterionTypeValuePair CAudioRouteManager::M
     { AudioSystem::MODE_NORMAL,             "Normal" },
     { AudioSystem::MODE_RINGTONE,           "RingTone" },
     { AudioSystem::MODE_IN_CALL,            "InCsvCall" },
-    { AudioSystem::MODE_IN_COMMUNICATION,   "InVoipCall" }
+    { AudioSystem::MODE_IN_COMMUNICATION,   "InVoipCall" },
+    { AudioSystem::NUM_MODES + 1,           "InImsCall" }
 };
 
 // Selected Input Device type

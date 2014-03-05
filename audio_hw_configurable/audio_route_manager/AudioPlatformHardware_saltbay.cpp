@@ -385,6 +385,38 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         },
         "ModemIA,Voice,Media,CompressedMedia,AlwaysListening,DeepMedia,FMIA"
     },
+    // Cme Voice Route
+    {
+        "CmeVoice",
+        CAudioRoute::EExternalRoute,
+        "",
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE
+        },
+        {
+                1 << (AudioSystem::NUM_MODES + 1),
+                1 << (AudioSystem::NUM_MODES + 1)
+        },
+        NOT_APPLICABLE,
+        {
+            NOT_APPLICABLE,
+            NOT_APPLICABLE,
+        },
+        {
+            pcm_config_voice_uplink,
+            pcm_config_voice_downlink,
+        },
+        {
+            channel_policy_not_applicable,
+            channel_policy_not_applicable
+        },
+        ""
+    },
     //
     // ModemIA route
     //
@@ -934,6 +966,10 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex, CAu
     } else if (strName == "Voice") {
 
         return new CAudioVoiceLPECentricStreamRoute(uiRouteIndex, pPlatformState);
+
+    } else if (strName == "CmeVoice") {
+
+        return new CAudioExternalRoute(uiRouteIndex, pPlatformState);
 
     } else if (strName == "CompressedMedia") {
 
