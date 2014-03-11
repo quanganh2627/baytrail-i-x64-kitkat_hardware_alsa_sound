@@ -236,7 +236,9 @@ size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, in
         ALOGW("getInputBufferSize bad format: %d", format);
         return 0;
     }
-    if ((channelCount < 1) || (channelCount > 2)) {
+
+    // multichannel capture is currently supported only for submix
+    if ((channelCount < 1) || (channelCount > 8)) {
         ALOGW("getInputBufferSize bad channel count: %d", channelCount);
         return 0;
     }
