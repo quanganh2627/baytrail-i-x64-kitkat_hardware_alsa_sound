@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <limits>
+#include <math.h>
 
 using namespace std;
 
@@ -122,7 +123,10 @@ size_t SampleSpec::convertFramesToUsec(uint32_t frames) const
 
 size_t SampleSpec::convertUsecToframes(uint32_t intervalUsec) const
 {
-    return static_cast<uint64_t>(intervalUsec) * getSampleRate() / USEC_PER_SEC;
+    double frames = static_cast<double>(intervalUsec) * getSampleRate() / USEC_PER_SEC;
+    // As the framecount is having decimal value, adding one more frame to the
+    // framecount
+    return static_cast<size_t>(ceil(frames));
 }
 
 bool SampleSpec::isSampleSpecItemEqual(SampleSpecItem sampleSpecItem,
