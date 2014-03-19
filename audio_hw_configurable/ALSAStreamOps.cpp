@@ -236,7 +236,7 @@ size_t ALSAStreamOps::getBufferSize(uint32_t flags) const
     LOG_ALWAYS_FATAL_IF(bufferSizeUs > std::numeric_limits<uint32_t>::max());
 
     uint32_t bufferSizeInFrames = mSampleSpec.convertUsecToframes(bufferSizeUs);
-    size_t bytes = mSampleSpec.convertFramesToBytes(AudioUtils::alignOn16(bufferSizeInFrames));
+    size_t bytes = mSampleSpec.convertFramesToBytes(bufferSizeInFrames);
 
     ALOGD("%s: %d (in bytes) for %s stream", __FUNCTION__, bytes, isOut() ? "output" : "input");
     return bytes;
