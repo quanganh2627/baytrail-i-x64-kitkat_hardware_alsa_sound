@@ -346,14 +346,14 @@ CAudioRouteManager::CAudioRouteManager(AudioHardwareALSA *pParent) :
     NInterfaceProvider::IInterfaceProvider* pMAMGRInterfaceProvider = getInterfaceProvider(TProperty<string>(MODEM_LIB_PROP_NAME).getValue().c_str());
     if (pMAMGRInterfaceProvider == NULL) {
 
-        ALOGI("No MAMGR library.");
+        ALOGW("No MAMGR library");
     } else {
 
         // Retrieve the ModemAudioManager Interface
         _pModemAudioManagerInterface = static_cast<IModemAudioManagerInterface*>(pMAMGRInterfaceProvider->queryInterface(IModemAudioManagerInterface::getInterfaceName()));
         if (_pModemAudioManagerInterface == NULL) {
 
-            ALOGE("Failed to get ModemAudioManager interface");
+            ALOGW("Failed to get ModemAudioManager interface");
         } else {
 
             // Declare ourselves as observer
@@ -474,6 +474,8 @@ status_t CAudioRouteManager::start()
     // Start Modem Audio Manager
     startModemAudioManager();
 
+    ALOGD_IF(isModemLess(), "%s: Note that this platform is MODEM-LESS", __FUNCTION__);
+
     // Start PFW
     std::string strError;
     if (!_pParameterMgrPlatformConnector->start(strError)) {
@@ -552,11 +554,15 @@ void CAudioRouteManager::doReconsiderRouting()
 
     ALOGD("%s: %s",__FUNCTION__,
           bRoutesWillChange? "      Platform State:" : "      Platform Changes:");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange),
+    ALOGD_IF(!isModemLess() &&
+             (bRoutesWillChange ||
+              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange)),
              "%s:          -Modem Alive = %d %s", __FUNCTION__,
              _pPlatformState->isModemAlive(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemStateChange) ? "[has changed]" : "");
-    ALOGD_IF(bRoutesWillChange || _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange),
+    ALOGD_IF(!isModemLess() &&
+             (bRoutesWillChange ||
+              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange)),
              "%s:          -Modem Call Active = %d %s", __FUNCTION__,
              _pPlatformState->isModemAudioAvailable(),
              _pPlatformState->hasPlatformStateChanged(CAudioPlatformState::EModemAudioStatusChange) ? "[has changed]" : "");
@@ -1875,15 +1881,17 @@ CAudioPort* CAudioRouteManager::findPortById(uint32_t uiPortId)
 
 void CAudioRouteManager::startModemAudioManager()
 {
-    if (_pModemAudioManagerInterface == NULL) {
+    if (isModemLess()) {
 
-        ALOGI("%s: No ModemAudioManager interface.", __FUNCTION__);
         return;
     }
     // Starts the ModemAudioManager
     if(!_pModemAudioManagerInterface->start()) {
 
-        ALOGE("%s: could not start ModemAudioManager", __FUNCTION__);
+        ALOGW("%s: could not start ModemAudioManager.", __FUNCTION__);
+        _pModemAudioManagerInterface->setModemAudioManagerObserver(NULL);
+        _pModemAudioManagerInterface = NULL;
+        return;
     }
     /// Initialize current modem status
     // Modem status

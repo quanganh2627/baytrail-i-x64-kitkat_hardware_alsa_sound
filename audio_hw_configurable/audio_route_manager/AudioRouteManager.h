@@ -660,6 +660,8 @@ private:
     // Audio AT Manager interface
     IModemAudioManagerInterface* _pModemAudioManagerInterface;
 
+    bool isModemLess() const { return _pModemAudioManagerInterface == NULL; }
+
     // Platform state pointer
     CAudioPlatformState* _pPlatformState;
 
