@@ -21,7 +21,8 @@
 
 #define DEEP_PLAYBACK_PERIOD_TIME_MS    ((int)96)
 #define PLAYBACK_PERIOD_TIME_MS         ((int)24)
-#define VOICE_PERIOD_TIME_MS            ((int)20)
+#define VOICE_PERIOD_TIME_MS            ((int)24)
+//for we will use codec to mixing, then change PCM setting to codec playback.
 
 #define LONG_PERIOD_FACTOR              ((int)2)
 #define SEC_PER_MSEC                    ((int)1000)
@@ -45,12 +46,18 @@ static const char* MEDIA_CARD_NAME = "baytrailaudio";
 
 static const char* VOICE_MIXING_CARD_NAME = "baytrailaudio";
 
-#define VOICE_MIXING_DEVICE_ID          ((int)4)
-#define VOICE_RECORD_DEVICE_ID          ((int)4)
+// voice mixing and recording devices
+// using codec to do mixing and recodring
+// but voice recording is not supported
+#define VOICE_MIXING_DEVICE_ID          ((int)0)
+#define VOICE_RECORD_DEVICE_ID          ((int)0)
 
 static const char* VOICE_CARD_NAME = "baytrailaudio";
 #define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
 #define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
+
+#undef __VOICE_RECODING__
+// define it to enable voice recording, but bad recording quality
 
 using namespace std;
 
@@ -132,7 +139,11 @@ static const pcm_config pcm_config_voice_mixing_playback = {
     avail_min         : VOICE_48000_PERIOD_SIZE,
 };
 
-
+#ifdef __VOICE_RECODING__
+#define pcm_config_voice_mixing_capture pcm_config_media_capture
+// if we enable voice recording via codec,
+// we should use media recording parameter
+#else
 static const pcm_config pcm_config_voice_mixing_capture = {
     channels          : 2,
     rate              : SAMPLE_RATE_48000,
@@ -144,6 +155,7 @@ static const pcm_config pcm_config_voice_mixing_capture = {
     silence_threshold : 0,
     avail_min         : 0,
 };
+#endif
 
 const char* const CAudioPlatformHardware::_acPorts[] = {
     "IA_SSP1_PORT",
@@ -273,26 +285,42 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
         CAudioRoute::EStreamRoute,
         "IA_SSP2_PORT,MODEM_I2S1_PORT",
         {
-            AudioSystem::DEVICE_IN_ALL,
-            DEVICE_OUT_MM_ALL | DEVICE_OUT_BLUETOOTH_SCO_ALL
+            DEVICE_IN_BUILTIN_ALL,
+            DEVICE_OUT_MM_ALL
         },
         {
+#ifdef __VOICE_RECODING__
             (1 << AUDIO_SOURCE_VOICE_UPLINK) | (1 << AUDIO_SOURCE_VOICE_DOWNLINK) |
             (1 << AUDIO_SOURCE_VOICE_CALL) | (1 << AUDIO_SOURCE_MIC) |
             (1 << AUDIO_SOURCE_CAMCORDER) | (1 << AUDIO_SOURCE_VOICE_RECOGNITION),
+#else
+            NOT_APPLICABLE,
+#endif
             AUDIO_OUTPUT_FLAG_PRIMARY
         },
         {
+#ifdef __VOICE_RECODING__
             (1 << AudioSystem::MODE_IN_CALL),
+#else
+            NOT_APPLICABLE,
+#endif
             (1 << AudioSystem::MODE_IN_CALL)
         },
         VOICE_MIXING_CARD_NAME,
         {
+#ifdef __VOICE_RECODING__
             VOICE_RECORD_DEVICE_ID,
+#else
+            NOT_APPLICABLE,
+#endif
             VOICE_MIXING_DEVICE_ID,
         },
         {
+#ifdef __VOICE_RECODING__
             pcm_config_voice_mixing_capture,
+#else
+            pcm_config_not_applicable,
+#endif
             pcm_config_voice_mixing_playback,
         },
         {
@@ -355,6 +383,9 @@ const CAudioPlatformHardware::s_route_t CAudioPlatformHardware::_astAudioRoutes[
                         | (1 << AudioSystem::MODE_IN_COMMUNICATION),
             (1 << AudioSystem::MODE_NORMAL) | (1 << AudioSystem::MODE_RINGTONE)
                         | (1 << AudioSystem::MODE_IN_COMMUNICATION)
+			| (1 << AudioSystem::MODE_IN_CALL)
+// add HWCodecMedia selectable when audio mode is IN_CALL.
+// so that we do not need to change PFW.
         },
         NOT_APPLICABLE,
         {
