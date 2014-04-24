@@ -38,6 +38,9 @@
 #define CAPTURE_48000_PERIOD_SIZE       ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 #define VOICE_48000_PERIOD_SIZE         ((int)VOICE_PERIOD_TIME_MS * SAMPLE_RATE_48000 / SEC_PER_MSEC)
 
+#define  MAX_CODEC_DELAY_MS            ((int)100)
+#define  MIN_CODEC_DELAY_MS            ((int)10)
+
 static const char* MEDIA_CARD_NAME = "baytrailaudio";
 #define DEEP_MEDIA_PLAYBACK_DEVICE_ID   ((int)0)
 #define MEDIA_PLAYBACK_DEVICE_ID        ((int)0)
@@ -445,6 +448,48 @@ const uint32_t CAudioPlatformHardware::_uiNbPorts = sizeof(CAudioPlatformHardwar
 const uint32_t CAudioPlatformHardware::_uiNbRoutes = sizeof(CAudioPlatformHardware::_astAudioRoutes) /
         sizeof(CAudioPlatformHardware::_astAudioRoutes[0]);
 
+const char *CAudioPlatformHardware::CODEC_DELAY_PROP_NAME = "Audio.Media.CodecDelayMs";
+
+//
+// Specific Applicability Rules
+//
+class CAudioStreamRouteMedia : public CAudioStreamRoute
+{
+public:
+    CAudioStreamRouteMedia(uint32_t uiRouteIndex, CAudioPlatformState *pPlatformState)
+        : CAudioStreamRoute(uiRouteIndex, pPlatformState),
+          mUiCodecDelayMs(TProperty<int32_t>(CAudioPlatformHardware::CODEC_DELAY_PROP_NAME, 0))
+    {
+    }
+    // Get amount of silence delay upon stream opening
+    virtual uint32_t getOutputSilencePrologMs() const
+    {
+
+        if (((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_SPEAKER) ==
+             AudioSystem::DEVICE_OUT_SPEAKER) ||
+            ((_pPlatformState->getDevices(true) & AudioSystem::DEVICE_OUT_WIRED_HEADSET) ==
+             AudioSystem::DEVICE_OUT_WIRED_HEADSET)) {
+            if (mUiCodecDelayMs > MAX_CODEC_DELAY_MS) {
+                ALOGI("%s: Maximun value allowed to Audio.Media.CodecDelayMs is =%d",
+                      __FUNCTION__, MAX_CODEC_DELAY_MS);
+                return MAX_CODEC_DELAY_MS;
+            }
+            if (mUiCodecDelayMs < MIN_CODEC_DELAY_MS) {
+                ALOGI("%s: Minimun value allowed to Audio.Media.CodecDelayMs is =%d",
+                      __FUNCTION__, MIN_CODEC_DELAY_MS);
+                return MIN_CODEC_DELAY_MS;
+            }
+
+            return mUiCodecDelayMs;
+
+        }
+        return CAudioStreamRoute::getOutputSilencePrologMs();
+    }
+
+private:
+    uint32_t mUiCodecDelayMs;
+};
+
 //
 // Specific Applicability Rules
 //
@@ -624,7 +669,7 @@ CAudioRoute* CAudioPlatformHardware::createAudioRoute(uint32_t uiRouteIndex,
 
     if (strName == "Media") {
 
-        return new CAudioStreamRoute(uiRouteIndex, pPlatformState);
+        return new CAudioStreamRouteMedia(uiRouteIndex, pPlatformState);
 
     } else if (strName == "DeepMedia") {
 
