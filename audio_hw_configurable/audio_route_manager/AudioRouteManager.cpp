@@ -2323,34 +2323,31 @@ struct echo_reference_itfe* CAudioRouteManager::getEchoReference(int format,
 
     ALSAStreamOpsListIterator it;
 
-    // By default, use the first output stream routed in the output streams list
-    for (it = _streamsList[CUtils::EOutput].begin(); it != _streamsList[CUtils::EOutput].end(); ++it) {
+    // By default, we use the first stream that corresponds to the primary output
+    it = _streamsList[CUtils::EOutput].begin();
 
-        ALSAStreamOps* pOps = *it;
-        if (pOps->isRouteAvailable()) {
+    ALSAStreamOps* pOps = *it;
 
-            ALOGD("%s: format=%d channels=%d samplerate=%d", __FUNCTION__,
-                                pOps->format(), pOps->channelCount(), pOps->sampleRate());
-            int iWriteFormat = pOps->format();
-            uint32_t uiWriteChannelCount = pOps->channelCount();
-            uint32_t uiWriteSampleRate = sampling_rate;
+    ALOGD("%s: format=%d channels=%d samplerate=%d", __FUNCTION__,
+                        pOps->format(), pOps->channelCount(), pOps->sampleRate());
+    int iWriteFormat = pOps->format();
+    uint32_t uiWriteChannelCount = pOps->channelCount();
+    uint32_t uiWriteSampleRate = sampling_rate;
 
-            if (create_echo_reference((audio_format_t)format,
-                                      channel_count,
-                                      sampling_rate,
-                                      (audio_format_t)iWriteFormat,
-                                      uiWriteChannelCount,
-                                      uiWriteSampleRate,
-                                      &_pEchoReference) < 0) {
+    if (create_echo_reference((audio_format_t)format,
+                              channel_count,
+                              sampling_rate,
+                              (audio_format_t)iWriteFormat,
+                              uiWriteChannelCount,
+                              uiWriteSampleRate,
+                              &_pEchoReference) < 0) {
 
-                ALOGE("%s: Could not create echo reference", __FUNCTION__);
-                return NULL;
-            }
-            AudioStreamOutALSA* pOut = static_cast<AudioStreamOutALSA*>(pOps);
-            pOut->addEchoReference(_pEchoReference);
-        }
-
+        ALOGE("%s: Could not create echo reference", __FUNCTION__);
+        return NULL;
     }
+    AudioStreamOutALSA* pOut = static_cast<AudioStreamOutALSA*>(pOps);
+    pOut->addEchoReference(_pEchoReference);
+
     ALOGD(" %s() will return that mEchoReference=%p", __FUNCTION__, _pEchoReference);
     return _pEchoReference;
 }
