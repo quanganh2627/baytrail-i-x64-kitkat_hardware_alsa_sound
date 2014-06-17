@@ -20,6 +20,7 @@
 #include "AudioPolicyManagerALSA.h"
 #include <media/mediarecorder.h>
 #include <Property.h>
+#include "PropertyIntent.hpp"
 
 #define baseClass AudioPolicyManagerBase
 
@@ -499,6 +500,12 @@ audio_devices_t AudioPolicyManagerALSA::getDeviceForStrategy(routing_strategy st
 
 void AudioPolicyManagerALSA::releaseInput(audio_io_handle_t input)
 {
+    bool bNotHotWord = true;
+    AudioInputDescriptor *inputDesc = mInputs.valueFor(input);
+    if (inputDesc && inputDesc->mInputSource == AUDIO_SOURCE_HOTWORD) {
+        bNotHotWord = false;
+    }
+
     baseClass::releaseInput(input);
     int mInputsSize = mInputs.size();
     ALOGD("%s(input %d) mInputs.size() = %d", __FUNCTION__, input, mInputsSize);
@@ -523,6 +530,14 @@ void AudioPolicyManagerALSA::releaseInput(audio_io_handle_t input)
                 ALOGI("%s: Rerouting to previously stopped input %d", __FUNCTION__, getActiveInput());
             }
             iRemainingInputs--;
+        }
+    }
+
+    if (bNotHotWord && (mInputsSize == 0 || getActiveInput() == 0)) {
+        PropertyIntent intent("AudioComms.vtsv.routed");
+        string errMsg;
+        if (!intent.broadcast(errMsg)) {
+            ALOGE("PropertyIntent: %s", errMsg.c_str());
         }
     }
 }

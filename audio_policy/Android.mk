@@ -10,7 +10,8 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-    AudioPolicyManagerALSA.cpp
+    AudioPolicyManagerALSA.cpp \
+    PropertyIntent.cpp
 
 ifeq ($(AUDIO_POLICY_TEST),true)
   LOCAL_CFLAGS += -DAUDIO_POLICY_TEST
@@ -23,7 +24,8 @@ LOCAL_C_INCLUDES += \
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libutils \
-    libstlport
+    libstlport \
+    libbinder
 
 LOCAL_IMPORT_C_INCLUDE_DIRS_FROM_SHARED_LIBRARIES := \
     libproperty
