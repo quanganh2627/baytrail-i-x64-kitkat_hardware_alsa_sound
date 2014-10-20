@@ -140,6 +140,17 @@ audio_io_handle_t AudioPolicyManagerALSA::getInput(int inputSource,
     inputDesc->mFormat = (audio_format_t)format;
     inputDesc->mChannelMask = (audio_channel_mask_t)channelMask;
     inputDesc->mRefCount = 0;
+
+    for (size_t i = 0; i < mInputs.size(); i++) {
+         AudioInputDescriptor *descriptor = mInputs.valueAt(i);
+         //to release bluetooth channel before opening new one
+         if (descriptor && (descriptor->mDevice == AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET)) {
+             if(descriptor->mRefCount > 0)
+                stopInput(mInputs.keyAt(i));
+             releaseInput(mInputs.keyAt(i));
+         }
+    }
+
     input = mpClientInterface->openInput(profile->mModule->mHandle,
                                     &inputDesc->mDevice,
                                     &inputDesc->mSamplingRate,
