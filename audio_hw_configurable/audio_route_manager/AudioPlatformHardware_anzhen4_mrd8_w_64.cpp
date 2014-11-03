@@ -44,8 +44,8 @@ static const char* MEDIA_CARD_NAME = "baytrailaudio";
 #define MEDIA_CAPTURE_DEVICE_ID         ((int)0)
 
 static const char* VOICE_CARD_NAME = "baytrailaudio";
-#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)2)
-#define VOICE_BT_UPLINK_DEVICE_ID           ((int)2)
+#define VOICE_BT_DOWNLINK_DEVICE_ID         ((int)3)
+#define VOICE_BT_UPLINK_DEVICE_ID           ((int)3)
 
 using namespace std;
 
