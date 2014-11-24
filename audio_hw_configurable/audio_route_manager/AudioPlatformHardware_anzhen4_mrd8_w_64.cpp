@@ -346,8 +346,7 @@ public:
         // BT module must be off and as the BT is on the shared I2S bus
         // the modem must be alive as well to use this route
         // and it should be the one and only one available device as it does not have the priority
-        if (!_pPlatformState->isSharedI2SBusAvailable() || !_pPlatformState->isBtEnabled() ||
-                ((uidevices != 0) && (AudioSystem::popCount(uidevices) != 1))) {
+        if (!_pPlatformState->isBtEnabled() ||((uidevices != 0) && (AudioSystem::popCount(uidevices) != 1))) {
 
             return false;
         }
